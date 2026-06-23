@@ -213,6 +213,34 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .sheet__close { width: 100%; margin-top: 4px; }
 .hidden { display: none !important; }
 
+/* superset grouping (no side-stripe, no nested card) */
+.superrun { display: flex; flex-direction: column; gap: 6px; }
+.superhead { display: flex; align-items: baseline; gap: 10px; padding: 2px 4px; flex-wrap: wrap; }
+.supertag { font-family: "Spline Sans Mono", monospace; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); }
+.superhint { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; }
+.ex-badge { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 7px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-ink); }
+.weight-wrap { display: flex; flex-direction: column; gap: 4px; }
+.loadnote { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; padding-left: 2px; }
+
+/* rest timer (sticky, auto-start, read-only) */
+.resttimer { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 14px); width: min(560px, calc(100% - 28px)); display: flex; align-items: center; gap: 12px; padding: 10px 12px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow); z-index: 50; animation: restUp .32s cubic-bezier(.2,.8,.2,1); }
+.resttimer[hidden] { display: none; }
+@keyframes restUp { from { transform: translateX(-50%) translateY(16px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+.resttimer__body { flex: 1 1 auto; min-width: 0; }
+.resttimer__top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.resttimer__label { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim); font-weight: 700; }
+.resttimer__time { font-size: 20px; font-weight: 600; }
+.resttimer__track { height: 6px; border-radius: 6px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
+.resttimer__fill { height: 100%; width: 100%; transform-origin: left; background: var(--accent); border-radius: 6px; transition: transform .25s linear; }
+.resttimer__skip { flex: none; min-height: 40px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 11px; background: var(--surface-2); font-weight: 600; font-size: 13px; color: var(--ink); }
+.resttimer.is-done { border-color: var(--accent); animation: restFlash .5s ease 2; }
+.resttimer.is-done .resttimer__time { color: var(--accent-ink); }
+.resttimer.is-done .resttimer__label::after { content: " ✓"; color: var(--accent-ink); }
+@keyframes restFlash { 0%, 100% { background: var(--surface); } 50% { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); } }
+body.has-rest .list { padding-bottom: calc(env(safe-area-inset-bottom) + 116px); }
+body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
+@media (prefers-reduced-motion: reduce) { .resttimer, .resttimer.is-done { animation: none; } .resttimer__fill { transition: none; } }
+
 /* toast */
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 22px); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 11px 18px; border-radius: 999px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 60; max-width: 90%; text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -310,6 +338,13 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       </div>
     </div>
     <div class="sect">
+      <div class="sect__label">Rest timer sound</div>
+      <div class="seg" id="soundSeg" role="group" aria-label="Rest timer sound">
+        <button data-sound-val="on" type="button">On</button>
+        <button data-sound-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
       <div class="sect__label">Backup (everything)</div>
       <div class="btn-row">
         <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
@@ -330,6 +365,14 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   </div>
 </dialog>
 
+<div class="resttimer" id="restTimer" role="status" aria-live="off" hidden>
+  <div class="resttimer__body">
+    <div class="resttimer__top"><span class="resttimer__label">Rest</span><span class="resttimer__time mono" id="restTime">0:00</span></div>
+    <div class="resttimer__track"><div class="resttimer__fill" id="restFill"></div></div>
+  </div>
+  <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px;font-family:sans-serif">This app needs JavaScript enabled.</p></noscript>
 
@@ -348,6 +391,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch (e) { return "—"; } }
   var EX_TYPES = ["strength", "mobility", "conditioning"];
+  var EQUIPMENTS = ["barbell", "dumbbell", "machine", "cable", "kettlebell", "bodyweight", "band", "smith"];
 
   function extractFirstJsonObject(s) {
     var start = s.indexOf("{"); if (start < 0) return null;
@@ -386,8 +430,38 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   function normalizeExercise(e, id) {
     e = e && typeof e === "object" ? e : {};
     return { id: id, name: str(e.name, "Exercise"), type: EX_TYPES.indexOf(e.type) >= 0 ? e.type : "strength",
+      equipment: EQUIPMENTS.indexOf(e.equipment) >= 0 ? e.equipment : "", group: str(e.group, "").trim().slice(0, 6),
       sets: clampInt(e.sets, 1, 12, 3), reps: e.reps == null ? "" : String(e.reps), weight: Math.max(0, numOr(e.weight, 0)),
       target: str(e.target, ""), rest: str(e.rest, ""), notes: str(e.notes, "") };
+  }
+  function parseRestSeconds(v) {
+    if (v == null) return 0;
+    var s = String(v).trim().toLowerCase();
+    if (!s || s === "-" || s === "none" || s === "n/a") return 0;
+    var mmss = s.match(/^(\d+):(\d{1,2})$/);
+    if (mmss) return parseInt(mmss[1], 10) * 60 + parseInt(mmss[2], 10);
+    var min = s.match(/(\d+(?:\.\d+)?)\s*(?:mins|min|m)\b/);
+    var sec = s.match(/(\d+(?:\.\d+)?)\s*(?:secs|sec|s)\b/);
+    if (min || sec) { var total = 0; if (min) total += Math.round(parseFloat(min[1]) * 60); if (sec) total += Math.round(parseFloat(sec[1])); return total; }
+    var bare = s.match(/(\d+(?:\.\d+)?)/);
+    return bare ? Math.round(parseFloat(bare[1])) : 0;
+  }
+  function loadNote(equipment) {
+    switch (equipment) {
+      case "dumbbell": case "kettlebell": return "each · per hand";
+      case "barbell": case "machine": case "cable": case "smith": case "band": return "total";
+      case "bodyweight": return "bodyweight";
+      default: return "";
+    }
+  }
+  function groupExercises(list) {
+    var blocks = [], cur = null;
+    (Array.isArray(list) ? list : []).forEach(function (ex) {
+      var g = ex && ex.group && String(ex.group).trim() ? String(ex.group).trim() : "";
+      if (g && cur && cur.group === g) cur.items.push(ex);
+      else { cur = { group: g, items: [ex] }; blocks.push(cur); }
+    });
+    return blocks;
   }
   function normalizeProgram(obj) {
     obj = obj && typeof obj === "object" ? obj : {};
@@ -457,35 +531,35 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   /* ===================== Default program + state ===================== */
   function defaultProgram() {
     return normalizeProgram({
-      title: "Starter", goal: "A balanced week to begin — swap it for a Claude program any time", unit: "kg",
+      title: "Starter", goal: "A balanced week to begin. Swap it for a Claude program any time.", unit: "kg",
       weeks: [{ week: 1, focus: "Base", sessions: [
         { name: "Lower", focus: "Squat · hinge · hips", exercises: [
-          { name: "Back Squat", type: "strength", sets: 3, reps: "5", weight: 60, target: "RPE 7", rest: "3 min", notes: "Brace before the descent; knees track toes; full depth." },
-          { name: "Romanian Deadlift", type: "strength", sets: 3, reps: "8", weight: 60, target: "RPE 8", rest: "2 min", notes: "Soft knees, push hips back, feel the hamstrings load." },
-          { name: "Walking Lunge", type: "strength", sets: 3, reps: "10/side", weight: 20, rest: "90 s", notes: "Tall torso, controlled steps." },
-          { name: "90/90 Hip Switch", type: "mobility", sets: 2, reps: "8/side", weight: 0, notes: "Slow rotations, stay upright, own the range." } ] },
+          { name: "Back Squat", type: "strength", equipment: "barbell", sets: 3, reps: "5", weight: 60, target: "RPE 7", rest: "3 min", notes: "Brace before the descent; knees track toes; full depth." },
+          { name: "Romanian Deadlift", type: "strength", equipment: "barbell", sets: 3, reps: "8", weight: 60, target: "RPE 8", rest: "2 min", notes: "Soft knees, push hips back, feel the hamstrings load." },
+          { name: "Walking Lunge", type: "strength", equipment: "dumbbell", sets: 3, reps: "10/side", weight: 20, rest: "90 s", notes: "Tall torso, controlled steps. Weight is per hand." },
+          { name: "90/90 Hip Switch", type: "mobility", equipment: "bodyweight", sets: 2, reps: "8/side", weight: 0, notes: "Slow rotations, stay upright, own the range." } ] },
         { name: "Upper", focus: "Press · pull · carry", exercises: [
-          { name: "Bench Press", type: "strength", sets: 3, reps: "5", weight: 50, target: "RPE 7", rest: "3 min", notes: "Blades pinned, controlled touch, full lockout." },
-          { name: "Overhead Press", type: "strength", sets: 3, reps: "6", weight: 30, target: "RPE 8", rest: "2 min", notes: "Glutes tight, bar over mid-foot, no layback." },
-          { name: "Chest-Supported Row", type: "strength", sets: 3, reps: "10", weight: 22, rest: "90 s", notes: "Pull to the lower ribs, pause, slow return." },
-          { name: "Band Pull-Apart", type: "mobility", sets: 2, reps: "15", weight: 0, notes: "Straight arms, squeeze the blades, no shrug." } ] },
+          { name: "Bench Press", type: "strength", equipment: "barbell", sets: 3, reps: "5", weight: 50, target: "RPE 7", rest: "3 min", notes: "Blades pinned, controlled touch, full lockout." },
+          { name: "Overhead Press", type: "strength", equipment: "barbell", sets: 3, reps: "6", weight: 30, target: "RPE 8", rest: "2 min", notes: "Glutes tight, bar over mid-foot, no layback." },
+          { name: "Chest-Supported Row", type: "strength", equipment: "dumbbell", group: "B", sets: 3, reps: "10", weight: 22, rest: "75 s", notes: "Pull to the lower ribs, pause, slow return." },
+          { name: "Band Pull-Apart", type: "mobility", equipment: "band", group: "B", sets: 3, reps: "15", weight: 0, rest: "75 s", notes: "Straight arms, squeeze the blades, no shrug." } ] },
         { name: "Full", focus: "Deadlift · posterior", exercises: [
-          { name: "Deadlift", type: "strength", sets: 3, reps: "3", weight: 90, target: "RPE 7", rest: "3 min", notes: "Take the slack out, push the floor away." },
-          { name: "Pull-Up", type: "strength", sets: 3, reps: "6", weight: 0, rest: "2 min", notes: "Full hang to chin over bar; add load when reps come easy." },
-          { name: "Hip Thrust", type: "strength", sets: 3, reps: "10", weight: 60, rest: "90 s", notes: "Ribs down, full lockout, squeeze." },
-          { name: "Couch Stretch", type: "mobility", sets: 2, reps: "45s/side", weight: 0, notes: "Hips square, ribs down, breathe and soften." } ] } ] }]
+          { name: "Deadlift", type: "strength", equipment: "barbell", sets: 3, reps: "3", weight: 90, target: "RPE 7", rest: "3 min", notes: "Take the slack out, push the floor away." },
+          { name: "Pull-Up", type: "strength", equipment: "bodyweight", sets: 3, reps: "6", weight: 0, rest: "2 min", notes: "Full hang to chin over bar; add load when reps come easy." },
+          { name: "Hip Thrust", type: "strength", equipment: "barbell", sets: 3, reps: "10", weight: 60, rest: "90 s", notes: "Ribs down, full lockout, squeeze." },
+          { name: "Couch Stretch", type: "mobility", equipment: "bodyweight", sets: 2, reps: "45s/side", weight: 0, notes: "Hips square, ribs down, breathe and soften." } ] } ] }]
     });
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, log: {}, archive: opts.archive || [] };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, log: {}, archive: opts.archive || [], restMuted: false };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
       var program = normalizeProgram(parsed.program);
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [] };
+        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -551,21 +625,21 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset sets</button>';
     $("resetBtn").addEventListener("click", resetDay);
   }
-  function buildCard(e, i, ses) {
-    var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit;
+  function buildCard(e, i, ses, badge) {
+    var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var pills = "";
     for (var k = 0; k < total; k++) {
       var d = !!lg.done[k];
       pills += '<button type="button" class="pill' + (d ? " is-done" : "") + '" data-act="set" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Set ' + (k + 1) + ' of ' + total + (d ? ", done" : "") + '"><span class="pill__reps">' + esc(e.reps) + '</span><span class="pill__lbl">reps</span></button>';
     }
     var weightCtrl = e.type === "strength"
-      ? '<div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>'
+      ? '<div class="weight-wrap"><div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + (ln ? '<div class="loadnote">' + esc(ln) + '</div>' : '') + '</div>'
       : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
     var cue = (e.target || e.rest)
       ? '<div class="cue">' + (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "") + '</div>'
       : "";
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
-      '<header class="card__head"><h3 class="card__name">' + esc(e.name) + '</h3><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
+      '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
       '<div class="card__row">' + weightCtrl + '<div class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></div></div>' +
       '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + cue +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
@@ -576,9 +650,20 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       '</div></div></div></article>';
   }
   function renderList(animate) {
-    var ses = curSession();
+    var ses = curSession(), blocks = groupExercises(ses.exercises), html = "", i = 0;
+    blocks.forEach(function (block) {
+      var sup = block.group && block.items.length > 1;
+      if (sup) {
+        html += '<div class="superrun" role="group" aria-label="Superset ' + esc(block.group) + '">' +
+          '<div class="superhead"><span class="supertag">Superset ' + esc(block.group) + '</span><span class="superhint">alternate, rest after each round</span></div>';
+        block.items.forEach(function (e, j) { html += buildCard(e, i++, ses, block.group + (j + 1)); });
+        html += '</div>';
+      } else {
+        block.items.forEach(function (e) { html += buildCard(e, i++, ses, null); });
+      }
+    });
     listEl.classList.toggle("reveal", !!animate);
-    listEl.innerHTML = ses.exercises.map(function (e, i) { return buildCard(e, i, ses); }).join("");
+    listEl.innerHTML = html;
   }
   function renderAll(animate) { clampActive(); renderWeekBar(); renderTabs(); renderHead(); renderList(animate); }
 
@@ -599,6 +684,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       var card = btn.closest(".card"), dc = w.el.done.slice(0, e.sets).filter(Boolean).length;
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
+      if (on) { unlockAudio(); startRest(e); }
     } else if (act === "w-" || act === "w+") {
       var wl = writeLog(ses, e);
       wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); save();
@@ -628,12 +714,15 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
     }
   }
   function replaceCard(id) {
-    var ses = curSession(), idx = -1;
-    for (var i = 0; i < ses.exercises.length; i++) if (ses.exercises[i].id === id) { idx = i; break; }
-    if (idx < 0) return;
+    var ses = curSession(), blocks = groupExercises(ses.exercises), found = null, badge = null;
+    blocks.forEach(function (block) {
+      var sup = block.group && block.items.length > 1;
+      block.items.forEach(function (e, j) { if (e.id === id) { found = e; badge = sup ? block.group + (j + 1) : null; } });
+    });
+    if (!found) return;
     listEl.classList.remove("reveal");
     var old = listEl.querySelector('.card[data-ex="' + id + '"]');
-    if (old) old.outerHTML = buildCard(ses.exercises[idx], idx, ses);
+    if (old) old.outerHTML = buildCard(found, 0, ses, badge);
   }
   function resetDay() {
     var ses = curSession();
@@ -679,7 +768,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       '  "weeks": [',
       '    { "week": 1, "focus": "...", "deload": false, "sessions": [',
       '      { "name": "Lower A", "exercises": [',
-      '        { "name": "Back Squat", "type": "strength", "sets": 3, "reps": "5", "weight": 60, "target": "RPE 7", "rest": "3 min", "notes": "cue" }',
+      '        { "name": "DB Bench Press", "type": "strength", "equipment": "dumbbell", "group": "A", "sets": 3, "reps": "8-10", "weight": 24, "target": "RPE 8", "rest": "90 s", "notes": "cue" }',
       '      ]}',
       '    ]}',
       '  ]',
@@ -690,8 +779,11 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
       "", schema, "",
       "Rules:",
       '- type is "strength", "mobility", or "conditioning".',
+      '- equipment: barbell, dumbbell, machine, cable, kettlebell, bodyweight, or band. Dumbbell and kettlebell weights are PER HAND (one bell).',
+      '- group: optional letter to superset exercises. Give paired moves the same letter (e.g. "A") to alternate them; omit it for standalone lifts.',
       '- reps is a string (e.g. "5", "8-10", "30s/side").',
       "- weight is a number in " + unit + " (use 0 for bodyweight).",
+      '- rest: rest between sets, e.g. "90 s", "2 min", or "3 min".',
       "- Include every week in the weeks array.",
       "", "Where I'm at:", buildProgressSummary(state),
       "", "What I want next: "
@@ -743,12 +835,14 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   function syncSegs() {
     document.querySelectorAll("#themeSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-theme-val") === state.theme); });
     document.querySelectorAll("#unitSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-unit-val") === state.program.unit); });
+    document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
   sheet.addEventListener("click", function (ev) { if (ev.target === sheet) closeSheet(); });
   $("themeSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-theme-val]"); if (!b) return; state.theme = b.getAttribute("data-theme-val"); save(); applyTheme(); });
   $("unitSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-unit-val]"); if (!b) return; state.program.unit = b.getAttribute("data-unit-val"); state.unit = state.program.unit; save(); syncSegs(); renderList(false); });
+  $("soundSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-sound-val]"); if (!b) return; state.restMuted = b.getAttribute("data-sound-val") === "off"; save(); syncSegs(); if (!state.restMuted) { unlockAudio(); beep(); } });
 
   /* ===================== Backup ===================== */
   function exportBackup() {
@@ -778,6 +872,51 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
     state = freshState(defaultProgram()); save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); toast("Reset to Starter");
   });
 
+  /* ===================== Rest timer (auto-start, read-only) ===================== */
+  var audioCtx, reduceMotion = false, restState = { timer: null, endAt: 0, total: 0 }, restEl, restTimeEl, restFillEl;
+  function unlockAudio() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {} }
+  function beep() {
+    if (state.restMuted || !audioCtx) return;
+    try {
+      [0, 0.18].forEach(function (t) {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain(), at = audioCtx.currentTime + t;
+        o.type = "sine"; o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.22, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
+        o.start(at); o.stop(at + 0.16);
+      });
+    } catch (e) {}
+  }
+  function fmtClock(sec) { sec = Math.max(0, sec); var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  function startRest(ex) {
+    var secs = parseRestSeconds(ex.rest);
+    if (!secs) return;
+    restState.total = secs; restState.endAt = Date.now() + secs * 1000;
+    document.body.classList.add("has-rest");
+    restEl.classList.remove("is-done"); restEl.hidden = false;
+    if (restFillEl) restFillEl.style.transform = "scaleX(1)";
+    tickRest();
+    clearInterval(restState.timer); restState.timer = setInterval(tickRest, 250);
+  }
+  function tickRest() {
+    var remMs = restState.endAt - Date.now(), rem = Math.ceil(remMs / 1000);
+    if (rem <= 0) {
+      restTimeEl.textContent = "0:00";
+      if (restFillEl) restFillEl.style.transform = "scaleX(0)";
+      clearInterval(restState.timer); restState.timer = null;
+      restEl.classList.add("is-done"); beep();
+      setTimeout(function () { if (!restState.timer) hideRest(); }, 4000);
+      return;
+    }
+    restTimeEl.textContent = fmtClock(rem);
+    if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
+  }
+  function hideRest() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } document.body.classList.remove("has-rest"); }
+  function initRest() {
+    restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill");
+    try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+    $("restSkip").addEventListener("click", hideRest);
+  }
+
   /* ===================== Storage / toast / boot ===================== */
   function refreshStorage() {
     var el = $("storageStatus"), dot = el.querySelector(".status__dot"), txt = el.querySelector("span:last-child");
@@ -788,7 +927,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
   var toastTimer;
   function toast(msg) { var t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2300); }
 
-  save(); applyTheme(); renderAll(true); initPersistence();
+  initRest(); save(); applyTheme(); renderAll(true); initPersistence();
   if ("serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("./sw.js").catch(function () {}); }); }
 })();
 </script>
