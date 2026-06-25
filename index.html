@@ -185,6 +185,14 @@ input, textarea { font: inherit; color: inherit; }
 .cue-line { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); }
 .cue-tag { flex: none; width: 44px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); padding-top: 2px; }
 .cue-plain { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 0; }
+.swap-toggle { margin-top: 4px; }
+.swapbox { display: none; margin-top: 10px; }
+.swapbox.is-open { display: block; }
+.swap-hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 8px; }
+.swap-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.swap-chip { font-family: "Hanken Grotesk", sans-serif; font-size: 13px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); cursor: pointer; transition: border-color .15s, color .15s; }
+.swap-chip:hover { border-color: var(--accent); color: var(--accent-ink); }
+.swap-chip:active { transform: scale(.97); }
 .notes__text:focus, .reps__input:focus { border-color: var(--accent-ink); outline: none; }
 .scheme { display: flex; gap: 18px; align-items: flex-end; margin-top: 14px; flex-wrap: wrap; }
 .scheme__item { display: flex; flex-direction: column; }
@@ -1004,6 +1012,16 @@ function pickConditioning(intensity, allowed, used, seed) {
   if (!pool.length) pool = LIBRARY.filter(function (e) { return e.type === "conditioning" && equipOk(e, allowed); });
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
+// Same-effect swaps for a conditioning move: every other modality at the SAME
+// intensity (so the prescription stays identical, only the implement changes).
+// allowed = equipment filter (null = no filter); bodyweight always allowed.
+function conditioningAlternatives(name, allowed) {
+  var cur = LIBRARY.filter(function (e) { return e.type === "conditioning" && e.name === name; })[0];
+  if (!cur) return [];
+  return LIBRARY.filter(function (e) {
+    return e.type === "conditioning" && e.intensity === cur.intensity && e.name !== name && equipOk(e, allowed);
+  }).map(function (e) { return { name: e.name, equipment: e.equipment, cue: e.cue }; });
+}
 function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[ex.name.toLowerCase()];
@@ -1338,10 +1356,20 @@ function generateProgram(intake, weightMap, seed) {
     var cue = (e.target || e.rest)
       ? '<div class="cue">' + (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "") + '</div>'
       : "";
+    var swapHtml = "";
+    if (e.type === "conditioning" && typeof conditioningAlternatives === "function") {
+      var allowedEq = (state.buildPrefs && Array.isArray(state.buildPrefs.equipment)) ? state.buildPrefs.equipment : null;
+      var alts = conditioningAlternatives(e.name, allowedEq);
+      if (alts.length) {
+        var chips = alts.map(function (a) { return '<button type="button" class="swap-chip" data-act="swap-pick" data-ex="' + e.id + '" data-name="' + esc(a.name) + '">' + esc(a.name) + '</button>'; }).join("");
+        swapHtml = '<button type="button" class="notes-toggle swap-toggle" data-act="swap" data-ex="' + e.id + '" aria-expanded="' + (e.swapOpen ? "true" : "false") + '" aria-controls="sw-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Swap exercise</button>' +
+          '<div class="swapbox' + (e.swapOpen ? " is-open" : "") + '" id="sw-' + e.id + '"><p class="swap-hint">Same effort, swap the kit:</p><div class="swap-opts">' + chips + '</div></div>';
+      }
+    }
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
       '<div class="card__row">' + weightCtrl + '<div class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></div></div>' +
-      '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + cue +
+      '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + cue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       '<label class="field-label">Technique</label><div class="cuebox">' + formatCue(e.notes) + '</div>' +
@@ -1402,6 +1430,14 @@ function generateProgram(intake, weightMap, seed) {
       e.notesOpen = !e.notesOpen; save();
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
       btn.closest(".card").querySelector(".notes").classList.toggle("is-open", e.notesOpen);
+    } else if (act === "swap") {
+      e.swapOpen = !e.swapOpen; save();
+      btn.setAttribute("aria-expanded", e.swapOpen ? "true" : "false");
+      btn.closest(".card").querySelector(".swapbox").classList.toggle("is-open", e.swapOpen);
+    } else if (act === "swap-pick") {
+      var newName = btn.getAttribute("data-name");
+      var alt = LIBRARY.filter(function (x) { return x.type === "conditioning" && x.name === newName; })[0];
+      if (alt) { e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false; save(); renderList(false); }
     } else if (act === "sets-" || act === "sets+") {
       var ns = clampInt(e.sets + (act === "sets+" ? 1 : -1), SETS_MIN, SETS_MAX, e.sets);
       if (ns === e.sets) return;
