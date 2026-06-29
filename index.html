@@ -92,6 +92,25 @@ input, textarea { font: inherit; color: inherit; }
 
 /* week bar */
 .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 18px 12px; }
+.app[data-view="week"] .view-day { display: none; }
+.app[data-view="day"] .view-week { display: none; }
+.daybar { display: flex; align-items: center; gap: 10px; padding: 2px 14px 12px; }
+.daybar__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: "Hanken Grotesk", sans-serif; font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; border-radius: 8px; cursor: pointer; }
+.daybar__back:hover { color: var(--ink); }
+.daybar__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
+.daybar__nav { margin-left: auto; display: flex; gap: 2px; }
+.weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
+.weekrow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 16px 6px; cursor: pointer; color: var(--ink); transition: background .12s ease; }
+.weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
+.weekrow:hover { background: var(--surface-2); }
+.weekrow:active { transform: scale(.995); }
+.weekrow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.weekrow__focus { font-size: 12px; color: var(--ink-dim); margin-top: 1px; }
+.weekrow.is-current .weekrow__name { color: var(--accent-ink); }
+.weekrow__prog { font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); flex: none; }
+.weekrow__prog.is-done { color: var(--mob); }
+.weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; }
 .weekbar__title { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
@@ -257,6 +276,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .adv > summary::-webkit-details-marker { display: none; }
 .adv > summary::before { content: "▸ "; }
 .adv[open] > summary::before { content: "▾ "; }
+.adv--adjust { margin-top: 20px; }
+.adv--adjust > summary { display: flex; align-items: baseline; gap: 8px; }
+.adv__hint { font-weight: 500; opacity: .75; font-size: 12px; }
+.adv__body .bsect:first-child { margin-top: 6px; }
 .bsect { margin-top: 16px; }
 .blabel { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
 .seg--full { display: flex; width: 100%; }
@@ -330,7 +353,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app" data-view="week">
   <div class="appbar">
     <header class="topbar">
       <div class="brand">
@@ -352,7 +375,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         </button>
       </div>
     </header>
-    <div class="weekbar">
+    <div class="weekbar view-week">
       <div class="weekbar__prog">
         <div class="weekbar__title" id="progTitle">Program</div>
       </div>
@@ -362,12 +385,20 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button class="weeknav__btn" id="weekNext" aria-label="Next week">›</button>
       </div>
     </div>
-    <nav class="tabs" id="tabs" role="tablist" aria-label="Training days"></nav>
+    <div class="daybar view-day">
+      <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
+      <span class="daybar__title" id="dayTitle"></span>
+      <div class="daybar__nav">
+        <button class="weeknav__btn" id="dayPrev" type="button" aria-label="Previous day">‹</button>
+        <button class="weeknav__btn" id="dayNext" type="button" aria-label="Next day">›</button>
+      </div>
+    </div>
   </div>
 
   <main>
-    <div class="session" id="sessionHead"></div>
-    <div class="list reveal" id="list" role="tabpanel" aria-label="Exercises for the selected day"></div>
+    <div class="weeklist view-week" id="weekList"></div>
+    <div class="session view-day" id="sessionHead"></div>
+    <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
   </main>
 </div>
 
@@ -402,46 +433,50 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button data-days="6" type="button">6</button>
       </div>
     </div>
-    <div class="bsect">
-      <div class="blabel">Time per session</div>
-      <div class="seg seg--full" id="bTime" role="group" aria-label="Time per session">
-        <button data-min="30" type="button">30 min</button>
-        <button data-min="45" type="button">45 min</button>
-        <button data-min="60" type="button">60 min</button>
+    <details class="adv adv--adjust">
+      <summary><span class="adv__label">Adjust</span> <span class="adv__hint" id="adjustHint"></span></summary>
+      <div class="adv__body">
+        <div class="bsect">
+          <div class="blabel">Time per session</div>
+          <div class="seg seg--full" id="bTime" role="group" aria-label="Time per session">
+            <button data-min="30" type="button">30 min</button>
+            <button data-min="45" type="button">45 min</button>
+            <button data-min="60" type="button">60 min</button>
+          </div>
+        </div>
+        <div class="bsect">
+          <div class="blabel">Programme length</div>
+          <div class="seg seg--full" id="bWeeks" role="group" aria-label="Programme length">
+            <button data-weeks="1" type="button">Single week</button>
+            <button data-weeks="4" type="button">4-week block</button>
+          </div>
+        </div>
+        <div class="bsect">
+          <div class="blabel">Include</div>
+          <div class="chips" id="bInclude" role="group" aria-label="Include">
+            <button class="chip" data-inc="mobility" type="button">Mobility</button>
+            <button class="chip" data-inc="conditioning" type="button">Cardio</button>
+          </div>
+        </div>
+        <div class="bsect">
+          <div class="blabel">My equipment</div>
+          <div class="chips" id="bEquip" role="group" aria-label="Equipment I have">
+            <button class="chip" data-eq="barbell" type="button">Barbell</button>
+            <button class="chip" data-eq="dumbbell" type="button">Dumbbells</button>
+            <button class="chip" data-eq="kettlebell" type="button">Kettlebells</button>
+            <button class="chip" data-eq="cable" type="button">Cable</button>
+            <button class="chip" data-eq="machine" type="button">Machines</button>
+            <button class="chip" data-eq="band" type="button">Bands</button>
+            <button class="chip" data-eq="pullup-bar" type="button">Pull-up bar</button>
+            <button class="chip" data-eq="cardio" type="button">Cardio machine</button>
+            <button class="chip" data-eq="sled" type="button">Sled</button>
+          </div>
+          <p class="sect__hint" style="margin-top:8px">Bodyweight is always included. Tap off anything you don't have.</p>
+        </div>
       </div>
-    </div>
-    <div class="bsect">
-      <div class="blabel">Programme length</div>
-      <div class="seg seg--full" id="bWeeks" role="group" aria-label="Programme length">
-        <button data-weeks="1" type="button">Single week</button>
-        <button data-weeks="4" type="button">4-week block</button>
-      </div>
-    </div>
-    <div class="bsect">
-      <div class="blabel">Include</div>
-      <div class="chips" id="bInclude" role="group" aria-label="Include">
-        <button class="chip" data-inc="mobility" type="button">Mobility</button>
-        <button class="chip" data-inc="conditioning" type="button">Cardio</button>
-      </div>
-    </div>
-
-    <details class="adv" style="margin-top:14px">
-      <summary>My equipment</summary>
-      <div class="chips" id="bEquip" role="group" aria-label="Equipment I have" style="margin-top:12px">
-        <button class="chip" data-eq="barbell" type="button">Barbell</button>
-        <button class="chip" data-eq="dumbbell" type="button">Dumbbells</button>
-        <button class="chip" data-eq="kettlebell" type="button">Kettlebells</button>
-        <button class="chip" data-eq="cable" type="button">Cable</button>
-        <button class="chip" data-eq="machine" type="button">Machines</button>
-        <button class="chip" data-eq="band" type="button">Bands</button>
-        <button class="chip" data-eq="pullup-bar" type="button">Pull-up bar</button>
-        <button class="chip" data-eq="cardio" type="button">Cardio machine</button>
-        <button class="chip" data-eq="sled" type="button">Sled</button>
-      </div>
-      <p class="sect__hint" style="margin-top:8px">Bodyweight is always included. Tap off anything you don't have.</p>
     </details>
 
-    <div class="btn-row" style="margin-top:16px"><button class="btn btn--primary" id="buildBtn" type="button">Build my week</button></div>
+    <div class="btn-row" style="margin-top:18px"><button class="btn btn--primary" id="buildBtn" type="button">Build my week</button></div>
     <div class="preview hidden" id="buildPreview"></div>
     </div>
 
@@ -1534,14 +1569,14 @@ function generateProgram(intake, weightMap, seed) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, log: {}, archive: opts.archive || [], restMuted: false, warmups: true, activeExerciseId: null, buildPrefs: null };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, activeExerciseId: null, buildPrefs: null };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
       var program = normalizeProgram(parsed.program);
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
+        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -1559,7 +1594,7 @@ function generateProgram(intake, weightMap, seed) {
 
   /* ===================== Accessors ===================== */
   var $ = function (id) { return document.getElementById(id); };
-  var tabsEl = $("tabs"), listEl = $("list"), headEl = $("sessionHead"), revealTimer;
+  var listEl = $("list"), headEl = $("sessionHead"), weekListEl = $("weekList"), appEl = $("app"), revealTimer, swipeSuppress = false;
   function clampActive() {
     if (state.activeWeek >= state.program.weeks.length) state.activeWeek = state.program.weeks.length - 1;
     if (state.activeWeek < 0) state.activeWeek = 0;
@@ -1583,10 +1618,10 @@ function generateProgram(intake, weightMap, seed) {
     if (el.weight == null) el.weight = ex.weight;
     return { sl: sl, el: el };
   }
-  function sessionItems() {
-    var ses = curSession();
+  function sessionItemsFor(ses) {
     return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.done.filter(Boolean).length }; });
   }
+  function sessionItems() { return sessionItemsFor(curSession()); }
   function currentId() {
     var sel = state.activeExerciseId;
     if (sel && curSession().exercises.some(function (e) { return e.id === sel; })) return sel;
@@ -1618,12 +1653,24 @@ function generateProgram(intake, weightMap, seed) {
     $("weekPrev").disabled = state.activeWeek <= 0;
     $("weekNext").disabled = state.activeWeek >= p.weeks.length - 1;
   }
-  function renderTabs() {
+  var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+  function renderWeekList() {
     var sessions = curWeek().sessions;
-    tabsEl.innerHTML = sessions.map(function (s, i) {
-      var sel = i === state.activeSession;
-      return '<button class="tab" role="tab" aria-controls="list" data-tab="' + i + '" aria-selected="' + sel + '" tabindex="' + (sel ? "0" : "-1") + '"><span class="tab__name">' + esc(s.name) + '</span><span class="tab__ink" aria-hidden="true"></span></button>';
+    weekListEl.innerHTML = sessions.map(function (s, i) {
+      var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
+      var focus = s.focus && s.focus !== s.name ? '<span class="weekrow__focus">' + esc(s.focus) + '</span>' : '';
+      return '<button class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" type="button" data-day="' + i + '">' +
+        '<span class="weekrow__main"><span class="weekrow__name">' + esc(s.name) + '</span>' + focus + '</span>' +
+        '<span class="weekrow__prog' + (done ? " is-done" : "") + '">' + (done ? "done" : pr.done + " / " + pr.total) + '</span>' +
+        '<span class="weekrow__chev">' + chevRight + '</span>' +
+        '</button>';
     }).join("");
+  }
+  function renderDayBar() {
+    var sessions = curWeek().sessions;
+    $("dayTitle").textContent = curSession().name;
+    $("dayPrev").disabled = state.activeSession <= 0;
+    $("dayNext").disabled = state.activeSession >= sessions.length - 1;
   }
   function renderHead() {
     var ses = curSession(), wk = curWeek(), p = sessionProgress(sessionItems());
@@ -1783,7 +1830,13 @@ function generateProgram(intake, weightMap, seed) {
     if (animate) revealTimer = setTimeout(function () { listEl.classList.remove("reveal"); }, 900);
     else listEl.classList.remove("reveal");
   }
-  function renderAll(animate) { clampActive(); renderWeekBar(); renderTabs(); renderHead(); renderList(animate); if (animate) scrollToCurrent(); }
+  function renderAll(animate) {
+    clampActive();
+    appEl.setAttribute("data-view", state.view === "day" ? "day" : "week");
+    renderWeekBar();
+    if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); if (animate) scrollToCurrent(); }
+    else { renderWeekList(); }
+  }
 
   /* ===================== Interactions ===================== */
   function onListClick(ev) {
@@ -1862,20 +1915,40 @@ function generateProgram(intake, weightMap, seed) {
       save(); renderHead(); renderList(true); toast("Reset undone");
     });
   }
-  function switchSession(i) { if (i === state.activeSession) return; hideRest(); state.activeSession = i; save(); renderTabs(); renderHead(); renderList(true); scrollToCurrent(); }
+  function switchSession(i) {
+    var n = curWeek().sessions.length;
+    if (i < 0 || i >= n || i === state.activeSession) return;
+    hideRest(); state.activeSession = i; save();
+    renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
+  }
+  function openDay(i) { hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); }
+  function backToWeek() { hideRest(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
     if (ni < 0 || ni >= state.program.weeks.length) return;
     hideRest(); state.activeWeek = ni; state.activeSession = 0; save(); renderAll(true);
   }
-  tabsEl.addEventListener("click", function (ev) { var t = ev.target.closest(".tab"); if (t) switchSession(parseInt(t.getAttribute("data-tab"), 10)); });
-  tabsEl.addEventListener("keydown", function (ev) {
-    if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
-    var n = curWeek().sessions.length, ni = ev.key === "ArrowRight" ? (state.activeSession + 1) % n : (state.activeSession + n - 1) % n;
-    switchSession(ni); var nt = tabsEl.querySelector('.tab[data-tab="' + ni + '"]'); if (nt) nt.focus();
-  });
-  listEl.addEventListener("click", onListClick);
+  weekListEl.addEventListener("click", function (ev) { var r = ev.target.closest(".weekrow"); if (r) openDay(parseInt(r.getAttribute("data-day"), 10)); });
+  $("backWeek").addEventListener("click", backToWeek);
+  $("dayPrev").addEventListener("click", function () { switchSession(state.activeSession - 1); });
+  $("dayNext").addEventListener("click", function () { switchSession(state.activeSession + 1); });
+  listEl.addEventListener("click", function (ev) { if (swipeSuppress) { swipeSuppress = false; return; } onListClick(ev); });
   listEl.addEventListener("input", onListInput);
+  (function () {
+    var sx = 0, sy = 0, tracking = false;
+    listEl.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+    }, { passive: true });
+    listEl.addEventListener("touchend", function (e) {
+      if (!tracking) return; tracking = false;
+      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) {
+        swipeSuppress = true;
+        switchSession(state.activeSession + (dx < 0 ? 1 : -1));
+      }
+    }, { passive: true });
+  })();
   $("weekPrev").addEventListener("click", function () { switchWeek(-1); });
   $("weekNext").addEventListener("click", function () { switchWeek(1); });
 
@@ -1954,6 +2027,12 @@ function generateProgram(intake, weightMap, seed) {
     document.querySelectorAll("#bWeeks button").forEach(function (b) {
       b.setAttribute("aria-pressed", parseInt(b.getAttribute("data-weeks"), 10) === p.weeks);
     });
+    var hintEl = document.getElementById("adjustHint");
+    if (hintEl) {
+      var lenLbl = p.weeks === 4 ? "4-week block" : "single week";
+      var eqLbl = p.equipment.length >= 8 ? "full gym" : (p.equipment.length ? p.equipment.length + " kit" : "bodyweight");
+      hintEl.textContent = p.minutes + " min · " + lenLbl + " · " + eqLbl;
+    }
   }
   function openPlan() {
     pending = null; pendingBuild = null; pendingToday = null;
