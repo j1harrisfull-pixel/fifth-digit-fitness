@@ -312,6 +312,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .exmeta__row { display: flex; gap: 12px; font-size: 13px; line-height: 1.4; }
 .exmeta__k { flex: none; width: 76px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); padding-top: 2px; }
 .exmeta__v { color: var(--ink); }
+.warmup { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.warm-label { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.warm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 10px; min-height: 34px; border: 1px dashed var(--line-strong); border-radius: 9px; background: none; color: var(--ink-dim); font-size: 13px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, border-color .15s ease; }
+.warm-pill.is-done { opacity: .4; border-style: solid; }
+.warm-pill__w { font-weight: 700; color: var(--ink); }
+.warm-pill.is-done .warm-pill__w { color: var(--ink-dim); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
 </style>
@@ -487,6 +494,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="seg" id="soundSeg" role="group" aria-label="Rest timer sound">
         <button data-sound-val="on" type="button">On</button>
         <button data-sound-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">Warm-up sets</div>
+      <div class="seg" id="warmSeg" role="group" aria-label="Warm-up sets">
+        <button data-warm-val="on" type="button">On</button>
+        <button data-warm-val="off" type="button">Off</button>
       </div>
     </div>
     <div class="sect">
@@ -1514,14 +1528,14 @@ function generateProgram(intake, weightMap, seed) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, log: {}, archive: opts.archive || [], restMuted: false, activeExerciseId: null, buildPrefs: null };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, log: {}, archive: opts.archive || [], restMuted: false, warmups: true, activeExerciseId: null, buildPrefs: null };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
       var program = normalizeProgram(parsed.program);
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
+        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -1553,7 +1567,7 @@ function generateProgram(intake, weightMap, seed) {
   function readLog(ses, ex) {
     var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [];
     for (var i = 0; i < ex.sets; i++) done.push(!!(el && el.done && el.done[i]));
-    return { done: done, weight: el && el.weight != null ? el.weight : ex.weight };
+    return { done: done, weight: el && el.weight != null ? el.weight : ex.weight, warm: el && el.warm ? el.warm : [] };
   }
   function writeLog(ses, ex) {
     var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
@@ -1647,6 +1661,45 @@ function generateProgram(intake, weightMap, seed) {
     for (var i = 0; i < LIBRARY.length; i++) { if (LIBRARY[i].name.toLowerCase() === n) return LIBRARY[i]; }
     return null;
   }
+  var WARM_LOADED = ["barbell", "dumbbell", "smith", "machine", "cable", "kettlebell"];
+  var warmFirstUsed = false;
+  function warmupSets(e, weight, unit, full) {
+    if (!(weight > 0) || e.type !== "strength") return [];
+    var libEx = libByName(e.name);
+    if (!libEx || !libEx.compound) return [];
+    if (WARM_LOADED.indexOf(e.equipment) < 0) return [];
+    var bar = (e.equipment === "barbell" || e.equipment === "smith") ? (unit === "lb" ? 45 : 20) : 0;
+    var inc = unit === "lb" ? 5 : 2.5;
+    function rnd(w) { return Math.max(0, Math.round(w / inc) * inc); }
+    var sets = [], plan = full ? [[0.4, 5], [0.6, 3], [0.8, 2]] : [[0.6, 3], [0.8, 2]];
+    if (full && bar && weight > bar * 1.6) sets.push({ weight: bar, reps: 8 });
+    plan.forEach(function (p) {
+      var w = rnd(weight * p[0]);
+      if (w <= bar || w >= weight) return;
+      if (sets.some(function (s) { return s.weight === w; })) return;
+      sets.push({ weight: w, reps: p[1] });
+    });
+    return sets;
+  }
+  function warmupRowHtml(e, weight, unit, warmDone, full) {
+    if (state.warmups === false) return "";
+    var sets = warmupSets(e, weight, unit, full);
+    if (!sets.length) return "";
+    var pills = sets.map(function (s, i) {
+      var d = !!(warmDone && warmDone[i]);
+      return '<button type="button" class="warm-pill' + (d ? " is-done" : "") + '" data-act="warm" data-ex="' + e.id + '" data-warm="' + i + '" aria-pressed="' + d + '" aria-label="Warm-up set ' + (i + 1) + ', ' + s.weight + " " + esc(unit) + ' for ' + s.reps + ' reps' + (d ? ", done" : "") + '"><span class="warm-pill__w">' + s.weight + '</span><span class="warm-pill__r">× ' + s.reps + '</span></button>';
+    }).join("");
+    return '<div class="warmup" data-warmfull="' + (full ? "1" : "0") + '"><span class="warm-label">Warm-up</span><div class="warm-pills" role="group" aria-label="Warm-up sets">' + pills + '</div></div>';
+  }
+  function refreshWarm(card, e, ses, weight, unit) {
+    if (!card) return;
+    var existing = card.querySelector(".warmup");
+    var full = existing ? existing.getAttribute("data-warmfull") === "1" : true;
+    var warm = readLog(ses, e).warm || [];
+    var html = warmupRowHtml(e, weight, unit, warm, full);
+    if (existing) { if (html) existing.outerHTML = html; else existing.remove(); }
+    else if (html) { var p = card.querySelector(".pills"); if (p) p.insertAdjacentHTML("beforebegin", html); }
+  }
   function buildCard(e, i, ses, badge) {
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var pills = pillsHtml(e, lg.done);
@@ -1660,6 +1713,10 @@ function generateProgram(intake, weightMap, seed) {
     if (libEx && libEx.muscles && libEx.muscles.length) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Targets</span><span class="exmeta__v">' + esc(libEx.muscles.join(", ")) + '</span></div>';
     if (libEx && libEx.setup) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Set-up</span><span class="exmeta__v">' + esc(libEx.setup) + '</span></div>';
     var metaBlock = metaRows ? '<div class="exmeta">' + metaRows + '</div>' : "";
+    var qualifiesWarm = e.type === "strength" && lg.weight > 0 && libEx && libEx.compound && WARM_LOADED.indexOf(e.equipment) >= 0;
+    var warmFull = qualifiesWarm ? !warmFirstUsed : false;
+    var warmRow = warmupRowHtml(e, lg.weight, unit, lg.warm, warmFull);
+    if (warmRow) warmFirstUsed = true;
     var weightCtrl = e.type === "strength"
       ? '<div class="weight-wrap"><div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + (ln ? '<div class="loadnote">' + esc(ln) + '</div>' : '') + lastLine + platesLine + '</div>'
       : e.type === "conditioning" ? ''
@@ -1682,7 +1739,7 @@ function generateProgram(intake, weightMap, seed) {
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
       '<div class="card__row">' + weightCtrl + '<div class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></div></div>' +
-      '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + faceCue + swapHtml +
+      warmRow + '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + faceCue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + '<label class="field-label">Technique</label><div class="cuebox">' + formatCue(e.notes) + '</div>' + notesCue +
@@ -1693,6 +1750,7 @@ function generateProgram(intake, weightMap, seed) {
   function renderList(animate) {
     var ses = curSession();
     lastWeights = (typeof buildWeightMap === "function") ? buildWeightMap(state) : {};
+    warmFirstUsed = false;
     if (!ses || !ses.exercises || !ses.exercises.length) {
       listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap the program button up top to build a week, or add today\'s session.</p></div>';
       return;
@@ -1746,6 +1804,12 @@ function generateProgram(intake, weightMap, seed) {
       wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); save();
       var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
       var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
+      refreshWarm(wcard, e, ses, wl.el.weight, state.program.unit);
+    } else if (act === "warm") {
+      var wi = parseInt(btn.getAttribute("data-warm"), 10), wwl = writeLog(ses, e);
+      if (!wwl.el.warm) wwl.el.warm = [];
+      wwl.el.warm[wi] = !wwl.el.warm[wi]; save();
+      btn.classList.toggle("is-done", wwl.el.warm[wi]); btn.setAttribute("aria-pressed", wwl.el.warm[wi]);
     } else if (act === "notes") {
       e.notesOpen = !e.notesOpen; save();
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
@@ -1774,7 +1838,7 @@ function generateProgram(intake, weightMap, seed) {
   function onListInput(ev) {
     var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
     var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
-    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var ipl = el.closest(".card").querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); }
+    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); refreshWarm(wc, e, ses, w.el.weight, state.program.unit); }
     else if (act === "reps") {
       e.reps = el.value; saveSoon();
       el.closest(".card").querySelectorAll(".pill__reps").forEach(function (r) { r.textContent = e.reps; });
@@ -1784,7 +1848,7 @@ function generateProgram(intake, weightMap, seed) {
     var ses = curSession(), sid = ses.id;
     var sl = state.log[sid];
     var prev = sl ? JSON.parse(JSON.stringify(sl)) : null; // snapshot for Undo
-    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); }); sl.date = null; }
+    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; }); sl.date = null; }
     save(); renderHead(); renderList(true);
     toastUndo(ses.name + " reset", function () {
       if (prev) state.log[sid] = prev; else delete state.log[sid];
@@ -2016,6 +2080,7 @@ function generateProgram(intake, weightMap, seed) {
     document.querySelectorAll("#themeSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-theme-val") === state.theme); });
     document.querySelectorAll("#unitSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-unit-val") === state.program.unit); });
     document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
+    document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
@@ -2023,6 +2088,7 @@ function generateProgram(intake, weightMap, seed) {
   $("themeSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-theme-val]"); if (!b) return; state.theme = b.getAttribute("data-theme-val"); save(); applyTheme(); });
   $("unitSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-unit-val]"); if (!b) return; state.program.unit = b.getAttribute("data-unit-val"); state.unit = state.program.unit; save(); syncSegs(); renderList(false); });
   $("soundSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-sound-val]"); if (!b) return; state.restMuted = b.getAttribute("data-sound-val") === "off"; save(); syncSegs(); if (!state.restMuted) { unlockAudio(); beep(); } });
+  $("warmSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-warm-val]"); if (!b) return; state.warmups = b.getAttribute("data-warm-val") === "on"; save(); syncSegs(); renderList(false); });
 
   /* ===================== Backup ===================== */
   function exportBackup() {
