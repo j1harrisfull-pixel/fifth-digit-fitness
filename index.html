@@ -955,6 +955,13 @@ const LIBRARY = [
   { id: "wrist-curl", name: "Wrist Curl", type: "strength", equipment: "dumbbell", pattern: "biceps", muscles: ["forearms"], compound: false, goals: I, unit: "reps", cue: "Setup: Forearms resting on the thighs or a bench, palms up, wrists just past the edge holding the dumbbells. Key: Let the weight roll to the fingertips for a full stretch, then curl the wrists up and squeeze the forearms at the top. Fault: Moving the elbows or rushing through partial reps instead of working the full wrist range." },
   { id: "reverse-wrist-curl", name: "Reverse Wrist Curl", type: "strength", equipment: "dumbbell", pattern: "biceps", muscles: ["forearms"], compound: false, goals: I, unit: "reps", cue: "Setup: Forearms on the thighs or a bench, palms down, wrists past the edge with a light dumbbell in each hand. Key: Lower the knuckles under control for a stretch, then extend the wrists up and pause at the top contraction. Fault: Using too much weight so the wrists barely move, or letting the forearms lift off the support." },
   { id: "plate-pinch", name: "Plate Pinch", type: "strength", equipment: "dumbbell", pattern: "carry", muscles: ["forearms", "grip"], compound: false, goals: I, unit: "sec", cue: "Setup: Pinch a plate (smooth side out) between thumb and fingers at your side, stand tall with the shoulder set. Key: Crush the plate with the fingertips and thumb to hold it for time, keeping the wrist neutral and the arm quiet. Fault: Letting the plate slowly slide from the fingers or resting it against the thigh to cheat the hold." },
+
+  // ---- run-workout types (v23) ----
+  { id: "easy-run", name: "Easy Run", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs", "full body"], compound: true, goals: CON, unit: "sec", intensity: "z2", cue: "Setup: flat route or treadmill, relaxed posture, leave the pace watch alone. Key: hold a conversational effort you could chat through, light quick cadence, easy breathing. Fault: drifting faster until it is no longer easy, which steals recovery from the hard days." },
+  { id: "long-run", name: "Long Run", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs", "full body"], compound: true, goals: CON, unit: "sec", intensity: "z2", cue: "Setup: a route you can finish, water and fuel if over an hour, start genuinely easy. Key: hold one easy steady rhythm the whole way, time on feet is the goal not pace. Fault: starting too quick and fading, or chasing pace and turning it into a workout." },
+  { id: "recovery-run", name: "Recovery Run", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs"], compound: true, goals: CON, unit: "sec", intensity: "z2", cue: "Setup: flat soft surface if you can, run it the day after a hard session. Key: keep it very easy and short, just enough to flush the legs and stay loose. Fault: letting ego push the pace so it adds fatigue instead of aiding recovery." },
+  { id: "interval-run", name: "Interval Run", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs", "full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", cue: "Setup: track, flat road, or treadmill, warm up thoroughly first. Key: run each rep at a hard controlled 5K effort with even splits, then jog the recovery fully. Fault: sprinting the first rep all out and dying, or cutting the jog recovery short." },
+  { id: "hill-repeats", name: "Hill Repeats", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs", "full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", cue: "Setup: a moderate hill around 6 to 10 percent, warm up on the flat first. Key: drive up powerfully with strong knees and arms at a controlled hard effort, then jog down to recover. Fault: hammering the first few until form collapses, or jogging down too fast to recover." },
 ];
 
 function parseIntake(text) {
@@ -1343,6 +1350,35 @@ function generateSession(parsed, weightMap, seed) {
   var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
   return { name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) };
 }
+// Real run-workout structures for the Endurance goal: easy / long / tempo / intervals,
+// polarized across the week, run as the day's focus. Emitted as conditioning so the
+// existing swap lets you change the modality (bike, row, ...) for whatever kit you have.
+var RUN_PLAN = {
+  easy:      { id: "easy-run",     sets: 1, reps: function (m) { return clampInt(m, 25, 60, 35) + " min"; }, target: "Easy · conversational pace", rest: "" },
+  long:      { id: "long-run",     sets: 1, reps: function (m) { return clampInt(m + 30, 45, 120, 70) + " min"; }, target: "Easy · steady, time on feet", rest: "" },
+  recovery:  { id: "recovery-run", sets: 1, reps: "25 min", target: "Very easy · flush the legs", rest: "" },
+  tempo:     { id: "tempo-run",    sets: 1, reps: "25 min", target: "Threshold · comfortably hard", rest: "" },
+  intervals: { id: "interval-run", sets: 5, reps: "800 m", target: "~5K pace · hard but controlled", rest: "400 m easy jog" },
+  hills:     { id: "hill-repeats", sets: 8, reps: "45 sec uphill", target: "Hard · drive the knees", rest: "jog down" }
+};
+function runLayout(days) {
+  switch (days) {
+    case 1: return ["long"];
+    case 2: return ["easy", "long"];
+    case 3: return ["easy", "intervals", "long"];
+    case 4: return ["easy", "intervals", "tempo", "long"];
+    case 5: return ["easy", "intervals", "recovery", "tempo", "long"];
+    case 6: return ["easy", "intervals", "recovery", "tempo", "easy", "long"];
+    default: return ["easy", "intervals", "recovery", "tempo", "easy", "hills", "long"];
+  }
+}
+function runWorkout(si, days, minutes) {
+  var layout = runLayout(days), tpl = RUN_PLAN[layout[si % layout.length]];
+  if (!tpl) return null;
+  var libEx = LIBRARY.filter(function (e) { return e.id === tpl.id; })[0];
+  var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
+  return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
+}
 function generateProgram(intake, weightMap, seed) {
   intake = intake || {};
   weightMap = weightMap || {};
@@ -1363,7 +1399,7 @@ function generateProgram(intake, weightMap, seed) {
   var slotsTotal = Math.max(3, Math.min(8, Math.round(minutes / 8)));
   var strengthSlots;
   if (isHybrid)     strengthSlots = Math.max(2, Math.min(4, slotsTotal - 2));
-  else if (isEnd)   strengthSlots = Math.max(1, Math.min(3, slotsTotal - 2));
+  else if (isEnd)   strengthSlots = Math.max(0, Math.min(2, slotsTotal - 5)); // run-focused: a little optional runner strength
   else              strengthSlots = Math.max(2, Math.min(6, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
 
   var roleList = splitForDays(days, goal);
@@ -1383,7 +1419,7 @@ function generateProgram(intake, weightMap, seed) {
     var isDeload = (totalWeeks >= 4 && wn === totalWeeks);
     var ctx = { used: {}, pat: {}, dl: 0 };
     var patCap = days >= 5 ? 3 : 2;
-    var occOf  = {};
+    var occOf  = {}, nameSeen = {};
 
     var sessions = roleList.map(function (role, si) {
       var occ = (occOf[role] = (occOf[role] || 0));
@@ -1391,7 +1427,7 @@ function generateProgram(intake, weightMap, seed) {
       var baseSlots = ROLES[role] || ROLES.full;
       var rot  = baseSlots.length ? occ % baseSlots.length : 0;
       var slots = baseSlots.slice(rot).concat(baseSlots.slice(0, rot));
-      var strengthEx = [], extraEx = [];
+      var strengthEx = [], extraEx = [], leadEx = [];
 
       for (var k = 0; k < strengthSlots; k++) {
         var slot = slots[k % slots.length];
@@ -1405,19 +1441,15 @@ function generateProgram(intake, weightMap, seed) {
       }
 
       if (includeCon) {
-        var intensity;
         if (isEnd) {
-          var conIdx = si % days;
-          if (conIdx === 1)           intensity = "interval";
-          else if (conIdx === days - 1) intensity = "threshold";
-          else                          intensity = "z2";
-        } else if (isHybrid) {
-          intensity = si % 2 === 0 ? "z2" : "interval";
+          // Endurance = a real run week: the run workout leads the day (swap changes the modality).
+          var runEx = runWorkout(si, days, minutes);
+          if (runEx) leadEx.push(runEx);
         } else {
-          intensity = "interval";
+          var intensity = isHybrid ? (si % 2 === 0 ? "z2" : "interval") : "interval";
+          var con = pickConditioning(intensity, allowed, ctx.used, seed + si * 5 + wn * 11);
+          if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload)); }
         }
-        var con = pickConditioning(intensity, allowed, ctx.used, seed + si * 5 + wn * 11);
-        if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload)); }
       }
 
       if (includeMob) {
@@ -1428,10 +1460,20 @@ function generateProgram(intake, weightMap, seed) {
       if (minutes <= 45) assignSupersets(strengthEx);
 
       var suffix = totalOf[role] > 1 ? " " + String.fromCharCode(65 + occ) : "";
+      var dayName, dayFocus;
+      if (isEnd && leadEx.length) {
+        var rn = leadEx[0].name;
+        nameSeen[rn] = (nameSeen[rn] || 0) + 1;
+        dayName = nameSeen[rn] > 1 ? rn + " " + nameSeen[rn] : rn;
+        dayFocus = leadEx[0].target || "";
+      } else {
+        dayName = (ROLE_NAME[role] || "Day") + suffix;
+        dayFocus = ROLE_FOCUS[role] || "";
+      }
       return {
-        name: (ROLE_NAME[role] || "Day") + suffix,
-        focus: ROLE_FOCUS[role] || "",
-        exercises: strengthEx.concat(extraEx)
+        name: dayName,
+        focus: dayFocus,
+        exercises: leadEx.concat(strengthEx).concat(extraEx)
       };
     });
 
