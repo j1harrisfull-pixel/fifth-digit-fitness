@@ -297,6 +297,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .confirm__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -.01em; margin: 0 0 8px; }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
 .preview__error { color: var(--danger); font-size: 13px; line-height: 1.45; padding: 12px 14px; border: 1px solid var(--danger); border-radius: 11px; background: var(--surface-2); }
+.todaylist { margin-top: 12px; display: flex; flex-direction: column; }
+.todayrow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.todayrow:last-child { border-bottom: 0; }
+.todayrow__name { color: var(--ink); }
+.todayrow__scheme { color: var(--ink-dim); flex: none; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
 </style>
@@ -350,6 +355,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <h2>Build my week</h2>
     <p class="sheet__lead">Pick what you want. It builds instantly, offline, read-only.</p>
 
+    <div class="seg seg--full" id="planMode" role="group" aria-label="What to build" style="margin-bottom:18px">
+      <button data-mode="week" type="button" aria-pressed="true">Build a week</button>
+      <button data-mode="today" type="button" aria-pressed="false">Just today</button>
+    </div>
+
+    <div id="modeWeek">
     <div class="bsect">
       <div class="blabel">Goal</div>
       <div class="seg seg--full" id="bGoal" role="group" aria-label="Goal">
@@ -409,6 +420,17 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 
     <div class="btn-row" style="margin-top:16px"><button class="btn btn--primary" id="buildBtn" type="button">Build my week</button></div>
     <div class="preview hidden" id="buildPreview"></div>
+    </div>
+
+    <div id="modeToday" hidden>
+      <div class="bsect">
+        <div class="blabel">What do you want to train today?</div>
+        <textarea class="pastebox" id="todayText" rows="2" placeholder="e.g. 'chest and triceps, 40 min' / 'heavy legs' / 'quick upper body'" aria-label="What do you want to train today"></textarea>
+        <p class="sect__hint" style="margin-top:8px">Name the muscles or a split, add a time and how it should feel. It reads back what it understood before building.</p>
+      </div>
+      <div class="btn-row" style="margin-top:6px"><button class="btn btn--primary" id="todayBtn" type="button">Build today's session</button></div>
+      <div class="preview hidden" id="todayPreview"></div>
+    </div>
 
     <details class="adv">
       <summary>Advanced: import from Claude</summary>
@@ -1120,6 +1142,104 @@ function buildWeightMap(state) {
   return map;
 }
 
+// ---- Free-text "today's session": parse intent -> generate one session ----
+var MUSCLE_PATTERNS = {
+  chest: ["hpush"], pecs: ["hpush"],
+  back: ["hpull", "vpull"], lats: ["vpull"], rows: ["hpull"],
+  shoulders: ["vpush"], delts: ["vpush"], shoulder: ["vpush"],
+  triceps: ["triceps"], tricep: ["triceps"], tris: ["triceps"],
+  biceps: ["biceps"], bicep: ["biceps"], bis: ["biceps"],
+  arms: ["biceps", "triceps"],
+  quads: ["squat", "lunge"], quad: ["squat", "lunge"], thighs: ["squat", "lunge"],
+  hamstrings: ["hinge"], hamstring: ["hinge"], hams: ["hinge"],
+  glutes: ["hinge"], glute: ["hinge"], butt: ["hinge"],
+  calves: ["calf"], calf: ["calf"],
+  core: ["core"], abs: ["core"], stomach: ["core"]
+};
+function titleCaseAreas(areas) {
+  var seen = {}, out = [];
+  (areas || []).forEach(function (a) { if (!seen[a]) { seen[a] = 1; out.push(a.charAt(0).toUpperCase() + a.slice(1)); } });
+  return out.join(" + ");
+}
+function rolePatterns(role) {
+  var set = {}, out = [];
+  (ROLES[role] || []).forEach(function (slot) { (slot.patterns || []).forEach(function (p) { if (!set[p]) { set[p] = 1; out.push(p); } }); });
+  return out;
+}
+function parseSession(text) {
+  var s = String(text == null ? "" : text).toLowerCase();
+  var minutes = null;
+  var mr = s.match(/(\d+)\s*(?:-|to|–|—)\s*(\d+)\s*(?:min|minutes|mins|m)\b/);
+  if (mr) minutes = parseInt(mr[2], 10);
+  if (minutes == null) { var hr = s.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b/); if (hr) minutes = Math.round(parseFloat(hr[1]) * 60); }
+  if (minutes == null) { var single = s.match(/(\d+)\s*(?:min|minutes|mins|m)\b/); if (single) minutes = parseInt(single[1], 10); }
+  if (minutes == null && /\b(quick|short|fast|express|brief)\b/.test(s)) minutes = 30;
+  if (minutes == null) minutes = 45;
+  minutes = Math.max(15, Math.min(120, minutes));
+  var goal;
+  if (/\b(heavy|strong|strength|power|powerlift|1\s*rm|max|low\s*reps?)\b/.test(s)) goal = "strength";
+  else if (/\b(build|muscle|hypertroph|grow|growth|size|pump|mass|gains?|tone|toned)\b/.test(s)) goal = "hypertrophy";
+  else goal = "general";
+  var includes = [];
+  if (/\b(mobility|stretch|stretching|warm.?ups?|cooldown|cool.?down)\b/.test(s)) includes.push("mobility");
+  if (/\b(cardio|conditioning|hiit|metcon|finisher|intervals?)\b/.test(s)) includes.push("conditioning");
+  var role = null;
+  if (/\bfull\s*body\b|\bwhole\s*body\b|\bfull\b/.test(s)) role = "full";
+  else if (/\bpush\b/.test(s)) role = "push";
+  else if (/\bpull\b/.test(s)) role = "pull";
+  else if (/\bupper(?:\s*body)?\b/.test(s)) role = "upper";
+  else if (/\blower(?:\s*body)?\b/.test(s)) role = "lower";
+  else if (/\blegs?\b|\bleg\s*day\b/.test(s)) role = "legs";
+  var patterns = [], areas = [];
+  if (!role) {
+    Object.keys(MUSCLE_PATTERNS).forEach(function (m) {
+      if (new RegExp("\\b" + m + "\\b").test(s)) {
+        MUSCLE_PATTERNS[m].forEach(function (p) { if (patterns.indexOf(p) < 0) patterns.push(p); });
+        if (areas.indexOf(m) < 0) areas.push(m);
+      }
+    });
+  }
+  if (!role && !patterns.length) role = "full";
+  var focusText = role ? (ROLE_NAME[role] || "Full Body") : titleCaseAreas(areas);
+  var goalText = goal === "strength" ? "strength" : goal === "hypertrophy" ? "build muscle" : "general";
+  var summary = focusText + " · ~" + minutes + " min · " + goalText;
+  return { role: role, patterns: patterns, areas: areas, minutes: minutes, goal: goal, includes: includes, summary: summary, focusText: focusText };
+}
+function generateSession(parsed, weightMap, seed) {
+  parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0;
+  var minutes = clampInt(parsed.minutes, 15, 120, 45);
+  var goal = parsed.goal || "general";
+  var allowed = Array.isArray(parsed.equipment) ? parsed.equipment : null;
+  var includeMob = (parsed.includes || []).indexOf("mobility") >= 0;
+  var includeCon = (parsed.includes || []).indexOf("conditioning") >= 0;
+  var selGoal = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
+  var allowPats = parsed.role ? rolePatterns(parsed.role) : ((parsed.patterns && parsed.patterns.length) ? parsed.patterns.slice() : null);
+  var slotsTotal = Math.max(3, Math.min(8, Math.round(minutes / 8)));
+  var strengthSlots = Math.max(2, Math.min(7, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
+  var slots, patCap;
+  if (parsed.role && ROLES[parsed.role]) {
+    var base = ROLES[parsed.role]; slots = [];
+    for (var i = 0; i < strengthSlots; i++) slots.push(base[i % base.length]);
+    patCap = 2;
+  } else {
+    var pats = (parsed.patterns && parsed.patterns.length) ? parsed.patterns : ALL_PATTERNS;
+    slots = [];
+    for (var j = 0; j < strengthSlots; j++) slots.push({ patterns: pats, compound: j < Math.ceil(strengthSlots / 2) });
+    patCap = strengthSlots; // let the requested focus dominate; id-dedup keeps variety
+  }
+  var ctx = { used: {}, pat: {}, dl: 0 };
+  var strengthEx = [], extraEx = [];
+  for (var k = 0; k < slots.length; k++) {
+    var ex = pickStrength(slots[k], selGoal, allowed, ctx, seed + k * 13 + 7, patCap, 1);
+    if (ex && allowPats && allowPats.indexOf(ex.pattern) < 0) ex = null; // stay on-target for a focused session
+    if (ex) { ctx.used[ex.id] = 1; ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1; if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++; strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false)); }
+  }
+  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false)); } }
+  if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false)); } }
+  if (minutes <= 45) assignSupersets(strengthEx);
+  var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
+  return { name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) };
+}
 function generateProgram(intake, weightMap, seed) {
   intake = intake || {};
   weightMap = weightMap || {};
@@ -1519,7 +1639,7 @@ function generateProgram(intake, weightMap, seed) {
   }
 
   /* ===================== Plan sheet (Claude loop) ===================== */
-  var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0;
+  var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null;
   function buildRequest() {
     var unit = state.program.unit;
     var schema = [
@@ -1588,9 +1708,10 @@ function generateProgram(intake, weightMap, seed) {
     });
   }
   function openPlan() {
-    pending = null; pendingBuild = null;
+    pending = null; pendingBuild = null; pendingToday = null;
     $("loadPreview").classList.add("hidden"); $("loadText").value = "";
     $("buildPreview").classList.add("hidden");
+    $("todayPreview").classList.add("hidden");
     syncBuild();
     $("reqText").value = buildRequest();
     if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
@@ -1617,6 +1738,42 @@ function generateProgram(intake, weightMap, seed) {
     state.archive = pruneArchive(state.archive, 12);
     state.program = pendingBuild; state.unit = pendingBuild.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
     pendingBuild = null; save(); applyTheme(); renderAll(true); closePlan(); toast("Built your week");
+  }
+  function setPlanMode(mode) {
+    var today = mode === "today";
+    $("modeWeek").hidden = today;
+    $("modeToday").hidden = !today;
+    document.querySelectorAll("#planMode button").forEach(function (b) { b.setAttribute("aria-pressed", (b.getAttribute("data-mode") === mode).toString()); });
+    var h = planSheet.querySelector("h2"); if (h) h.textContent = today ? "Today's session" : "Build my week";
+  }
+  function onBuildToday() {
+    var text = $("todayText").value, pv = $("todayPreview");
+    if (!text.trim()) { pv.innerHTML = '<div class="preview__error" role="alert">Type what you want to train, for example ‘chest and triceps, 40 min’.</div>'; pv.classList.remove("hidden"); return; }
+    var parsed = parseSession(text);
+    todaySeed++;
+    pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed);
+    var rows = pendingToday.exercises.map(function (e) {
+      return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
+    }).join("");
+    pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
+      '<div class="preview__meta">Understood: ' + esc(parsed.summary) + '</div>' +
+      '<div class="todaylist">' + rows + '</div>' +
+      '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
+    pv.classList.remove("hidden");
+    $("confirmToday").addEventListener("click", addTodaySession);
+    $("retryToday").addEventListener("click", onBuildToday);
+  }
+  function addTodaySession() {
+    if (!pendingToday) return;
+    var aw = state.activeWeek, week = state.program.weeks[aw];
+    if (!week) return;
+    var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
+    var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes };
+    }) };
+    week.sessions.push(session);
+    state.activeSession = week.sessions.length - 1;
+    pendingToday = null; hideRest(); save(); renderAll(true); closePlan(); toast("Added " + session.name);
   }
   function closePlan() { if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
@@ -1657,6 +1814,8 @@ function generateProgram(intake, weightMap, seed) {
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
   $("buildBtn").addEventListener("click", onBuild);
+  $("todayBtn").addEventListener("click", onBuildToday);
+  $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
   $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } save(); syncBuild(); });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
   $("bTime").addEventListener("click", function (ev) { var b = ev.target.closest("[data-min]"); if (!b) return; buildPrefs().minutes = parseInt(b.getAttribute("data-min"), 10); save(); syncBuild(); });
