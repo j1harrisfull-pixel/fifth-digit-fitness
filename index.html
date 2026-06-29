@@ -302,6 +302,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .todayrow:last-child { border-bottom: 0; }
 .todayrow__name { color: var(--ink); }
 .todayrow__scheme { color: var(--ink-dim); flex: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.lasttime { font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
+.plates { font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--accent-ink); margin-top: 1px; letter-spacing: .01em; }
+.empty { text-align: center; padding: 48px 24px; }
+.empty__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 19px; color: var(--ink); margin: 0 0 6px; }
+.empty__hint { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
 </style>
@@ -492,6 +498,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="status" id="storageStatus"><span class="status__dot"></span><span>Checking…</span></div>
     </div>
     <div class="sect">
+      <div class="sect__label">Help</div>
+      <div class="btn-row"><button class="btn" id="introBtn" type="button">Show intro again</button></div>
+    </div>
+    <div class="sect">
       <div class="sect__label">Maintenance</div>
       <div class="btn-row"><button class="btn btn--danger" id="eraseBtn" type="button">Reset to Starter program</button></div>
     </div>
@@ -500,6 +510,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 </dialog>
 
+<div id="restAnnounce" class="sr-only" role="status" aria-live="polite"></div>
 <div class="resttimer" id="restTimer" role="status" aria-live="off" hidden>
   <div class="resttimer__body">
     <div class="resttimer__top"><span class="resttimer__label">Rest</span><span class="resttimer__time mono" id="restTime">0:00</span></div>
@@ -1575,11 +1586,24 @@ function generateProgram(intake, weightMap, seed) {
     }
     return '<p class="cue-plain">' + esc(text) + '</p>';
   }
+  var lastWeights = {};
+  function platesText(weight, unit) {
+    var bar = unit === "lb" ? 45 : 20;
+    if (!(weight > bar)) return weight > 0 ? "just the bar" : "";
+    var plates = unit === "lb" ? [45, 35, 25, 10, 5, 2.5] : [25, 20, 15, 10, 5, 2.5, 1.25];
+    var out = [], rem = (weight - bar) / 2;
+    plates.forEach(function (p) { while (rem >= p - 0.001) { out.push(p); rem = Math.round((rem - p) * 100) / 100; } });
+    return rem > 0.01 ? "" : (out.length ? out.join(" + ") + " / side" : "");
+  }
   function buildCard(e, i, ses, badge) {
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var pills = pillsHtml(e, lg.done);
+    var lastW = lastWeights[e.name.toLowerCase()];
+    var lastLine = (e.type === "strength" && lastW > 0) ? '<div class="lasttime">last ' + esc(roundW(lastW) + " " + unit) + '</div>' : "";
+    var pt = (e.type === "strength" && e.equipment === "barbell") ? platesText(lg.weight, unit) : "";
+    var platesLine = pt ? '<div class="plates">' + esc(pt) + '</div>' : "";
     var weightCtrl = e.type === "strength"
-      ? '<div class="weight-wrap"><div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + (ln ? '<div class="loadnote">' + esc(ln) + '</div>' : '') + '</div>'
+      ? '<div class="weight-wrap"><div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + (ln ? '<div class="loadnote">' + esc(ln) + '</div>' : '') + lastLine + platesLine + '</div>'
       : e.type === "conditioning" ? ''
       : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
     var cueInner = (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
@@ -1609,7 +1633,13 @@ function generateProgram(intake, weightMap, seed) {
       '</div></div></div></article>';
   }
   function renderList(animate) {
-    var ses = curSession(), blocks = groupExercises(ses.exercises), html = "", i = 0;
+    var ses = curSession();
+    lastWeights = (typeof buildWeightMap === "function") ? buildWeightMap(state) : {};
+    if (!ses || !ses.exercises || !ses.exercises.length) {
+      listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap the program button up top to build a week, or add today\'s session.</p></div>';
+      return;
+    }
+    var blocks = groupExercises(ses.exercises), html = "", i = 0;
     blocks.forEach(function (block) {
       var sup = block.group && block.items.length > 1;
       if (sup) {
@@ -1656,7 +1686,8 @@ function generateProgram(intake, weightMap, seed) {
     } else if (act === "w-" || act === "w+") {
       var wl = writeLog(ses, e);
       wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); save();
-      btn.closest(".card").querySelector(".weight__input").value = wl.el.weight;
+      var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
+      var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
     } else if (act === "notes") {
       e.notesOpen = !e.notesOpen; save();
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
@@ -1685,7 +1716,7 @@ function generateProgram(intake, weightMap, seed) {
   function onListInput(ev) {
     var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
     var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
-    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); }
+    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var ipl = el.closest(".card").querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); }
     else if (act === "reps") {
       e.reps = el.value; saveSoon();
       el.closest(".card").querySelectorAll(".pill__reps").forEach(function (r) { r.textContent = e.reps; });
@@ -1991,6 +2022,7 @@ function generateProgram(intake, weightMap, seed) {
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
+    var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
     tickRest();
     clearInterval(restState.timer); restState.timer = setInterval(tickRest, 250);
@@ -2002,6 +2034,7 @@ function generateProgram(intake, weightMap, seed) {
       if (restFillEl) restFillEl.style.transform = "scaleX(0)";
       clearInterval(restState.timer); restState.timer = null;
       restEl.classList.add("is-done"); beep();
+      var anD = $("restAnnounce"); if (anD) anD.textContent = "Rest complete";
       setTimeout(function () { if (!restState.timer) hideRest(); }, 4000);
       return;
     }
@@ -2050,12 +2083,12 @@ function generateProgram(intake, weightMap, seed) {
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
   }
 
+  function showIntro() { var el = $("intro"); if (el) el.hidden = false; }
   function initIntro() {
     var KEY = "training-log:intro";
-    try { if (localStorage.getItem(KEY)) return; } catch (e) { return; }
-    var el = $("intro"); if (!el) return;
-    el.hidden = false;
-    $("introGo").addEventListener("click", function () { el.hidden = true; try { localStorage.setItem(KEY, "1"); } catch (e) {} });
+    var go = $("introGo"); if (go) go.addEventListener("click", function () { var el = $("intro"); if (el) el.hidden = true; try { localStorage.setItem(KEY, "1"); } catch (e) {} });
+    var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showIntro(); });
+    try { if (!localStorage.getItem(KEY)) showIntro(); } catch (e) {}
   }
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
   if ("serviceWorker" in navigator) {
