@@ -1604,8 +1604,22 @@ function generateProgram(intake, weightMap, seed) {
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
   }
+  // The pre-v28 build auto-seeded a placeholder "Starter" program. If the saved
+  // state is that untouched seed (never logged, nothing archived), clear it so
+  // the welcome screen shows instead of placeholder workouts. Anything the user
+  // actually used keeps it.
+  function isPristineStarter(st) {
+    if (!st || !st.program || st.program.title !== "Starter") return false;
+    if (Array.isArray(st.archive) && st.archive.length) return false;
+    var log = st.log || {};
+    var used = Object.keys(log).some(function (sid) {
+      var ex = log[sid] && log[sid].ex; if (!ex) return false;
+      return Object.keys(ex).some(function (eid) { var el = ex[eid]; return el && Array.isArray(el.done) && el.done.some(Boolean); });
+    });
+    return !used;
+  }
   function load() {
-    try { var raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) return c; } } catch (e) {}
+    try { var raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) { if (isPristineStarter(c)) c = freshState(emptyProgram(), { theme: c.theme }); return c; } } } catch (e) {}
     try { var v1 = localStorage.getItem(STORE_V1); if (v1) { return migrateV1toV2(JSON.parse(v1)); } } catch (e) {}
     return freshState(emptyProgram());
   }
