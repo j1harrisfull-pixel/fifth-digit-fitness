@@ -192,6 +192,27 @@ input, textarea { font: inherit; color: inherit; }
 .pill.is-done .pill__reps::before { content: "✓ "; }
 .pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.setlist { display: flex; flex-direction: column; gap: 7px; }
+.setrow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
+.setrow.is-done { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
+.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.rstep { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 9px; font-size: 17px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
+.rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
+.runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.setrow__rpe { flex: none; min-width: 46px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
+.setrow__done { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done:hover { border-color: var(--accent-ink); }
+.setrow.is-done .setrow__done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.setrow.pulse .setrow__done { animation: pulse .3s ease; }
+.card__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.card__1rm { display: flex; align-items: baseline; gap: 6px; }
+.card__1rm span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
+.card__1rm b { font-family: "Spline Sans Mono", monospace; font-size: 16px; font-weight: 600; color: var(--ink); }
+.card__prog { font-size: 12px; color: var(--ink-dim); text-align: right; line-height: 1.35; max-width: 58%; }
+.card__prog.is-ready { color: var(--accent-ink); font-weight: 600; }
 .cue { margin-top: 12px; font-size: 12px; color: var(--ink-dim); display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .cue b { color: var(--accent-ink); font-weight: 600; }
 .notes-toggle { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 2px; color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
@@ -1301,6 +1322,26 @@ function buildWeightMap(state) {
   return map;
 }
 
+function buildLastLogs(state) {
+  var map = {};
+  function ingest(program, log) {
+    if (!program || !Array.isArray(program.weeks)) return;
+    program.weeks.forEach(function (wk) {
+      wk.sessions.forEach(function (ses) {
+        var sl = log && log[ses.id];
+        ses.exercises.forEach(function (ex) {
+          var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el) return;
+          var hasReps = Array.isArray(el.reps) && el.reps.some(function (r) { return r != null; });
+          if (hasReps) map[String(ex.name).toLowerCase()] = { reps: el.reps.slice() };
+        });
+      });
+    });
+  }
+  if (state && Array.isArray(state.archive)) state.archive.forEach(function (a) { ingest(a.program, a.log); });
+  if (state) ingest(state.program, state.log);
+  return map;
+}
+
 // ---- Free-text "today's session": parse intent -> generate one session ----
 var MUSCLE_PATTERNS = {
   chest: ["hpush"], pecs: ["hpush"],
@@ -1606,9 +1647,18 @@ function generateProgram(intake, weightMap, seed) {
   function curSession() { var s = curWeek().sessions; return s[state.activeSession] || s[0]; }
   function findEx(id) { return curSession().exercises.filter(function (e) { return e.id === id; })[0]; }
   function readLog(ses, ex) {
-    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [];
-    for (var i = 0; i < ex.sets; i++) done.push(!!(el && el.done && el.done[i]));
-    return { done: done, weight: el && el.weight != null ? el.weight : ex.weight, warm: el && el.warm ? el.warm : [] };
+    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [], reps = [], rpe = [];
+    var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
+    for (var i = 0; i < ex.sets; i++) {
+      done.push(!!(el && el.done && el.done[i]));
+      var rv = (el && el.reps && el.reps[i] != null) ? el.reps[i]
+        : (lr && lr.reps && lr.reps[i] != null) ? lr.reps[i]
+        : (lr && lr.reps && lr.reps.length) ? lr.reps[lr.reps.length - 1]
+        : (lo != null ? lo : 0);
+      reps.push(rv);
+      rpe.push(el && el.rpe && el.rpe[i] != null ? el.rpe[i] : null);
+    }
+    return { done: done, weight: el && el.weight != null ? el.weight : ex.weight, warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe };
   }
   function writeLog(ses, ex) {
     var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
@@ -1616,6 +1666,8 @@ function generateProgram(intake, weightMap, seed) {
     while (el.done.length < ex.sets) el.done.push(false);
     if (el.done.length > ex.sets) el.done = el.done.slice(0, ex.sets);
     if (el.weight == null) el.weight = ex.weight;
+    if (el.reps && el.reps.length > ex.sets) el.reps = el.reps.slice(0, ex.sets);
+    if (el.rpe && el.rpe.length > ex.sets) el.rpe = el.rpe.slice(0, ex.sets);
     return { sl: sl, el: el };
   }
   function sessionItemsFor(ses) {
@@ -1688,6 +1740,44 @@ function generateProgram(intake, weightMap, seed) {
     }
     return html;
   }
+  function repsLow(ex) { var m = String(ex.reps || "").match(/\d+/); return m ? parseInt(m[0], 10) : null; }
+  function repsTop(ex) { var ms = String(ex.reps || "").match(/\d+/g); return ms ? parseInt(ms[ms.length - 1], 10) : null; }
+  function est1RM(w, reps) { return (w > 0 && reps > 0) ? Math.round(w * (1 + reps / 30)) : 0; }
+  function ensureArr(el, key, n) { if (!Array.isArray(el[key])) el[key] = []; while (el[key].length < n) el[key].push(null); }
+  function setRowsInner(e, lg) {
+    var html = "";
+    for (var k = 0; k < e.sets; k++) {
+      var d = !!lg.done[k], rv = lg.reps[k], rp = lg.rpe[k];
+      html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
+        '<span class="setrow__n">' + (k + 1) + '</span>' +
+        '<div class="setrow__reps">' +
+          '<button type="button" class="rstep" data-act="rep-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One fewer rep, set ' + (k + 1) + '">−</button>' +
+          '<span class="rval">' + rv + '</span><span class="runit">reps</span>' +
+          '<button type="button" class="rstep" data-act="rep+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One more rep, set ' + (k + 1) + '">+</button>' +
+        '</div>' +
+        '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>' +
+        '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
+      '</div>';
+    }
+    return html;
+  }
+  function strengthFoot(e, lg, unit) {
+    var best = 0, n = e.sets, allDone = n > 0, j, top = repsTop(e);
+    for (var k = 0; k < n; k++) { if (lg.done[k]) { var o = est1RM(lg.weight, lg.reps[k]); if (o > best) best = o; } }
+    for (j = 0; j < n; j++) { if (!lg.done[j]) allDone = false; }
+    var ready = allDone && top != null;
+    if (ready) { for (j = 0; j < n; j++) { if ((lg.reps[j] || 0) < top) ready = false; } }
+    var ormTxt = best > 0 ? best + " " + unit : "—";
+    var progTxt = top == null ? "" : ready ? "Ready · add " + roundW(STEP) + " " + unit + " next time" : "Hit " + top + " reps on every set to add weight";
+    return { ormTxt: ormTxt, ready: ready, progTxt: progTxt };
+  }
+  function refreshFoot(card, e, ses) {
+    if (!card || e.type !== "strength") return;
+    var lg = readLog(ses, e), d = strengthFoot(e, lg, state.program.unit);
+    var orm = card.querySelector(".card__1rm b"); if (orm) orm.textContent = d.ormTxt;
+    var pr = card.querySelector(".card__prog");
+    if (pr) { pr.textContent = d.progTxt; pr.classList.toggle("is-ready", d.ready); pr.style.display = d.progTxt ? "" : "none"; }
+  }
   function formatCue(text) {
     text = String(text || "").trim();
     if (!text) return '<p class="cue-plain">Move with control.</p>';
@@ -1699,7 +1789,7 @@ function generateProgram(intake, weightMap, seed) {
     }
     return '<p class="cue-plain">' + esc(text) + '</p>';
   }
-  var lastWeights = {};
+  var lastWeights = {}, lastLogs = {};
   function platesText(weight, unit) {
     var bar = unit === "lb" ? 45 : 20;
     if (!(weight > bar)) return weight > 0 ? "just the bar" : "";
@@ -1790,10 +1880,19 @@ function generateProgram(intake, weightMap, seed) {
           '<div class="swapbox' + (e.swapOpen ? " is-open" : "") + '" id="sw-' + e.id + '"><p class="swap-hint">Same effort, swap the kit:</p><div class="swap-opts">' + chips + '</div></div>';
       }
     }
+    var setsContainer = e.type === "strength"
+      ? '<div class="setlist" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg) + '</div>'
+      : '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>';
+    var foot = "";
+    if (e.type === "strength") {
+      var fd = strengthFoot(e, lg, unit);
+      foot = '<div class="card__foot"><div class="card__1rm"><span>est. 1RM</span><b>' + fd.ormTxt + '</b></div>' +
+        '<div class="card__prog' + (fd.ready ? " is-ready" : "") + '"' + (fd.progTxt ? "" : ' style="display:none"') + '>' + esc(fd.progTxt) + '</div></div>';
+    }
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
       (e.type === "strength" ? '<div class="card__row">' + weightCtrl + lastHint + '</div>' : weightCtrl) +
-      warmRow + setsHead + '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>' + faceCue + swapHtml +
+      warmRow + setsHead + setsContainer + foot + faceCue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + '<label class="field-label">Technique</label><div class="cuebox">' + formatCue(e.notes) + '</div>' + notesCue +
@@ -1804,6 +1903,7 @@ function generateProgram(intake, weightMap, seed) {
   function renderList(animate) {
     var ses = curSession();
     lastWeights = (typeof buildWeightMap === "function") ? buildWeightMap(state) : {};
+    lastLogs = (typeof buildLastLogs === "function") ? buildLastLogs(state) : {};
     warmFirstUsed = false;
     if (!ses || !ses.exercises || !ses.exercises.length) {
       listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap the program button up top to build a week, or add today\'s session.</p></div>';
@@ -1865,6 +1965,7 @@ function generateProgram(intake, weightMap, seed) {
       var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
       var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
       refreshWarm(wcard, e, ses, wl.el.weight, state.program.unit);
+      refreshFoot(wcard, e, ses);
     } else if (act === "warm") {
       var wi = parseInt(btn.getAttribute("data-warm"), 10), wwl = writeLog(ses, e);
       if (!wwl.el.warm) wwl.el.warm = [];
@@ -1887,18 +1988,52 @@ function generateProgram(intake, weightMap, seed) {
       if (ns === e.sets) return;
       e.sets = ns; writeLog(ses, e); save();
       var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.done.filter(Boolean).length;
-      card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.done);
+      if (e.type === "strength") { card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2); refreshFoot(card2, e, ses); }
+      else card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.done);
       card2.querySelector(".setcount__total").textContent = e.sets;
       card2.querySelector(".setcount__done").textContent = dc2;
       var sv = card2.querySelector(".stepper__val"); if (sv) sv.textContent = e.sets;
       card2.classList.toggle("is-complete", e.sets > 0 && dc2 === e.sets);
       applyGlance();
+    } else if (act === "setdone") {
+      var di = parseInt(btn.getAttribute("data-set"), 10), wd = writeLog(ses, e);
+      ensureArr(wd.el, "reps", e.sets); ensureArr(wd.el, "rpe", e.sets);
+      var on2 = !wd.el.done[di];
+      if (on2 && wd.el.reps[di] == null) { var rr = btn.closest(".setrow").querySelector(".rval"); wd.el.reps[di] = rr ? (parseInt(rr.textContent, 10) || 0) : 0; }
+      wd.el.done[di] = on2;
+      if (!wd.sl.date && on2) wd.sl.date = new Date().toISOString();
+      save();
+      var drow = btn.closest(".setrow"); drow.classList.toggle("is-done", on2); btn.setAttribute("aria-pressed", on2);
+      btn.setAttribute("aria-label", "Complete set " + (di + 1) + " of " + e.sets + (on2 ? ", done" : ""));
+      drow.classList.remove("pulse"); void drow.offsetWidth; drow.classList.add("pulse");
+      var dcard = btn.closest(".card"), ddc = wd.el.done.slice(0, e.sets).filter(Boolean).length;
+      dcard.querySelector(".setcount__done").textContent = ddc;
+      dcard.classList.toggle("is-complete", e.sets > 0 && ddc === e.sets);
+      refreshFoot(dcard, e, ses);
+      if (on2) { unlockAudio(); startRest(e); }
+      applyGlance();
+    } else if (act === "rep-" || act === "rep+") {
+      var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e);
+      ensureArr(wr.el, "reps", e.sets);
+      var rrow = btn.closest(".setrow"), rcur = wr.el.reps[ri] != null ? wr.el.reps[ri] : (parseInt(rrow.querySelector(".rval").textContent, 10) || 0);
+      var rnv = Math.max(1, rcur + (act === "rep+" ? 1 : -1));
+      wr.el.reps[ri] = rnv; saveSoon();
+      rrow.querySelector(".rval").textContent = rnv;
+      refreshFoot(btn.closest(".card"), e, ses);
+    } else if (act === "rpe") {
+      var pi = parseInt(btn.getAttribute("data-set"), 10), wp = writeLog(ses, e);
+      ensureArr(wp.el, "rpe", e.sets);
+      var order = [null, 6, 7, 8, 9, 10], oi = order.indexOf(wp.el.rpe[pi] == null ? null : wp.el.rpe[pi]);
+      oi = (oi + 1) % order.length; var pv = order[oi];
+      wp.el.rpe[pi] = pv; saveSoon();
+      btn.textContent = pv != null ? "@" + pv : "RPE"; btn.classList.toggle("is-set", pv != null);
+      btn.setAttribute("aria-label", "Effort for set " + (pi + 1) + (pv != null ? ": RPE " + pv : ", optional"));
     }
   }
   function onListInput(ev) {
     var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
     var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
-    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); refreshWarm(wc, e, ses, w.el.weight, state.program.unit); }
+    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); refreshWarm(wc, e, ses, w.el.weight, state.program.unit); refreshFoot(wc, e, ses); }
     else if (act === "reps") {
       e.reps = el.value; saveSoon();
       el.closest(".card").querySelectorAll(".pill__reps").forEach(function (r) { r.textContent = e.reps; });
@@ -1908,7 +2043,7 @@ function generateProgram(intake, weightMap, seed) {
     var ses = curSession(), sid = ses.id;
     var sl = state.log[sid];
     var prev = sl ? JSON.parse(JSON.stringify(sl)) : null; // snapshot for Undo
-    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; }); sl.date = null; }
+    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; if (sl.ex[k].rpe) sl.ex[k].rpe = []; }); sl.date = null; }
     save(); renderHead(); renderList(true);
     toastUndo(ses.name + " reset", function () {
       if (prev) state.log[sid] = prev; else delete state.log[sid];
