@@ -301,6 +301,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .adv--adjust > summary { display: flex; align-items: baseline; gap: 8px; }
 .adv__hint { font-weight: 500; opacity: .75; font-size: 12px; }
 .adv__body .bsect:first-child { margin-top: 6px; }
+.building { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 0 8px; text-align: center; }
+.building__spin { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--accent); animation: bspin .7s linear infinite; }
+.building__txt { font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+@keyframes bspin { to { transform: rotate(360deg); } }
 .bsect { margin-top: 16px; }
 .blabel { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
 .seg--full { display: flex; width: 100%; }
@@ -321,10 +325,22 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .loadnote { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; padding-left: 2px; }
 
 /* rest timer (sticky, auto-start, read-only) */
-.resttimer { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 14px); width: min(560px, calc(100% - 28px)); display: flex; align-items: center; gap: 12px; padding: 10px 12px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow); z-index: 50; animation: restUp .32s cubic-bezier(.2,.8,.2,1); }
+.resttimer { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 14px); width: min(560px, calc(100% - 28px)); display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 10px 12px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow); z-index: 50; animation: restUp .32s cubic-bezier(.2,.8,.2,1); }
 .resttimer[hidden] { display: none; }
 @keyframes restUp { from { transform: translateX(-50%) translateY(16px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+.resttimer__main { display: flex; align-items: center; gap: 12px; }
 .resttimer__body { flex: 1 1 auto; min-width: 0; }
+.filler { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line); }
+.filler[hidden] { display: none; }
+.filler__label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
+.filler__row { display: flex; align-items: center; gap: 10px; }
+.filler__icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); color: var(--accent-ink); }
+.filler__name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); display: flex; flex-direction: column; gap: 1px; }
+.filler__reps { font-size: 11px; font-weight: 500; color: var(--ink-dim); letter-spacing: .02em; }
+.filler__swap { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 8px; color: var(--ink-dim); }
+.filler__swap:hover { color: var(--ink); border-color: var(--accent-ink); }
+.filler__done { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.filler__done.is-done { background: var(--mob); border-color: var(--mob); color: var(--on-accent); }
 .resttimer__top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
 .resttimer__label { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim); font-weight: 700; }
 .resttimer__time { font-size: 20px; font-weight: 600; }
@@ -566,6 +582,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
     </div>
     <div class="sect">
+      <div class="sect__label">Rest-period accessories</div>
+      <div class="seg" id="fillerSeg" role="group" aria-label="Rest-period accessories">
+        <button data-filler-val="on" type="button">On</button>
+        <button data-filler-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
       <div class="sect__label">Backup (everything)</div>
       <div class="btn-row">
         <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
@@ -592,11 +615,22 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 
 <div id="restAnnounce" class="sr-only" role="status" aria-live="polite"></div>
 <div class="resttimer" id="restTimer" role="status" aria-live="off" hidden>
-  <div class="resttimer__body">
-    <div class="resttimer__top"><span class="resttimer__label">Rest</span><span class="resttimer__time mono" id="restTime">0:00</span></div>
-    <div class="resttimer__track"><div class="resttimer__fill" id="restFill"></div></div>
+  <div class="resttimer__main">
+    <div class="resttimer__body">
+      <div class="resttimer__top"><span class="resttimer__label">Rest</span><span class="resttimer__time mono" id="restTime">0:00</span></div>
+      <div class="resttimer__track"><div class="resttimer__fill" id="restFill"></div></div>
+    </div>
+    <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
   </div>
-  <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
+  <div class="filler" id="restFiller" hidden>
+    <span class="filler__label">While you rest · optional</span>
+    <div class="filler__row">
+      <span class="filler__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-7 4 14 2-7h4"/></svg></span>
+      <span class="filler__name"><span id="fillerName"></span><span class="filler__reps" id="fillerReps"></span></span>
+      <button class="filler__swap" id="fillerSwap" type="button" aria-label="Swap for another move"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
+      <button class="filler__done" id="fillerDone" type="button" aria-pressed="false" aria-label="Mark filler done"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>
+    </div>
+  </div>
 </div>
 
 <div class="intro" id="intro" hidden>
@@ -1322,6 +1356,10 @@ function buildWeightMap(state) {
   return map;
 }
 
+function topRepsOf(repsStr) { var ms = String(repsStr || "").match(/\d+/g); return ms ? parseInt(ms[ms.length - 1], 10) : null; }
+// Most-recent logged result per exercise: the reps you did, the weight you used,
+// and whether you EARNED a load bump (every working set completed at the top of
+// the rep range). Drives prefill + the next session's suggested weight.
 function buildLastLogs(state) {
   var map = {};
   function ingest(program, log) {
@@ -1332,7 +1370,10 @@ function buildLastLogs(state) {
         ses.exercises.forEach(function (ex) {
           var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el) return;
           var hasReps = Array.isArray(el.reps) && el.reps.some(function (r) { return r != null; });
-          if (hasReps) map[String(ex.name).toLowerCase()] = { reps: el.reps.slice() };
+          if (!hasReps) return;
+          var top = topRepsOf(ex.reps), n = ex.sets || 0, ready = top != null && n > 0;
+          if (ready) { for (var i = 0; i < n; i++) { if (!(el.done && el.done[i]) || !(el.reps && el.reps[i] != null && el.reps[i] >= top)) { ready = false; break; } } }
+          map[String(ex.name).toLowerCase()] = { reps: el.reps.slice(), weight: el.weight != null ? el.weight : null, ready: ready };
         });
       });
     });
@@ -1592,14 +1633,14 @@ function generateProgram(intake, weightMap, seed) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, activeExerciseId: null, buildPrefs: null };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
       var program = normalizeProgram(parsed.program);
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
+        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -1643,6 +1684,14 @@ function generateProgram(intake, weightMap, seed) {
   function curWeek() { return state.program.weeks[state.activeWeek] || state.program.weeks[0]; }
   function curSession() { var s = curWeek().sessions; return s[state.activeSession] || s[0]; }
   function findEx(id) { return curSession().exercises.filter(function (e) { return e.id === id; })[0]; }
+  // What weight to start an unlogged set at: your last weight on this lift, bumped
+  // one increment if you earned it last time, else repeated. Falls back to the
+  // program's generated weight when there's no history.
+  function suggestedWeight(ex) {
+    var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
+    if (lr && lr.weight != null && lr.weight > 0) return roundW(lr.ready ? lr.weight + STEP : lr.weight);
+    return (ex.weight != null ? ex.weight : 0);
+  }
   function readLog(ses, ex) {
     var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [], reps = [], rpe = [];
     var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
@@ -1655,11 +1704,11 @@ function generateProgram(intake, weightMap, seed) {
       reps.push(rv);
       rpe.push(el && el.rpe && el.rpe[i] != null ? el.rpe[i] : null);
     }
-    return { done: done, weight: el && el.weight != null ? el.weight : ex.weight, warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe };
+    return { done: done, weight: el && el.weight != null ? el.weight : suggestedWeight(ex), warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe };
   }
   function writeLog(ses, ex) {
     var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
-    var el = sl.ex[ex.id]; if (!el) { el = { done: [], weight: ex.weight }; sl.ex[ex.id] = el; }
+    var el = sl.ex[ex.id]; if (!el) { el = { done: [], weight: suggestedWeight(ex) }; sl.ex[ex.id] = el; }
     while (el.done.length < ex.sets) el.done.push(false);
     if (el.done.length > ex.sets) el.done = el.done.slice(0, ex.sets);
     if (el.weight == null) el.weight = ex.weight;
@@ -2176,20 +2225,34 @@ function generateProgram(intake, weightMap, seed) {
     $("reqText").value = buildRequest();
     if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
   }
-  function onBuild() {
+  function onBuild(showThinking) {
     var p = buildPrefs(), includes = [];
     if (p.mobility) includes.push("mobility");
     if (p.conditioning) includes.push("conditioning");
     var intake = { days: p.days, goal: p.goal, minutes: p.minutes, weeks: p.weeks, includes: includes, focus: [], equipment: p.equipment };
     buildSeed++;
-    pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed);
-    var days = pendingBuild.weeks[0].sessions.length, pv = $("buildPreview");
-    pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
-      '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · full gym assumed</div>' +
-      '<div class="btn-row"><button class="btn btn--primary" id="confirmBuild" type="button">Use this week</button><button class="btn" id="rebuildBtn" type="button">Try again</button></div>';
-    pv.classList.remove("hidden");
-    $("confirmBuild").addEventListener("click", confirmBuild);
-    $("rebuildBtn").addEventListener("click", onBuild);
+    var pv = $("buildPreview");
+    function renderPreview() {
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed);
+      var days = pendingBuild.weeks[0].sessions.length;
+      pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
+        '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · full gym assumed</div>' +
+        '<div class="btn-row"><button class="btn btn--primary" id="confirmBuild" type="button">Use this week</button><button class="btn" id="rebuildBtn" type="button">Try again</button></div>';
+      pv.classList.remove("hidden");
+      $("confirmBuild").addEventListener("click", confirmBuild);
+      $("rebuildBtn").addEventListener("click", function () { onBuild(false); });
+    }
+    // A short "thinking" beat so a generated week feels considered, not careless.
+    // Skipped on Try again and under reduced-motion.
+    if (showThinking === true && !reduceMotion) {
+      pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt" id="buildingTxt">Building your week…</span></div>';
+      pv.classList.remove("hidden");
+      var lines = ["Selecting your lifts…", "Balancing the week…", "Setting the progression…"], li = 0;
+      var cyc = setInterval(function () { var el = $("buildingTxt"); if (el) el.textContent = lines[li++ % lines.length]; }, 360);
+      setTimeout(function () { clearInterval(cyc); renderPreview(); }, 1150);
+    } else {
+      renderPreview();
+    }
   }
   function confirmBuild() {
     if (!pendingBuild) return;
@@ -2271,7 +2334,7 @@ function generateProgram(intake, weightMap, seed) {
   $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
-  $("buildBtn").addEventListener("click", onBuild);
+  $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
   $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } save(); syncBuild(); });
@@ -2298,6 +2361,7 @@ function generateProgram(intake, weightMap, seed) {
     document.querySelectorAll("#unitSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-unit-val") === state.program.unit); });
     document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
     document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
+    document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
@@ -2306,6 +2370,7 @@ function generateProgram(intake, weightMap, seed) {
   $("unitSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-unit-val]"); if (!b) return; state.program.unit = b.getAttribute("data-unit-val"); state.unit = state.program.unit; save(); syncSegs(); renderList(false); });
   $("soundSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-sound-val]"); if (!b) return; state.restMuted = b.getAttribute("data-sound-val") === "off"; save(); syncSegs(); if (!state.restMuted) { unlockAudio(); beep(); } });
   $("warmSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-warm-val]"); if (!b) return; state.warmups = b.getAttribute("data-warm-val") === "on"; save(); syncSegs(); renderList(false); });
+  $("fillerSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-filler-val]"); if (!b) return; state.fillers = b.getAttribute("data-filler-val") === "on"; save(); syncSegs(); if (state.fillers === false) hideFiller(); });
 
   /* ===================== Backup ===================== */
   function exportBackup() {
@@ -2357,12 +2422,42 @@ function generateProgram(intake, weightMap, seed) {
     } catch (e) {}
   }
   function fmtClock(sec) { sec = Math.max(0, sec); var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  // Optional accessory ("filler") suggested during a main lift's rest: a low-fatigue
+  // move (mobility, core, calf, or a band isolation) that won't tax the lift you just
+  // did. Only on strength sets with real rest (>=90s), and only if the toggle is on.
+  var currentFillerEx = null, lastFillerId = null, fillerSeed = 0;
+  function pickFiller(ex) {
+    if (state.fillers === false) return null;
+    if (!ex || ex.type !== "strength") return null;
+    if (parseRestSeconds(ex.rest) < 90) return null;
+    var lib = (typeof libByName === "function") ? libByName(ex.name) : null;
+    var mainPat = lib ? lib.pattern : null;
+    function elig(e) { return ((e.type === "mobility") || (e.pattern === "core") || (e.pattern === "calf") || (e.equipment === "band" && !e.compound)) && e.pattern !== mainPat; }
+    var pool = LIBRARY.filter(function (e) { return elig(e) && e.id !== lastFillerId; });
+    if (!pool.length) pool = LIBRARY.filter(elig);
+    if (!pool.length) return null;
+    var pick = pool[Math.abs(fillerSeed++) % pool.length];
+    lastFillerId = pick.id;
+    return pick;
+  }
+  function showFiller(ex) {
+    var box = $("restFiller"); if (!box) return;
+    var f = pickFiller(ex);
+    if (!f) { box.hidden = true; currentFillerEx = null; return; }
+    currentFillerEx = ex;
+    $("fillerName").textContent = f.name;
+    $("fillerReps").textContent = f.type === "mobility" ? "8-10 reps" : "15 reps";
+    var dn = $("fillerDone"); if (dn) { dn.classList.remove("is-done"); dn.setAttribute("aria-pressed", "false"); }
+    box.hidden = false;
+  }
+  function hideFiller() { var box = $("restFiller"); if (box) box.hidden = true; currentFillerEx = null; }
   function startRest(ex) {
     var secs = parseRestSeconds(ex.rest);
     if (!secs) return;
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
+    showFiller(ex);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
     tickRest();
@@ -2382,11 +2477,13 @@ function generateProgram(intake, weightMap, seed) {
     restTimeEl.textContent = fmtClock(rem);
     if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
   }
-  function hideRest() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } document.body.classList.remove("has-rest"); }
+  function hideRest() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); document.body.classList.remove("has-rest"); }
   function initRest() {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill");
     try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     $("restSkip").addEventListener("click", hideRest);
+    var fd = $("fillerDone"); if (fd) fd.addEventListener("click", function () { var on = !fd.classList.contains("is-done"); fd.classList.toggle("is-done", on); fd.setAttribute("aria-pressed", on ? "true" : "false"); });
+    var fsw = $("fillerSwap"); if (fsw) fsw.addEventListener("click", function () { if (currentFillerEx) showFiller(currentFillerEx); });
   }
 
   /* ===================== Storage / toast / boot ===================== */
