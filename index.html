@@ -157,6 +157,12 @@ input, textarea { font: inherit; color: inherit; }
 .setcount__done { font-size: 22px; font-weight: 600; color: var(--accent-ink); }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: "Hanken Grotesk", sans-serif; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
+.card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
+.setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.setshead__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; }
+.setshead .setcount { margin-left: auto; }
+.setshead .setcount__done { font-size: 15px; }
+.setshead .setcount__sep, .setshead .setcount__total { font-size: 13px; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { min-width: 56px; min-height: var(--tap); padding: 6px 12px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 13px; font-family: "Spline Sans Mono", monospace; transition: transform .12s ease, background .15s ease, border-color .15s ease, color .15s ease; }
 .pill__reps { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1698,19 +1704,19 @@ function generateProgram(intake, weightMap, seed) {
     var warm = readLog(ses, e).warm || [];
     var html = warmupRowHtml(e, weight, unit, warm, full);
     if (existing) { if (html) existing.outerHTML = html; else existing.remove(); }
-    else if (html) { var p = card.querySelector(".pills"); if (p) p.insertAdjacentHTML("beforebegin", html); }
+    else if (html) { var anchor = card.querySelector(".setshead") || card.querySelector(".pills"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
   }
   function buildCard(e, i, ses, badge) {
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var pills = pillsHtml(e, lg.done);
     var lastW = lastWeights[e.name.toLowerCase()];
-    var lastLine = (e.type === "strength" && lastW > 0) ? '<div class="lasttime">last ' + esc(roundW(lastW) + " " + unit) + '</div>' : "";
-    var pt = (e.type === "strength" && e.equipment === "barbell") ? platesText(lg.weight, unit) : "";
-    var platesLine = pt ? '<div class="plates">' + esc(pt) + '</div>' : "";
+    var lastHint = (e.type === "strength" && lastW > 0) ? '<span class="card__last">last ' + esc(roundW(lastW) + " " + unit) + '</span>' : "";
+    var platesNote = (e.type === "strength" && e.equipment === "barbell" && lg.weight > 0) ? platesText(lg.weight, unit) : "";
     var libEx = libByName(e.name);
     var metaRows = "";
-    if (e.equipment && EQ_LABEL[e.equipment]) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Equipment</span><span class="exmeta__v">' + esc(EQ_LABEL[e.equipment]) + '</span></div>';
+    if (e.equipment && EQ_LABEL[e.equipment]) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Equipment</span><span class="exmeta__v">' + esc(EQ_LABEL[e.equipment]) + (ln ? ' · ' + esc(ln) : '') + '</span></div>';
     if (libEx && libEx.muscles && libEx.muscles.length) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Targets</span><span class="exmeta__v">' + esc(libEx.muscles.join(", ")) + '</span></div>';
+    if (platesNote) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Plates</span><span class="exmeta__v plates">' + esc(platesNote) + '</span></div>';
     if (libEx && libEx.setup) metaRows += '<div class="exmeta__row"><span class="exmeta__k">Set-up</span><span class="exmeta__v">' + esc(libEx.setup) + '</span></div>';
     var metaBlock = metaRows ? '<div class="exmeta">' + metaRows + '</div>' : "";
     var qualifiesWarm = e.type === "strength" && lg.weight > 0 && libEx && libEx.compound && WARM_LOADED.indexOf(e.equipment) >= 0;
@@ -1718,9 +1724,10 @@ function generateProgram(intake, weightMap, seed) {
     var warmRow = warmupRowHtml(e, lg.weight, unit, lg.warm, warmFull);
     if (warmRow) warmFirstUsed = true;
     var weightCtrl = e.type === "strength"
-      ? '<div class="weight-wrap"><div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + (ln ? '<div class="loadnote">' + esc(ln) + '</div>' : '') + lastLine + platesLine + '</div>'
+      ? '<div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>'
       : e.type === "conditioning" ? ''
       : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
+    var setsHead = '<div class="setshead">' + (e.type === "strength" ? '<span class="setshead__label">Working sets</span>' : '') + '<span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
     var cueInner = (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
     // Conditioning: target IS the prescription, keep it on the card face. Strength/mobility:
     // target/rest is reference, so demote it into Form notes and keep the face glanceable.
@@ -1738,8 +1745,8 @@ function generateProgram(intake, weightMap, seed) {
     }
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
-      '<div class="card__row">' + weightCtrl + '<div class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></div></div>' +
-      warmRow + '<div class="pills" role="group" aria-label="Sets — tap to log">' + pills + '</div>' + faceCue + swapHtml +
+      (e.type === "strength" ? '<div class="card__row">' + weightCtrl + lastHint + '</div>' : weightCtrl) +
+      warmRow + setsHead + '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>' + faceCue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + '<label class="field-label">Technique</label><div class="cuebox">' + formatCue(e.notes) + '</div>' + notesCue +
