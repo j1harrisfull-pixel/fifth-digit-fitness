@@ -583,7 +583,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <div class="sect">
       <div class="sect__label">Maintenance</div>
-      <div class="btn-row"><button class="btn btn--danger" id="eraseBtn" type="button">Reset to Starter program</button></div>
+      <div class="btn-row"><button class="btn btn--danger" id="eraseBtn" type="button">Erase all data</button></div>
     </div>
     <button class="btn sheet__close" id="closeSheet" type="button">Done</button>
     <p class="sheet__about">Training Log · v2 · works fully offline</p>
@@ -609,13 +609,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <rect x="37.9" y="8.3" width="3.6" height="7.4" rx="1.8"/>
     </g></svg>
     <h1 class="intro__title">Training Log</h1>
-    <p class="intro__lead">Your offline training companion. Build a week, train, log your sets. Everything stays on your phone, no account, no internet needed.</p>
+    <p class="intro__lead">Your offline training companion. Build a week, train, log every set. Everything stays on your phone, no account, no internet needed.</p>
     <ul class="intro__list">
-      <li><b>Build a week:</b> tap the program button, top right, and pick your goal, days, time and kit.</li>
-      <li><b>Log as you go:</b> tap the rep pills to mark sets done, nudge your working weight up or down.</li>
+      <li><b>Build a week:</b> pick your goal, days, time and kit. It builds instantly, fully offline.</li>
+      <li><b>Log as you go:</b> set your reps, tap each set done, nudge the weight up or down.</li>
       <li><b>Technique:</b> open <b>Form notes</b> on any exercise for the coaching cues.</li>
     </ul>
-    <button class="btn btn--primary intro__go" id="introGo" type="button">Start training</button>
+    <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
     <p class="intro__add">Tip: in Safari, tap Share then “Add to Home Screen” to keep it on your phone.</p>
   </div>
 </div>
@@ -1587,26 +1587,8 @@ function generateProgram(intake, weightMap, seed) {
   /*__COACH_END__*/
 
   /* ===================== Default program + state ===================== */
-  function defaultProgram() {
-    return normalizeProgram({
-      title: "Starter", goal: "A balanced week to begin. Swap it for a Claude program any time.", unit: "kg",
-      weeks: [{ week: 1, focus: "Base", sessions: [
-        { name: "Lower", focus: "Squat · hinge · hips", exercises: [
-          { name: "Back Squat", type: "strength", equipment: "barbell", sets: 3, reps: "5", weight: 60, target: "RPE 7", rest: "3 min", notes: "Brace before the descent; knees track toes; full depth." },
-          { name: "Romanian Deadlift", type: "strength", equipment: "barbell", sets: 3, reps: "8", weight: 60, target: "RPE 8", rest: "2 min", notes: "Soft knees, push hips back, feel the hamstrings load." },
-          { name: "Walking Lunge", type: "strength", equipment: "dumbbell", sets: 3, reps: "10/side", weight: 20, rest: "90 s", notes: "Tall torso, controlled steps. Weight is per hand." },
-          { name: "90/90 Hip Switch", type: "mobility", equipment: "bodyweight", sets: 2, reps: "8/side", weight: 0, notes: "Slow rotations, stay upright, own the range." } ] },
-        { name: "Upper", focus: "Press · pull · carry", exercises: [
-          { name: "Bench Press", type: "strength", equipment: "barbell", sets: 3, reps: "5", weight: 50, target: "RPE 7", rest: "3 min", notes: "Blades pinned, controlled touch, full lockout." },
-          { name: "Overhead Press", type: "strength", equipment: "barbell", sets: 3, reps: "6", weight: 30, target: "RPE 8", rest: "2 min", notes: "Glutes tight, bar over mid-foot, no layback." },
-          { name: "Chest-Supported Row", type: "strength", equipment: "dumbbell", group: "B", sets: 3, reps: "10", weight: 22, rest: "75 s", notes: "Pull to the lower ribs, pause, slow return." },
-          { name: "Band Pull-Apart", type: "mobility", equipment: "band", group: "B", sets: 3, reps: "15", weight: 0, rest: "75 s", notes: "Straight arms, squeeze the blades, no shrug." } ] },
-        { name: "Full", focus: "Deadlift · posterior", exercises: [
-          { name: "Deadlift", type: "strength", equipment: "barbell", sets: 3, reps: "3", weight: 90, target: "RPE 7", rest: "3 min", notes: "Take the slack out, push the floor away." },
-          { name: "Pull-Up", type: "strength", equipment: "bodyweight", sets: 3, reps: "6", weight: 0, rest: "2 min", notes: "Full hang to chin over bar; add load when reps come easy." },
-          { name: "Hip Thrust", type: "strength", equipment: "barbell", sets: 3, reps: "10", weight: 60, rest: "90 s", notes: "Ribs down, full lockout, squeeze." },
-          { name: "Couch Stretch", type: "mobility", equipment: "bodyweight", sets: 2, reps: "45s/side", weight: 0, notes: "Hips square, ribs down, breathe and soften." } ] } ] }]
-    });
+  function emptyProgram() {
+    return normalizeProgram({ title: "", goal: "", unit: "kg", weeks: [{ week: 1, focus: "", sessions: [] }] });
   }
   function freshState(program, opts) {
     opts = opts || {};
@@ -1625,8 +1607,9 @@ function generateProgram(intake, weightMap, seed) {
   function load() {
     try { var raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) return c; } } catch (e) {}
     try { var v1 = localStorage.getItem(STORE_V1); if (v1) { return migrateV1toV2(JSON.parse(v1)); } } catch (e) {}
-    return freshState(defaultProgram());
+    return freshState(emptyProgram());
   }
+  function hasProgram() { return !!(state.program && state.program.weeks && state.program.weeks.some(function (w) { return w.sessions && w.sessions.length; })); }
   function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { toast("Couldn't save (storage may be full)"); } }
   var saveTimer;
   function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); }
@@ -1708,6 +1691,7 @@ function generateProgram(intake, weightMap, seed) {
   var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
   function renderWeekList() {
     var sessions = curWeek().sessions;
+    if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
     weekListEl.innerHTML = sessions.map(function (s, i) {
       var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
       var focus = s.focus && s.focus !== s.name ? '<span class="weekrow__focus">' + esc(s.focus) + '</span>' : '';
@@ -2196,10 +2180,9 @@ function generateProgram(intake, weightMap, seed) {
   function confirmBuild() {
     if (!pendingBuild) return;
     hideRest();
-    state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() });
-    state.archive = pruneArchive(state.archive, 12);
+    if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
     state.program = pendingBuild; state.unit = pendingBuild.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
-    pendingBuild = null; save(); applyTheme(); renderAll(true); closePlan(); toast("Built your week");
+    pendingBuild = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast("Built your week");
   }
   function setPlanMode(mode) {
     var today = mode === "today";
@@ -2267,10 +2250,9 @@ function generateProgram(intake, weightMap, seed) {
   function confirmLoad() {
     if (!pending) return;
     hideRest();
-    state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() });
-    state.archive = pruneArchive(state.archive, 12);
+    if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
     state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {};
-    pending = null; save(); applyTheme(); renderAll(true); closePlan(); toast("Loaded " + state.program.title);
+    pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast("Loaded " + state.program.title);
   }
   $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
@@ -2339,10 +2321,10 @@ function generateProgram(intake, weightMap, seed) {
   $("importFile").addEventListener("change", function (ev) { if (ev.target.files && ev.target.files[0]) importBackup(ev.target.files[0]); ev.target.value = ""; });
   $("eraseBtn").addEventListener("click", function () {
     askConfirm({
-      title: "Reset to the Starter program?",
+      title: "Erase everything and start over?",
       message: "Your current program and all logged history will be erased. This can't be undone. Export a backup first if you want to keep it.",
-      confirmLabel: "Erase and reset",
-      onConfirm: function () { hideRest(); state = freshState(defaultProgram()); save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); toast("Reset to Starter"); }
+      confirmLabel: "Erase everything",
+      onConfirm: function () { hideRest(); state = freshState(emptyProgram()); save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); refreshWelcome(); toast("Cleared"); }
     });
   });
 
@@ -2428,12 +2410,26 @@ function generateProgram(intake, weightMap, seed) {
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
   }
 
-  function showIntro() { var el = $("intro"); if (el) el.hidden = false; }
+  function showWelcome(building) {
+    var el = $("intro"); if (!el) return;
+    var go = $("introGo");
+    if (go) { go.textContent = building ? "Build my first week" : "Got it"; go.setAttribute("data-build", building ? "1" : "0"); }
+    el.hidden = false;
+  }
+  // The welcome is the first screen until a program exists; once one is built or
+  // loaded it stays out of the way.
+  function refreshWelcome() { if (!hasProgram()) showWelcome(true); else { var el = $("intro"); if (el) el.hidden = true; } }
   function initIntro() {
-    var KEY = "training-log:intro";
-    var go = $("introGo"); if (go) go.addEventListener("click", function () { var el = $("intro"); if (el) el.hidden = true; try { localStorage.setItem(KEY, "1"); } catch (e) {} });
-    var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showIntro(); });
-    try { if (!localStorage.getItem(KEY)) showIntro(); } catch (e) {}
+    var go = $("introGo");
+    if (go) go.addEventListener("click", function () {
+      var building = go.getAttribute("data-build") === "1";
+      // Building: leave the welcome up behind the build sheet, so cancelling
+      // returns to it. Info mode ("Got it"): just dismiss.
+      if (building) openPlan();
+      else { var el = $("intro"); if (el) el.hidden = true; }
+    });
+    var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showWelcome(false); });
+    refreshWelcome();
   }
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
   if ("serviceWorker" in navigator) {
