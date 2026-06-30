@@ -589,6 +589,21 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
     </div>
     <div class="sect">
+      <div class="sect__label">My equipment</div>
+      <div class="chips" id="myEquip" role="group" aria-label="Equipment I have">
+        <button class="chip" data-eq="barbell" type="button">Barbell</button>
+        <button class="chip" data-eq="dumbbell" type="button">Dumbbells</button>
+        <button class="chip" data-eq="kettlebell" type="button">Kettlebells</button>
+        <button class="chip" data-eq="cable" type="button">Cable</button>
+        <button class="chip" data-eq="machine" type="button">Machines</button>
+        <button class="chip" data-eq="band" type="button">Bands</button>
+        <button class="chip" data-eq="pullup-bar" type="button">Pull-up bar</button>
+        <button class="chip" data-eq="cardio" type="button">Cardio machine</button>
+        <button class="chip" data-eq="sled" type="button">Sled</button>
+      </div>
+      <p class="sect__hint" style="margin-top:8px">Saved for every workout you build. Bodyweight is always included. Only changes when you change it, or when you erase all data.</p>
+    </div>
+    <div class="sect">
       <div class="sect__label">Backup (everything)</div>
       <div class="btn-row">
         <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
@@ -2295,7 +2310,7 @@ function generateProgram(intake, weightMap, seed) {
     }) };
     week.sessions.push(session);
     state.activeSession = week.sessions.length - 1;
-    pendingToday = null; hideRest(); save(); renderAll(true); closePlan(); toast("Added " + session.name);
+    pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added " + session.name);
   }
   function closePlan() { if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
@@ -2362,6 +2377,8 @@ function generateProgram(intake, weightMap, seed) {
     document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
     document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
     document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
+    var myEq = buildPrefs().equipment;
+    document.querySelectorAll("#myEquip button").forEach(function (b) { b.setAttribute("aria-pressed", myEq.indexOf(b.getAttribute("data-eq")) >= 0); });
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
@@ -2371,6 +2388,7 @@ function generateProgram(intake, weightMap, seed) {
   $("soundSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-sound-val]"); if (!b) return; state.restMuted = b.getAttribute("data-sound-val") === "off"; save(); syncSegs(); if (!state.restMuted) { unlockAudio(); beep(); } });
   $("warmSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-warm-val]"); if (!b) return; state.warmups = b.getAttribute("data-warm-val") === "on"; save(); syncSegs(); renderList(false); });
   $("fillerSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-filler-val]"); if (!b) return; state.fillers = b.getAttribute("data-filler-val") === "on"; save(); syncSegs(); if (state.fillers === false) hideFiller(); });
+  $("myEquip").addEventListener("click", function (ev) { var b = ev.target.closest("[data-eq]"); if (!b) return; var k = b.getAttribute("data-eq"); var p = buildPrefs(); var i = p.equipment.indexOf(k); if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k); save(); syncSegs(); });
 
   /* ===================== Backup ===================== */
   function exportBackup() {
