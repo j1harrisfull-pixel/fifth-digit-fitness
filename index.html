@@ -140,6 +140,7 @@ input, textarea { font: inherit; color: inherit; }
 .sprog__fill { height: 100%; width: 100%; transform-origin: left; background: var(--accent); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
 .sprog__txt { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sprog__tag { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent-ink); font-weight: 700; }
+.sprog__tag--fatigue { color: var(--danger); }
 .reset-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--line-strong); border-radius: 999px; padding: 9px 13px; font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink); transition: border-color .12s ease, transform .12s ease; }
 .reset-btn:hover { border-color: var(--accent-ink); color: var(--accent-ink); }
 .reset-btn:active { transform: scale(.96); }
@@ -197,13 +198,13 @@ input, textarea { font: inherit; color: inherit; }
 .setrow.is-done { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
 .setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.rstep { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 9px; font-size: 17px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.rstep { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 12px; font-size: 19px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
 .runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
-.setrow__rpe { flex: none; min-width: 46px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.setrow__rpe { flex: none; min-width: 50px; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
-.setrow__done { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
 .setrow__done:hover { border-color: var(--accent-ink); }
 .setrow.is-done .setrow__done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .setrow.pulse .setrow__done { animation: pulse .3s ease; }
@@ -360,7 +361,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.has-action { pointer-events: auto; display: inline-flex; align-items: center; gap: 16px; }
 .toast__action { background: none; border: 0; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 2px; cursor: pointer; min-height: 32px; }
-.confirm__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; }
+.confirm__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
+.confirm__icon { flex: none; }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
 .preview__error { color: var(--danger); font-size: 13px; line-height: 1.45; padding: 12px 14px; border: 1px solid var(--danger); border-radius: 11px; background: var(--surface-2); }
 .todaylist { margin-top: 12px; display: flex; flex-direction: column; }
@@ -652,7 +654,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 <dialog class="sheet" id="confirmSheet" aria-labelledby="confirmTitle">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
-    <h2 class="confirm__title" id="confirmTitle">Are you sure?</h2>
+    <h2 class="confirm__title" id="confirmTitle"><svg class="confirm__icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg><span id="confirmTitleText">Are you sure?</span></h2>
     <p class="confirm__msg" id="confirmMsg"></p>
     <div class="btn-row">
       <button class="btn btn--danger" id="confirmYes" type="button">Confirm</button>
@@ -762,6 +764,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     var done = 0;
     items.forEach(function (it) { if (it && it.sets > 0 && (it.doneCount || 0) >= it.sets) done++; });
     return { done: done, total: items.length };
+  }
+  // RPE is captured per set but otherwise never read back. This gives it one job:
+  // flag when logged effort this session is running high, so a non-deload week can
+  // still surface a "go easier" signal instead of the input being pure decoration.
+  // Informational only -- never changes the generated program.
+  function sessionFatigueFlag(ses) {
+    var sl = state.log[ses.id]; if (!sl || !sl.ex) return false;
+    var sum = 0, n = 0;
+    Object.keys(sl.ex).forEach(function (k) {
+      var el = sl.ex[k]; if (!el || !Array.isArray(el.rpe)) return;
+      el.rpe.forEach(function (r) { if (r != null) { sum += r; n++; } });
+    });
+    return n >= 3 && (sum / n) >= 9;
   }
   function pruneArchive(archive, max) {
     if (!Array.isArray(archive)) return [];
@@ -1814,9 +1829,11 @@ function generateProgram(intake, weightMap, seed) {
   }
   function renderHead() {
     var ses = curSession(), wk = curWeek(), p = sessionProgress(sessionItems());
+    var fatigue = !wk.deload && sessionFatigueFlag(ses);
+    var tag = wk.deload ? '<span class="sprog__tag">deload</span>' : (fatigue ? '<span class="sprog__tag sprog__tag--fatigue">high effort logged</span>' : '');
     headEl.innerHTML =
       '<div class="session__main"><h1 class="session__focus">' + esc(ses.focus || ses.name) + '</h1>' +
-      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' done</span>' + (wk.deload ? '<span class="sprog__tag">deload</span>' : '') + '</div></div>' +
+      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' done</span>' + tag + '</div></div>' +
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>';
     $("resetBtn").addEventListener("click", resetDay);
   }
@@ -2075,6 +2092,17 @@ function generateProgram(intake, weightMap, seed) {
     } else if (act === "sets-" || act === "sets+") {
       var ns = clampInt(e.sets + (act === "sets+" ? 1 : -1), SETS_MIN, SETS_MAX, e.sets);
       if (ns === e.sets) return;
+      // Removing a set can discard a real logged result (reps/RPE/done) for the
+      // set being dropped -- snapshot it so an accidental tap is recoverable,
+      // same pattern as resetDay's undo. Growing (sets+) never loses data.
+      var undoSid = ses.id, undoExId = e.id, undoOldSets = e.sets, undoSnapshot = null;
+      if (act === "sets-") {
+        var slBefore = state.log[undoSid], elBefore = slBefore && slBefore.ex ? slBefore.ex[e.id] : null;
+        var lastIdx = e.sets - 1;
+        if (elBefore && ((elBefore.done && elBefore.done[lastIdx]) || (elBefore.reps && elBefore.reps[lastIdx] != null))) {
+          undoSnapshot = JSON.parse(JSON.stringify(elBefore));
+        }
+      }
       e.sets = ns; writeLog(ses, e); save();
       var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.done.filter(Boolean).length;
       if (e.type === "strength") { card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2); refreshFoot(card2, e, ses); }
@@ -2084,6 +2112,14 @@ function generateProgram(intake, weightMap, seed) {
       var sv = card2.querySelector(".stepper__val"); if (sv) sv.textContent = e.sets;
       card2.classList.toggle("is-complete", e.sets > 0 && dc2 === e.sets);
       applyGlance();
+      if (undoSnapshot) {
+        toastUndo("Set removed", function () {
+          e.sets = undoOldSets;
+          var sl2 = state.log[undoSid]; if (!sl2) { sl2 = { date: null, ex: {} }; state.log[undoSid] = sl2; }
+          sl2.ex[undoExId] = undoSnapshot;
+          save(); renderList(true); toast("Set restored");
+        });
+      }
     } else if (act === "setdone") {
       var di = parseInt(btn.getAttribute("data-set"), 10), wd = writeLog(ses, e);
       ensureArr(wd.el, "reps", e.sets); ensureArr(wd.el, "rpe", e.sets);
@@ -2117,6 +2153,7 @@ function generateProgram(intake, weightMap, seed) {
       wp.el.rpe[pi] = pv; saveSoon();
       btn.textContent = pv != null ? "@" + pv : "RPE"; btn.classList.toggle("is-set", pv != null);
       btn.setAttribute("aria-label", "Effort for set " + (pi + 1) + (pv != null ? ": RPE " + pv : ", optional"));
+      renderHead(); // keeps the "high effort logged" nudge live as RPE is rated
     }
   }
   function onListInput(ev) {
@@ -2598,7 +2635,7 @@ function generateProgram(intake, weightMap, seed) {
   // moment keeps the app's own vocabulary and names the consequence concretely).
   function askConfirm(opts) {
     var dlg = $("confirmSheet"), yes = $("confirmYes"), no = $("confirmNo");
-    $("confirmTitle").textContent = opts.title || "Are you sure?";
+    $("confirmTitleText").textContent = opts.title || "Are you sure?";
     $("confirmMsg").textContent = opts.message || "";
     yes.textContent = opts.confirmLabel || "Confirm";
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); }
