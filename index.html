@@ -1660,13 +1660,23 @@ function generateProgram(intake, weightMap, seed) {
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
   }
-  // The pre-v28 build auto-seeded a placeholder "Starter" program. If the saved
-  // state is that untouched seed (never logged, nothing archived), clear it so
-  // the welcome screen shows instead of placeholder workouts. Anything the user
-  // actually used keeps it.
+  // The pre-v28 build auto-seeded a placeholder "Starter" program (3 sessions,
+  // "Lower"/"Upper"/"Full", leading with Back Squat/Bench Press/Deadlift). If the
+  // saved state matches that EXACT shape and is untouched (never logged, nothing
+  // archived), clear it so the welcome screen shows instead of placeholder
+  // workouts. Matching the full shape (not just the title) means a real program
+  // the user loads or pastes that merely happens to be titled "Starter" is never
+  // mistaken for the placeholder and wiped.
   function isPristineStarter(st) {
     if (!st || !st.program || st.program.title !== "Starter") return false;
     if (Array.isArray(st.archive) && st.archive.length) return false;
+    var wk = st.program.weeks && st.program.weeks[0];
+    var sessions = (wk && wk.sessions) || [];
+    if (sessions.length !== 3) return false;
+    var names = sessions.map(function (s) { return s.name; });
+    if (names[0] !== "Lower" || names[1] !== "Upper" || names[2] !== "Full") return false;
+    var leads = sessions.map(function (s) { return s.exercises && s.exercises[0] && s.exercises[0].name; });
+    if (leads[0] !== "Back Squat" || leads[1] !== "Bench Press" || leads[2] !== "Deadlift") return false;
     var log = st.log || {};
     var used = Object.keys(log).some(function (sid) {
       var ex = log[sid] && log[sid].ex; if (!ex) return false;
@@ -1676,7 +1686,18 @@ function generateProgram(intake, weightMap, seed) {
   }
   function load() {
     try { var raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) { if (isPristineStarter(c)) c = freshState(emptyProgram(), { theme: c.theme }); return c; } } } catch (e) {}
-    try { var v1 = localStorage.getItem(STORE_V1); if (v1) { return migrateV1toV2(JSON.parse(v1)); } } catch (e) {}
+    try {
+      var v1 = localStorage.getItem(STORE_V1);
+      if (v1) {
+        var migrated = migrateV1toV2(JSON.parse(v1));
+        // A v1 install that never had any session data built (never used at all)
+        // migrates to a program with zero sessions -- show the welcome screen
+        // instead of a "Starter"-titled program with nothing in it.
+        var mwk = migrated.program.weeks && migrated.program.weeks[0];
+        if (!mwk || !mwk.sessions || !mwk.sessions.length) return freshState(emptyProgram(), { theme: migrated.theme });
+        return migrated;
+      }
+    } catch (e) {}
     return freshState(emptyProgram());
   }
   function hasProgram() { return !!(state.program && state.program.weeks && state.program.weeks.some(function (w) { return w.sessions && w.sessions.length; })); }
@@ -1704,22 +1725,30 @@ function generateProgram(intake, weightMap, seed) {
   // program's generated weight when there's no history.
   function suggestedWeight(ex) {
     var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
-    if (lr && lr.weight != null && lr.weight > 0) return roundW(lr.ready ? lr.weight + STEP : lr.weight);
+    // A legitimately logged weight of 0 (bodyweight) is real history, not "no
+    // data" -- so a bodyweight lift that's ready still progresses, by adding a
+    // small increment of external load rather than being stuck at 0 forever.
+    if (lr && lr.weight != null) return roundW(lr.ready ? lr.weight + STEP : lr.weight);
     return (ex.weight != null ? ex.weight : 0);
   }
   function readLog(ses, ex) {
-    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [], reps = [], rpe = [];
+    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [], reps = [], rpe = [], real = [];
     var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
     for (var i = 0; i < ex.sets; i++) {
       done.push(!!(el && el.done && el.done[i]));
-      var rv = (el && el.reps && el.reps[i] != null) ? el.reps[i]
+      var hasReal = !!(el && el.reps && el.reps[i] != null);
+      real.push(hasReal);
+      var rv = hasReal ? el.reps[i]
         : (lr && lr.reps && lr.reps[i] != null) ? lr.reps[i]
         : (lr && lr.reps && lr.reps.length) ? lr.reps[lr.reps.length - 1]
         : (lo != null ? lo : 0);
       reps.push(rv);
       rpe.push(el && el.rpe && el.rpe[i] != null ? el.rpe[i] : null);
     }
-    return { done: done, weight: el && el.weight != null ? el.weight : suggestedWeight(ex), warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe };
+    // `real` marks which reps came from an actual logged value vs. a prefill
+    // guess -- a done set with no real value predates per-set rep tracking, so
+    // its guessed number must not be treated as a genuine result (est-1RM/ready).
+    return { done: done, weight: el && el.weight != null ? el.weight : suggestedWeight(ex), warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe, real: real };
   }
   function writeLog(ses, ex) {
     var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
@@ -1825,10 +1854,10 @@ function generateProgram(intake, weightMap, seed) {
   }
   function strengthFoot(e, lg, unit) {
     var best = 0, n = e.sets, allDone = n > 0, j, top = repsTop(e);
-    for (var k = 0; k < n; k++) { if (lg.done[k]) { var o = est1RM(lg.weight, lg.reps[k]); if (o > best) best = o; } }
+    for (var k = 0; k < n; k++) { if (lg.done[k] && lg.real[k]) { var o = est1RM(lg.weight, lg.reps[k]); if (o > best) best = o; } }
     for (j = 0; j < n; j++) { if (!lg.done[j]) allDone = false; }
     var ready = allDone && top != null;
-    if (ready) { for (j = 0; j < n; j++) { if ((lg.reps[j] || 0) < top) ready = false; } }
+    if (ready) { for (j = 0; j < n; j++) { if (!lg.real[j] || (lg.reps[j] || 0) < top) ready = false; } }
     var ormTxt = best > 0 ? best + " " + unit : "—";
     var progTxt = top == null ? "" : ready ? "Ready · add " + roundW(STEP) + " " + unit + " next time" : "Hit " + top + " reps on every set to add weight";
     return { ormTxt: ormTxt, ready: ready, progTxt: progTxt };
@@ -2078,7 +2107,7 @@ function generateProgram(intake, weightMap, seed) {
       var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e);
       ensureArr(wr.el, "reps", e.sets);
       var rrow = btn.closest(".setrow"), rcur = wr.el.reps[ri] != null ? wr.el.reps[ri] : (parseInt(rrow.querySelector(".rval").textContent, 10) || 0);
-      var rnv = Math.max(1, rcur + (act === "rep+" ? 1 : -1));
+      var rnv = Math.max(0, rcur + (act === "rep+" ? 1 : -1));
       wr.el.reps[ri] = rnv; saveSoon();
       rrow.querySelector(".rval").textContent = rnv;
       refreshFoot(btn.closest(".card"), e, ses);
@@ -2105,7 +2134,7 @@ function generateProgram(intake, weightMap, seed) {
     var ses = curSession(), sid = ses.id;
     var sl = state.log[sid];
     var prev = sl ? JSON.parse(JSON.stringify(sl)) : null; // snapshot for Undo
-    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; if (sl.ex[k].rpe) sl.ex[k].rpe = []; }); sl.date = null; }
+    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; if (sl.ex[k].rpe) sl.ex[k].rpe = []; if (sl.ex[k].reps) sl.ex[k].reps = []; }); sl.date = null; }
     save(); renderHead(); renderList(true);
     toastUndo(ses.name + " reset", function () {
       if (prev) state.log[sid] = prev; else delete state.log[sid];
@@ -2407,7 +2436,7 @@ function generateProgram(intake, weightMap, seed) {
         title: "Restore this backup?",
         message: "This replaces your current program and all logged history with the backup. It can't be undone.",
         confirmLabel: "Restore",
-        onConfirm: function () { hideRest(); state = c; save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); toast("Backup restored"); }
+        onConfirm: function () { hideRest(); state = c; save(); applyTheme(); refreshWelcome(); renderAll(true); syncSegs(); closeSheet(); toast("Backup restored"); }
       });
     };
     reader.onerror = function () { toast("Couldn't read that file"); };
