@@ -283,6 +283,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .preview { margin-top: 12px; padding: 14px; border: 1px solid var(--accent-ink); border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
 .preview__title { font-weight: 700; font-size: 15px; }
 .preview__meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 12px; }
+.preview__debt { font-size: 12px; color: var(--accent-ink); margin: -6px 0 12px; font-weight: 600; }
 .status { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-dim); }
 .status__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-dim); flex: none; }
 .status__dot.ok { background: var(--mob); }
@@ -1772,6 +1773,142 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     weeks: weeks
   });
 }
+
+// ===================== Phase 3: Request Object -> Resolve -> Spec =====================
+// One normalized "what to train" object that BOTH entry points converge on: the
+// free-text parser (via parseIntent) and the no-prompt week-builder (via buildPrefs).
+// Adapters translate it back into the shapes the current generators consume, so
+// Phase 3 unifies the front door WITHOUT rewriting generation (that's Phase 4).
+// Fields tagged "brief-forward" are carried now but only acted on by later phases
+// -- never invented precision. `goal` uses the app's vocabulary (the brief's
+// pillar_bias vocabulary maps onto it); `equipment` is the app's kit array (the
+// brief's named equipment_profile is a future nicety).
+function makeRequest(o) {
+  o = o || {};
+  var goals = ["hybrid", "strength", "endurance", "hypertrophy", "general"];
+  var req = {
+    scope: o.scope === "week" ? "week" : "session",
+    goal: goals.indexOf(o.goal) >= 0 ? o.goal : "general",
+    duration_min: clampInt(o.duration_min != null ? o.duration_min : o.minutes, 15, 120, 45),
+    equipment: Array.isArray(o.equipment) ? o.equipment.slice() : null, // null = full gym
+    mobility: !!o.mobility,
+    conditioning: !!o.conditioning,
+    days: clampInt(o.days, 1, 7, 4),
+    weeks: [1, 4].indexOf(parseInt(o.weeks, 10)) >= 0 ? parseInt(o.weeks, 10) : 4,
+    // session focus (the fields the current generateSession consumes)
+    role: o.role || null,
+    patterns: Array.isArray(o.patterns) ? o.patterns.slice() : [],
+    areas: Array.isArray(o.areas) ? o.areas.slice() : [],
+    summary: o.summary || "",
+    focusText: o.focusText || "",
+    // brief-forward: consumed by later phases, carried now
+    focus: Array.isArray(o.focus) ? o.focus.slice() : [],
+    flags: Array.isArray(o.flags) ? o.flags.slice() : [],
+    intensity_cap: o.intensity_cap != null ? o.intensity_cap : null,
+    must_include: Array.isArray(o.must_include) ? o.must_include.slice() : [],
+    must_avoid: Array.isArray(o.must_avoid) ? o.must_avoid.slice() : []
+  };
+  // canonical focus[] mirror for Phase 4, derived when a producer didn't set it
+  if (!req.focus.length) req.focus = req.areas.length ? req.areas.slice() : req.role ? [req.role] : req.patterns.slice();
+  return req;
+}
+// Request -> the intake shape generateProgram() expects (identical to today's).
+function requestToIntake(req) {
+  var includes = [];
+  if (req.mobility) includes.push("mobility");
+  if (req.conditioning) includes.push("conditioning");
+  return { days: req.days, goal: req.goal, minutes: req.duration_min, weeks: req.weeks, includes: includes, focus: [], equipment: req.equipment };
+}
+// Request -> the parsed shape generateSession() expects (identical to today's).
+function requestToParsed(req) {
+  var includes = [];
+  if (req.mobility) includes.push("mobility");
+  if (req.conditioning) includes.push("conditioning");
+  return { role: req.role, patterns: req.patterns, areas: req.areas, minutes: req.duration_min, goal: req.goal, includes: includes, equipment: req.equipment, summary: req.summary, focusText: req.focusText };
+}
+// The regex parser's output -> a Request Object (the offline / fallback path).
+function parsedToRequest(parsed) {
+  var inc = Array.isArray(parsed.includes) ? parsed.includes : [];
+  return makeRequest({
+    scope: "session", goal: parsed.goal, duration_min: parsed.minutes, equipment: parsed.equipment,
+    mobility: inc.indexOf("mobility") >= 0, conditioning: inc.indexOf("conditioning") >= 0,
+    role: parsed.role, patterns: parsed.patterns, areas: parsed.areas,
+    summary: parsed.summary, focusText: parsed.focusText
+  });
+}
+
+// Heuristic weekly working-set targets per movement_pattern (volume landmarks,
+// tunable -- the brief calls these heuristics). Debt = target - completed this week.
+var WEEKLY_SET_TARGETS = {
+  squat: 10, hinge: 10, lunge: 6, horiz_push: 12, vert_push: 8, horiz_pull: 12, vert_pull: 10,
+  isolation_biceps: 8, isolation_triceps: 8, isolation_shoulders: 8, isolation_chest: 6,
+  isolation_back: 6, isolation_quads: 6, isolation_hamstrings: 6, isolation_glutes: 6, isolation_calf: 8,
+  carry: 4, power: 6, anti_extension: 4, anti_rotation: 4, anti_lateral_flexion: 3,
+  rotation: 3, flexion: 4, lateral_flexion: 3
+};
+var MP_LABEL = {
+  squat: "Squat", hinge: "Hinge", lunge: "Lunge/single-leg", horiz_push: "Horizontal push",
+  vert_push: "Vertical push", horiz_pull: "Horizontal pull", vert_pull: "Vertical pull",
+  isolation_biceps: "Biceps", isolation_triceps: "Triceps", isolation_shoulders: "Shoulders",
+  isolation_chest: "Chest", isolation_back: "Back", isolation_quads: "Quads",
+  isolation_hamstrings: "Hamstrings", isolation_glutes: "Glutes", isolation_calf: "Calves",
+  carry: "Carry", power: "Power", anti_extension: "Anti-extension core", anti_rotation: "Anti-rotation core",
+  anti_lateral_flexion: "Anti-lateral-flexion core", rotation: "Rotation core",
+  flexion: "Flexion core", lateral_flexion: "Lateral-flexion core"
+};
+// Counts COMPLETED working sets in the active week per movement_pattern and per
+// primary muscle (using Phase-2 tags), subtracts from the target table, ranks by
+// most-behind. The real, computable-today core of the Resolve stage -- what
+// Phase 4's selection will read to "fill what's furthest behind."
+function computeWeeklyDebt(state) {
+  var byName = {};
+  for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
+  var donePat = {}, doneMus = {};
+  var prog = state && state.program, log = (state && state.log) || {};
+  var wk = prog && Array.isArray(prog.weeks) ? prog.weeks[(state.activeWeek || 0)] : null;
+  if (wk && Array.isArray(wk.sessions)) {
+    wk.sessions.forEach(function (ses) {
+      var sl = log[ses.id];
+      (ses.exercises || []).forEach(function (ex) {
+        var lib = byName[String(ex.name).toLowerCase()];
+        if (!lib || lib.type !== "strength") return;
+        var el = sl && sl.ex ? sl.ex[ex.id] : null;
+        var done = el && Array.isArray(el.sets) ? el.sets.filter(function (s) { return s.completed; }).length : 0;
+        if (!done) return;
+        if (lib.movement_pattern) donePat[lib.movement_pattern] = (donePat[lib.movement_pattern] || 0) + done;
+        var pm = lib.primary_muscles && lib.primary_muscles[0];
+        if (pm) doneMus[pm] = (doneMus[pm] || 0) + done;
+      });
+    });
+  }
+  var byPattern = {}, ranked = [];
+  Object.keys(WEEKLY_SET_TARGETS).forEach(function (mp) {
+    var target = WEEKLY_SET_TARGETS[mp], done = donePat[mp] || 0, debt = Math.max(0, target - done);
+    byPattern[mp] = { target: target, done: done, debt: debt };
+    ranked.push({ key: mp, label: MP_LABEL[mp] || mp, debt: debt, done: done, target: target });
+  });
+  ranked.sort(function (a, b) { return b.debt - a.debt || a.key.localeCompare(b.key); });
+  // byMuscle carries completed-set counts only; per-muscle TARGETS are a documented
+  // follow-on (pattern debt is the operative signal for antagonist/pattern balance).
+  return { byPattern: byPattern, byMuscle: doneMus, ranked: ranked };
+}
+
+// Resolve-stage stubs: neutral defaults with stable shapes, so Phase 7/9 swap the
+// body for real logic without changing any caller. Each is flagged _stub:true.
+function stubFatigueState() { return { _stub: true, band: "green", byPattern: {}, note: "fatigue % model lands in Phase 7 (2.1)" }; }
+function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
+function stubReadiness() { return { _stub: true, score: null, note: "optional wearable readiness; may stay null" }; }
+// Resolve: RequestObject + user state -> a Session Spec. Weekly debt is real;
+// fatigue / block-week / readiness are stubs until their phases land.
+function resolveSpec(request, state) {
+  return {
+    request: request,
+    debt: computeWeeklyDebt(state),
+    fatigue: stubFatigueState(),
+    block: stubBlockWeek(),
+    readiness: stubReadiness()
+  };
+}
   /*__COACH_END__*/
 
   /* ===================== Default program + state ===================== */
@@ -2559,10 +2696,11 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
   }
   function onBuild(showThinking) {
     cancelBuildThinking(); // a build already in flight is superseded by this one
-    var p = buildPrefs(), includes = [];
-    if (p.mobility) includes.push("mobility");
-    if (p.conditioning) includes.push("conditioning");
-    var intake = { days: p.days, goal: p.goal, minutes: p.minutes, weeks: p.weeks, includes: includes, focus: [], equipment: p.equipment };
+    var p = buildPrefs();
+    // Both entry points now converge on one Request Object; requestToIntake
+    // reproduces exactly the intake generateProgram consumed before.
+    var req = makeRequest({ scope: "week", goal: p.goal, duration_min: p.minutes, weeks: p.weeks, days: p.days, mobility: p.mobility, conditioning: p.conditioning, equipment: p.equipment });
+    var intake = requestToIntake(req);
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
@@ -2603,26 +2741,74 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     document.querySelectorAll("#planMode button").forEach(function (b) { b.setAttribute("aria-pressed", (b.getAttribute("data-mode") === mode).toString()); });
     var h = planSheet.querySelector("h2"); if (h) h.textContent = today ? "Today's session" : "Build my week";
   }
+  // The free-text parse endpoint. Empty by default -> the app uses the offline
+  // regex parser and never touches the network. Set it to the Cloudflare Worker
+  // URL (via localStorage "tl:parseEndpoint", so no code change/redeploy needed)
+  // to enable the LLM parser; the regex parser stays as the offline/failure fallback.
+  function parseEndpoint() { try { return localStorage.getItem("tl:parseEndpoint") || ""; } catch (e) { return ""; } }
+  // Maps the Worker's structured (app-native) JSON into a Request Object, deriving
+  // the human-facing summary the preview shows.
+  function normalizeLLMRequest(obj, text) {
+    obj = obj && typeof obj === "object" ? obj : {};
+    var role = obj.role || null, areas = Array.isArray(obj.areas) ? obj.areas : [];
+    var focusText = role ? (ROLE_NAME[role] || "Full Body") : areas.length ? titleCaseAreas(areas) : "Full Body";
+    var minutes = clampInt(obj.minutes, 15, 120, 45);
+    var goalText = obj.goal === "strength" ? "strength" : obj.goal === "hypertrophy" ? "build muscle" : obj.goal === "endurance" ? "endurance" : obj.goal === "hybrid" ? "hybrid" : "general";
+    return makeRequest({
+      scope: "session", goal: obj.goal, duration_min: minutes, equipment: Array.isArray(obj.equipment) ? obj.equipment : null,
+      mobility: !!obj.mobility, conditioning: !!obj.conditioning,
+      role: role, patterns: Array.isArray(obj.patterns) ? obj.patterns : [], areas: areas,
+      must_avoid: Array.isArray(obj.must_avoid) ? obj.must_avoid : [], flags: Array.isArray(obj.flags) ? obj.flags : [],
+      focusText: focusText, summary: focusText + " · ~" + minutes + " min · " + goalText
+    });
+  }
+  // Turn free text into a Request Object: LLM proxy when configured + online, else
+  // the offline regex parser. Always calls back with a valid Request Object.
+  function parseIntent(text, cb) {
+    function fallback() { cb(parsedToRequest(parseSession(text))); }
+    var ep = parseEndpoint();
+    if (!ep || !navigator.onLine) { fallback(); return; }
+    var settled = false, to = setTimeout(function () { if (!settled) { settled = true; fallback(); } }, 6000);
+    fetch(ep, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: text }) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (obj) { if (settled) return; settled = true; clearTimeout(to); cb(normalizeLLMRequest(obj, text)); })
+      .catch(function () { if (settled) return; settled = true; clearTimeout(to); fallback(); });
+  }
+  // Top-2 most-behind patterns this week, for an honest one-line Resolve readout.
+  function debtHint(spec) {
+    if (!hasProgram()) return "";
+    var behind = (spec.debt.ranked || []).filter(function (r) { return r.debt > 0; }).slice(0, 2).map(function (r) { return r.label; });
+    return behind.length ? '<div class="preview__debt">Behind this week: ' + esc(behind.join(", ")) + '</div>' : "";
+  }
   function onBuildToday() {
     var text = $("todayText").value, pv = $("todayPreview");
     if (!text.trim()) { pv.innerHTML = '<div class="preview__error" role="alert">Type what you want to train, for example ‘chest and triceps, 40 min’.</div>'; pv.classList.remove("hidden"); return; }
-    var parsed = parseSession(text);
-    // parseSession only detects equipment you actually typed (e.g. "dumbbells
-    // only"); absent that, honour the saved equipment profile from Settings/the
-    // build sheet instead of assuming full gym access.
-    if (!parsed.equipment) parsed.equipment = buildPrefs().equipment;
-    todaySeed++;
-    pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state));
-    var rows = pendingToday.exercises.map(function (e) {
-      return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
-    }).join("");
-    pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
-      '<div class="preview__meta">Understood: ' + esc(parsed.summary) + '</div>' +
-      '<div class="todaylist">' + rows + '</div>' +
-      '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
-    pv.classList.remove("hidden");
-    $("confirmToday").addEventListener("click", addTodaySession);
-    $("retryToday").addEventListener("click", onBuildToday);
+    // Show a brief "reading" state only when the LLM proxy is actually in play
+    // (the regex path is instant, so no spinner needed there).
+    if (parseEndpoint() && navigator.onLine) {
+      pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt">Reading your request…</span></div>';
+      pv.classList.remove("hidden");
+    }
+    parseIntent(text, function (req) {
+      // Absent explicitly-stated kit, honour the saved equipment profile instead
+      // of assuming full gym access (same rule the regex path always used).
+      if (!req.equipment) req.equipment = buildPrefs().equipment;
+      var parsed = requestToParsed(req);
+      todaySeed++;
+      pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state));
+      var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
+      var rows = pendingToday.exercises.map(function (e) {
+        return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
+      }).join("");
+      pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
+        '<div class="preview__meta">Understood: ' + esc(req.summary) + '</div>' +
+        debtHint(spec) +
+        '<div class="todaylist">' + rows + '</div>' +
+        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
+      pv.classList.remove("hidden");
+      $("confirmToday").addEventListener("click", addTodaySession);
+      $("retryToday").addEventListener("click", onBuildToday);
+    });
   }
   function addTodaySession() {
     if (!pendingToday) return;
