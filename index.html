@@ -497,17 +497,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         </div>
         <div class="bsect">
           <div class="blabel">My equipment</div>
-          <div class="chips" id="bEquip" role="group" aria-label="Equipment I have">
-            <button class="chip" data-eq="barbell" type="button">Barbell</button>
-            <button class="chip" data-eq="dumbbell" type="button">Dumbbells</button>
-            <button class="chip" data-eq="kettlebell" type="button">Kettlebells</button>
-            <button class="chip" data-eq="cable" type="button">Cable</button>
-            <button class="chip" data-eq="machine" type="button">Machines</button>
-            <button class="chip" data-eq="band" type="button">Bands</button>
-            <button class="chip" data-eq="pullup-bar" type="button">Pull-up bar</button>
-            <button class="chip" data-eq="cardio" type="button">Cardio machine</button>
-            <button class="chip" data-eq="sled" type="button">Sled</button>
-          </div>
+          <div class="chips" id="bEquip" role="group" aria-label="Equipment I have"></div>
           <p class="sect__hint" style="margin-top:8px">Bodyweight is always included. Tap off anything you don't have.</p>
         </div>
       </div>
@@ -590,17 +580,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <div class="sect">
       <div class="sect__label">My equipment</div>
-      <div class="chips" id="myEquip" role="group" aria-label="Equipment I have">
-        <button class="chip" data-eq="barbell" type="button">Barbell</button>
-        <button class="chip" data-eq="dumbbell" type="button">Dumbbells</button>
-        <button class="chip" data-eq="kettlebell" type="button">Kettlebells</button>
-        <button class="chip" data-eq="cable" type="button">Cable</button>
-        <button class="chip" data-eq="machine" type="button">Machines</button>
-        <button class="chip" data-eq="band" type="button">Bands</button>
-        <button class="chip" data-eq="pullup-bar" type="button">Pull-up bar</button>
-        <button class="chip" data-eq="cardio" type="button">Cardio machine</button>
-        <button class="chip" data-eq="sled" type="button">Sled</button>
-      </div>
+      <div class="chips" id="myEquip" role="group" aria-label="Equipment I have"></div>
       <p class="sect__hint" style="margin-top:8px">Saved for every workout you build. Bodyweight is always included. Only changes when you change it, or when you erase all data.</p>
     </div>
     <div class="sect">
@@ -1372,6 +1352,16 @@ function buildWeightMap(state) {
 }
 
 function topRepsOf(repsStr) { var ms = String(repsStr || "").match(/\d+/g); return ms ? parseInt(ms[ms.length - 1], 10) : null; }
+// Shared "did every working set hit the top of its rep range" check -- used to
+// decide both the next-session weight-bump (buildLastLogs) and the current
+// session's "Ready to add weight" badge (strengthFoot), so the two can't drift.
+// doneAt/repsAt/realAt(i) read set i's done flag, reps value, and whether that
+// reps value is a real logged number (not a prefill guess), respectively.
+function allSetsAtTop(n, top, doneAt, repsAt, realAt) {
+  if (top == null || n <= 0) return false;
+  for (var i = 0; i < n; i++) { if (!doneAt(i) || !realAt(i) || (repsAt(i) || 0) < top) return false; }
+  return true;
+}
 // Most-recent logged result per exercise: the reps you did, the weight you used,
 // and whether you EARNED a load bump (every working set completed at the top of
 // the rep range). Drives prefill + the next session's suggested weight.
@@ -1386,8 +1376,11 @@ function buildLastLogs(state) {
           var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el) return;
           var hasReps = Array.isArray(el.reps) && el.reps.some(function (r) { return r != null; });
           if (!hasReps) return;
-          var top = topRepsOf(ex.reps), n = ex.sets || 0, ready = top != null && n > 0;
-          if (ready) { for (var i = 0; i < n; i++) { if (!(el.done && el.done[i]) || !(el.reps && el.reps[i] != null && el.reps[i] >= top)) { ready = false; break; } } }
+          var top = topRepsOf(ex.reps), n = ex.sets || 0;
+          var ready = allSetsAtTop(n, top,
+            function (i) { return !!(el.done && el.done[i]); },
+            function (i) { return el.reps && el.reps[i]; },
+            function (i) { return !!(el.reps && el.reps[i] != null); });
           map[String(ex.name).toLowerCase()] = { reps: el.reps.slice(), weight: el.weight != null ? el.weight : null, ready: ready };
         });
       });
@@ -1756,8 +1749,12 @@ function generateProgram(intake, weightMap, seed) {
     while (el.done.length < ex.sets) el.done.push(false);
     if (el.done.length > ex.sets) el.done = el.done.slice(0, ex.sets);
     if (el.weight == null) el.weight = ex.weight;
-    if (el.reps && el.reps.length > ex.sets) el.reps = el.reps.slice(0, ex.sets);
-    if (el.rpe && el.rpe.length > ex.sets) el.rpe = el.rpe.slice(0, ex.sets);
+    // reps/rpe are kept the same length as done (grown with null, not guessed
+    // values) so the arrays never drift out of sync when the set count changes.
+    ensureArr(el, "reps", ex.sets);
+    if (el.reps.length > ex.sets) el.reps = el.reps.slice(0, ex.sets);
+    ensureArr(el, "rpe", ex.sets);
+    if (el.rpe.length > ex.sets) el.rpe = el.rpe.slice(0, ex.sets);
     return { sl: sl, el: el };
   }
   function sessionItemsFor(ses) {
@@ -1832,7 +1829,7 @@ function generateProgram(intake, weightMap, seed) {
     return html;
   }
   function repsLow(ex) { var m = String(ex.reps || "").match(/\d+/); return m ? parseInt(m[0], 10) : null; }
-  function repsTop(ex) { var ms = String(ex.reps || "").match(/\d+/g); return ms ? parseInt(ms[ms.length - 1], 10) : null; }
+  function repsTop(ex) { return topRepsOf(ex.reps); }
   function est1RM(w, reps) { return (w > 0 && reps > 0) ? Math.round(w * (1 + reps / 30)) : 0; }
   function ensureArr(el, key, n) { if (!Array.isArray(el[key])) el[key] = []; while (el[key].length < n) el[key].push(null); }
   function setRowsInner(e, lg) {
@@ -1853,11 +1850,12 @@ function generateProgram(intake, weightMap, seed) {
     return html;
   }
   function strengthFoot(e, lg, unit) {
-    var best = 0, n = e.sets, allDone = n > 0, j, top = repsTop(e);
+    var best = 0, n = e.sets, top = repsTop(e);
     for (var k = 0; k < n; k++) { if (lg.done[k] && lg.real[k]) { var o = est1RM(lg.weight, lg.reps[k]); if (o > best) best = o; } }
-    for (j = 0; j < n; j++) { if (!lg.done[j]) allDone = false; }
-    var ready = allDone && top != null;
-    if (ready) { for (j = 0; j < n; j++) { if (!lg.real[j] || (lg.reps[j] || 0) < top) ready = false; } }
+    var ready = allSetsAtTop(n, top,
+      function (i) { return lg.done[i]; },
+      function (i) { return lg.reps[i]; },
+      function (i) { return lg.real[i]; });
     var ormTxt = best > 0 ? best + " " + unit : "—";
     var progTxt = top == null ? "" : ready ? "Ready · add " + roundW(STEP) + " " + unit + " next time" : "Hit " + top + " reps on every set to add weight";
     return { ormTxt: ormTxt, ready: ready, progTxt: progTxt };
@@ -2143,9 +2141,10 @@ function generateProgram(intake, weightMap, seed) {
   }
   function switchSession(i) {
     var n = curWeek().sessions.length;
-    if (i < 0 || i >= n || i === state.activeSession) return;
+    if (i < 0 || i >= n || i === state.activeSession) return false;
     hideRest(); state.activeSession = i; save();
     renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
+    return true;
   }
   function openDay(i) { hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); }
   function backToWeek() { hideRest(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
@@ -2158,6 +2157,17 @@ function generateProgram(intake, weightMap, seed) {
   $("backWeek").addEventListener("click", backToWeek);
   $("dayPrev").addEventListener("click", function () { switchSession(state.activeSession - 1); });
   $("dayNext").addEventListener("click", function () { switchSession(state.activeSession + 1); });
+  // Restores the day-tab bar's old ArrowLeft/ArrowRight day-switching for keyboard
+  // and screen-reader users, lost when the tabs were replaced by this back/next
+  // layout. Skipped while typing in a field or while a dialog is open.
+  document.addEventListener("keydown", function (ev) {
+    if (state.view !== "day") return;
+    if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+    var t = ev.target, tag = t && t.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
+    if (document.querySelector("dialog[open]")) return;
+    switchSession(state.activeSession + (ev.key === "ArrowRight" ? 1 : -1));
+  });
   listEl.addEventListener("click", function (ev) { if (swipeSuppress) { swipeSuppress = false; return; } onListClick(ev); });
   listEl.addEventListener("input", onListInput);
   (function () {
@@ -2170,8 +2180,7 @@ function generateProgram(intake, weightMap, seed) {
       if (!tracking) return; tracking = false;
       var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
       if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) {
-        swipeSuppress = true;
-        switchSession(state.activeSession + (dx < 0 ? 1 : -1));
+        swipeSuppress = switchSession(state.activeSession + (dx < 0 ? 1 : -1));
       }
     }, { passive: true });
   })();
@@ -2187,6 +2196,12 @@ function generateProgram(intake, weightMap, seed) {
 
   /* ===================== Plan sheet (Claude loop) ===================== */
   var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null;
+  var buildThinkTimer = null, buildThinkInterval = null;
+  function cancelBuildThinking() {
+    clearInterval(buildThinkInterval); buildThinkInterval = null;
+    clearTimeout(buildThinkTimer); buildThinkTimer = null;
+    var bb = $("buildBtn"); if (bb) bb.disabled = false;
+  }
   function buildRequest() {
     var unit = state.program.unit;
     var schema = [
@@ -2220,6 +2235,23 @@ function generateProgram(intake, weightMap, seed) {
     ].join("\n");
   }
   var EQUIP_ALL = ["barbell", "dumbbell", "kettlebell", "cable", "machine", "band", "pullup-bar", "cardio", "sled"];
+  var EQUIP_LABELS = { barbell: "Barbell", dumbbell: "Dumbbells", kettlebell: "Kettlebells", cable: "Cable", machine: "Machines", band: "Bands", "pullup-bar": "Pull-up bar", cardio: "Cardio machine", sled: "Sled" };
+  // The equipment picker appears twice (build sheet + Settings). One markup
+  // generator, one click handler, one sync helper keeps both in lockstep instead
+  // of maintaining two copies of the same 9 chips.
+  function equipChipsHtml() { return EQUIP_ALL.map(function (id) { return '<button class="chip" data-eq="' + id + '" type="button">' + esc(EQUIP_LABELS[id]) + '</button>'; }).join(""); }
+  function syncEquipChips(id) { var eq = buildPrefs().equipment; document.querySelectorAll("#" + id + " button").forEach(function (b) { b.setAttribute("aria-pressed", eq.indexOf(b.getAttribute("data-eq")) >= 0); }); }
+  function syncAllEquipChips() { syncEquipChips("bEquip"); syncEquipChips("myEquip"); }
+  function wireEquipChips(id) {
+    var el = $(id); if (!el) return;
+    el.innerHTML = equipChipsHtml();
+    el.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-eq]"); if (!b) return;
+      var k = b.getAttribute("data-eq"), p = buildPrefs(), i = p.equipment.indexOf(k);
+      if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k);
+      save(); syncAllEquipChips();
+    });
+  }
   function buildPrefs() {
     var p = (state.buildPrefs && typeof state.buildPrefs === "object") ? state.buildPrefs : {};
     var goal = ["hybrid", "strength", "endurance"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
@@ -2249,7 +2281,7 @@ function generateProgram(intake, weightMap, seed) {
       b.setAttribute("aria-disabled", locked ? "true" : "false");
       if (locked) b.title = "Cardio is core to Endurance (always on)"; else b.removeAttribute("title");
     });
-    document.querySelectorAll("#bEquip button").forEach(function (b) { b.setAttribute("aria-pressed", p.equipment.indexOf(b.getAttribute("data-eq")) >= 0); });
+    syncEquipChips("bEquip");
     document.querySelectorAll("#bWeeks button").forEach(function (b) {
       b.setAttribute("aria-pressed", parseInt(b.getAttribute("data-weeks"), 10) === p.weeks);
     });
@@ -2270,6 +2302,7 @@ function generateProgram(intake, weightMap, seed) {
     if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
   }
   function onBuild(showThinking) {
+    cancelBuildThinking(); // a build already in flight is superseded by this one
     var p = buildPrefs(), includes = [];
     if (p.mobility) includes.push("mobility");
     if (p.conditioning) includes.push("conditioning");
@@ -2287,13 +2320,15 @@ function generateProgram(intake, weightMap, seed) {
       $("rebuildBtn").addEventListener("click", function () { onBuild(false); });
     }
     // A short "thinking" beat so a generated week feels considered, not careless.
-    // Skipped on Try again and under reduced-motion.
+    // Skipped on Try again and under reduced-motion. buildBtn is disabled for the
+    // duration so a double-tap can't start a second, overlapping timer chain.
     if (showThinking === true && !reduceMotion) {
+      var bb = $("buildBtn"); if (bb) bb.disabled = true;
       pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt" id="buildingTxt">Building your week…</span></div>';
       pv.classList.remove("hidden");
       var lines = ["Selecting your lifts…", "Balancing the week…", "Setting the progression…"], li = 0;
-      var cyc = setInterval(function () { var el = $("buildingTxt"); if (el) el.textContent = lines[li++ % lines.length]; }, 360);
-      setTimeout(function () { clearInterval(cyc); renderPreview(); }, 1150);
+      buildThinkInterval = setInterval(function () { var el = $("buildingTxt"); if (el) el.textContent = lines[li++ % lines.length]; }, 360);
+      buildThinkTimer = setTimeout(function () { cancelBuildThinking(); renderPreview(); }, 1150);
     } else {
       renderPreview();
     }
@@ -2341,7 +2376,7 @@ function generateProgram(intake, weightMap, seed) {
     state.activeSession = week.sessions.length - 1;
     pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added " + session.name);
   }
-  function closePlan() { if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
+  function closePlan() { cancelBuildThinking(); if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
     var text = $("reqText").value;
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2378,6 +2413,7 @@ function generateProgram(intake, weightMap, seed) {
   $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
+  planSheet.addEventListener("close", cancelBuildThinking); // covers Escape, which bypasses closePlan()
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
@@ -2392,7 +2428,7 @@ function generateProgram(intake, weightMap, seed) {
     syncBuild();
   });
   $("bInclude").addEventListener("click", function (ev) { var b = ev.target.closest("[data-inc]"); if (!b) return; var k = b.getAttribute("data-inc"); var p = buildPrefs(); if (k === "conditioning" && p.goal === "endurance") return; p[k] = !p[k]; save(); syncBuild(); });
-  $("bEquip").addEventListener("click", function (ev) { var b = ev.target.closest("[data-eq]"); if (!b) return; var k = b.getAttribute("data-eq"); var p = buildPrefs(); var i = p.equipment.indexOf(k); if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k); save(); syncBuild(); });
+  wireEquipChips("bEquip");
   $("copyReqBtn").addEventListener("click", copyRequest);
   $("loadBtn").addEventListener("click", onLoadClick);
 
@@ -2406,8 +2442,7 @@ function generateProgram(intake, weightMap, seed) {
     document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
     document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
     document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
-    var myEq = buildPrefs().equipment;
-    document.querySelectorAll("#myEquip button").forEach(function (b) { b.setAttribute("aria-pressed", myEq.indexOf(b.getAttribute("data-eq")) >= 0); });
+    syncEquipChips("myEquip");
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
@@ -2417,7 +2452,7 @@ function generateProgram(intake, weightMap, seed) {
   $("soundSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-sound-val]"); if (!b) return; state.restMuted = b.getAttribute("data-sound-val") === "off"; save(); syncSegs(); if (!state.restMuted) { unlockAudio(); beep(); } });
   $("warmSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-warm-val]"); if (!b) return; state.warmups = b.getAttribute("data-warm-val") === "on"; save(); syncSegs(); renderList(false); });
   $("fillerSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-filler-val]"); if (!b) return; state.fillers = b.getAttribute("data-filler-val") === "on"; save(); syncSegs(); if (state.fillers === false) hideFiller(); });
-  $("myEquip").addEventListener("click", function (ev) { var b = ev.target.closest("[data-eq]"); if (!b) return; var k = b.getAttribute("data-eq"); var p = buildPrefs(); var i = p.equipment.indexOf(k); if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k); save(); syncSegs(); });
+  wireEquipChips("myEquip");
 
   /* ===================== Backup ===================== */
   function exportBackup() {
@@ -2479,7 +2514,8 @@ function generateProgram(intake, weightMap, seed) {
     if (parseRestSeconds(ex.rest) < 90) return null;
     var lib = (typeof libByName === "function") ? libByName(ex.name) : null;
     var mainPat = lib ? lib.pattern : null;
-    function elig(e) { return ((e.type === "mobility") || (e.pattern === "core") || (e.pattern === "calf") || (e.equipment === "band" && !e.compound)) && e.pattern !== mainPat; }
+    var allowedEq = (state.buildPrefs && Array.isArray(state.buildPrefs.equipment)) ? state.buildPrefs.equipment : null;
+    function elig(e) { return ((e.type === "mobility") || (e.pattern === "core") || (e.pattern === "calf") || (e.equipment === "band" && !e.compound)) && e.pattern !== mainPat && equipOk(e, allowedEq); }
     var pool = LIBRARY.filter(function (e) { return elig(e) && e.id !== lastFillerId; });
     if (!pool.length) pool = LIBRARY.filter(elig);
     if (!pool.length) return null;
@@ -2586,7 +2622,7 @@ function generateProgram(intake, weightMap, seed) {
       if (building) openPlan();
       else { var el = $("intro"); if (el) el.hidden = true; }
     });
-    var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showWelcome(false); });
+    var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showWelcome(!hasProgram()); });
     refreshWelcome();
   }
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
