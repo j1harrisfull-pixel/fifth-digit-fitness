@@ -883,6 +883,7 @@ const CON = ["conditioning"];
 const LIBRARY = [
   // ---------- SQUAT / quads ----------
   { id: "back-squat", name: "Back Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: bar on rear delts, brace hard, feet shoulder-width. Key: sit between the hips, knees track over toes, drive the floor away. Fault: knees caving or hips shooting up first." },
+  { id: "pause-squat", name: "Pause Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: same as a back squat, brace hard before you descend. Key: sit to depth and hold for a full 2-3 count with no bounce, staying tight, then drive up. Fault: relaxing the brace at the bottom or letting the hips shift back during the pause." },
   { id: "front-squat", name: "Front Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads"], compound: true, goals: C, unit: "reps", cue: "Setup: bar on front delts, elbows high. Key: stay upright, knees forward, full depth. Fault: elbows dropping and the bar rolling forward." },
   { id: "goblet-squat", name: "Goblet Squat", type: "strength", equipment: "dumbbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: hold one bell at the chest, elbows tucked. Key: sit straight down, elbows inside the knees at the bottom. Fault: heels lifting or chest collapsing." },
   { id: "hack-squat", name: "Hack Squat", type: "strength", equipment: "machine", pattern: "squat", muscles: ["quads"], compound: true, goals: I, unit: "reps", setup: "Shoulders snug under the pads, back and hips flat against the angled backrest, feet mid platform at shoulder width.", cue: "Setup: shoulders and back flat to the pad, feet mid-platform. Key: deep, controlled descent, drive through the whole foot. Fault: bouncing out of the bottom or half reps." },
@@ -897,6 +898,7 @@ const LIBRARY = [
 
   // ---------- HINGE / posterior ----------
   { id: "deadlift", name: "Deadlift", type: "strength", equipment: "barbell", pattern: "hinge", muscles: ["hamstrings", "glutes", "back"], compound: true, goals: C, unit: "reps", cue: "Setup: bar over mid-foot, shins close, lats tight. Key: take the slack out, push the floor away, hips and chest rise together. Fault: hips shooting up so it becomes a stiff-leg pull." },
+  { id: "deficit-deadlift", name: "Deficit Deadlift", type: "strength", equipment: "barbell", pattern: "hinge", muscles: ["hamstrings", "glutes", "back"], compound: true, goals: C, unit: "reps", cue: "Setup: stand on a 1-2 inch platform, bar over mid-foot, shins close, lats tight. Key: own the extra range patiently, push the floor away, hips and chest rising together same as a normal pull. Fault: rounding the upper back to reach the added depth instead of sitting the hips down to meet it." },
   { id: "trap-bar-deadlift", name: "Trap-Bar Deadlift", type: "strength", equipment: "barbell", pattern: "hinge", muscles: ["quads", "glutes", "back"], compound: true, goals: C, unit: "reps", cue: "Setup: stand centred, grip the handles, chest up. Key: push the floor away, stand tall, control the lower. Fault: rounding the back or jerking off the floor." },
   { id: "romanian-deadlift", name: "Romanian Deadlift", type: "strength", equipment: "barbell", pattern: "hinge", muscles: ["hamstrings", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", cue: "Setup: soft knees, bar against the thighs. Key: push the hips back, bar drags down the legs, feel the hamstrings load. Fault: turning it into a squat or rounding the lower back." },
   { id: "dumbbell-rdl", name: "Dumbbell RDL", type: "strength", equipment: "dumbbell", pattern: "hinge", muscles: ["hamstrings", "glutes"], compound: true, lengthened: true, goals: I, unit: "reps", cue: "Setup: dumbbells in front of the thighs, soft knees. Key: hinge the hips back, flat back, dumbbells close to the legs. Fault: bending the knees instead of hinging." },
@@ -910,11 +912,14 @@ const LIBRARY = [
 
   // ---------- HORIZONTAL PUSH / chest ----------
   { id: "bench-press", name: "Bench Press", type: "strength", equipment: "barbell", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: shoulder blades pinned and down, slight arch, feet planted. Key: touch the lower chest, drive up and slightly back to lockout. Fault: flaring elbows wide or bouncing off the chest." },
+  { id: "pause-bench-press", name: "Pause Bench Press", type: "strength", equipment: "barbell", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: same as a bench press, shoulder blades pinned and down. Key: lower to the chest and hold motionless for a full 1-2 count before pressing, no sinking into the shoulders. Fault: bouncing off the chest to skip the pause, or losing the brace during the hold." },
+  { id: "floor-press", name: "Floor Press", type: "strength", equipment: "barbell", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: lie on the floor, bar over the chest, elbows will rest on the ground at the bottom. Key: lower under control until the triceps touch the floor, pause, then press without any leg drive. Fault: bouncing the elbows off the floor or arching the back to fake extra range." },
   { id: "incline-bench-press", name: "Incline Bench Press", type: "strength", equipment: "barbell", pattern: "hpush", muscles: ["chest", "shoulders"], compound: true, goals: C, unit: "reps", cue: "Setup: 30 degree bench, blades set. Key: touch the upper chest, press up and back. Fault: too steep an incline turning it into a press." },
   { id: "dumbbell-bench-press", name: "Dumbbell Bench Press", type: "strength", equipment: "dumbbell", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", cue: "Setup: blades set, dumbbells over the lower chest. Key: lower under control to a deep stretch, press up. Fault: clashing the bells at the top or losing the shoulder set." },
   { id: "incline-dumbbell-press", name: "Incline Dumbbell Press", type: "strength", equipment: "dumbbell", pattern: "hpush", muscles: ["chest", "shoulders"], compound: true, lengthened: true, goals: I, unit: "reps", cue: "Setup: 30 degree bench, blades retracted. Key: press up and slightly together, control the lower. Fault: flaring elbows or bouncing." },
   { id: "machine-chest-press", name: "Machine Chest Press", type: "strength", equipment: "machine", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", setup: "Seat height set so the handles sit at mid chest level, back flat against the pad, feet planted for a stable base.", cue: "Setup: handles at mid-chest height, blades set. Key: press to a near-lockout, control back to a stretch. Fault: shrugging the shoulders up to press." },
   { id: "push-up", name: "Push-Up", type: "strength", equipment: "bodyweight", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", cue: "Setup: hands under shoulders, body in one line, glutes tight. Key: lower the chest to the floor, elbows ~45 degrees, press away. Fault: sagging hips or flaring elbows." },
+  { id: "handstand-pushup", name: "Handstand Push-Up", type: "strength", equipment: "bodyweight", pattern: "vpush", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: kick up to a handstand against a wall, hands shoulder-width, body braced in one line. Key: lower the head toward the floor under control, then press back to full lockout without flaring the elbows wide. Fault: arching the lower back to shorten the range, or losing the brace so the hips pike out." },
   { id: "cable-fly", name: "Cable Fly", type: "strength", equipment: "cable", pattern: "hpush", muscles: ["chest"], compound: false, goals: I, unit: "reps", setup: "Both pulleys set high or at shoulder height, a single handle on each side, stand mid stance with a slight forward lean.", cue: "Setup: slight forward lean, soft elbows. Key: hug the arms together, squeeze the chest, control the stretch. Fault: turning it into a press by bending the elbows." },
   { id: "pec-deck", name: "Pec Deck", type: "strength", equipment: "machine", pattern: "hpush", muscles: ["chest"], compound: false, goals: I, unit: "reps", setup: "Seat raised so the handles line up with mid chest, forearms or pads against the wings, back pressed flat to the seat.", cue: "Setup: forearms on the pads, chest up. Key: bring the pads together, squeeze, slow return. Fault: using the shoulders or going too heavy." },
   { id: "chest-dip", name: "Chest Dip", type: "strength", equipment: "pullup-bar", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", cue: "Setup: slight forward lean on the bars. Key: lower to a chest stretch, press to lockout. Fault: shrugging into the shoulders or too shallow." },
@@ -940,6 +945,8 @@ const LIBRARY = [
   // ---------- VERTICAL PULL / lats ----------
   { id: "pull-up", name: "Pull-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", cue: "Setup: full hang, shoulders active. Key: drive the elbows down, chin over the bar, control the lower. Fault: kipping or half reps. Add load when reps come easy." },
   { id: "chin-up", name: "Chin-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", cue: "Setup: underhand grip, full hang. Key: pull the chest to the bar, squeeze, lower under control. Fault: swinging or not reaching full extension." },
+  { id: "muscle-up", name: "Muscle-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "chest", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: full hang, false grip over the top of the bar if you have it. Key: pull explosively and lean forward over the bar as you transition, then press out to lockout without pausing at the top of the pull. Fault: kipping the hips to fake the transition, or catching low with straight arms and muscling through instead of transitioning cleanly." },
+  { id: "tuck-front-lever", name: "Tuck Front Lever", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "core"], compound: true, goals: C, unit: "sec", cue: "Setup: hang from the bar, pull the knees to the chest, and lean the torso back toward horizontal. Key: press the bar down hard and brace the whole body so the tucked shape holds still and level. Fault: letting the hips sag below the shoulder line, or the shoulders creeping up toward the bar instead of staying pressed down." },
   { id: "lat-pulldown", name: "Lat Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: I, unit: "reps", setup: "Wide bar on the high pulley, knee pad snug against your thighs, grip just outside shoulder width overhand.", cue: "Setup: thighs pinned, slight lean back. Key: drive the elbows to the ribs, bar to the upper chest, control up. Fault: leaning way back and heaving with the body." },
   { id: "neutral-grip-pulldown", name: "Neutral-Grip Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: I, unit: "reps", setup: "Close V-handle or neutral-grip bar on the high pulley, thigh pad locked down tight, palms facing each other.", cue: "Setup: neutral handle, tall chest. Key: pull to the upper chest, elbows down and in, squeeze. Fault: rounding forward or using momentum." },
   { id: "straight-arm-pulldown", name: "Straight-Arm Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back"], compound: false, goals: I, unit: "reps", setup: "Straight bar on the high pulley, stand a step back with arms extended, set a light to moderate weight.", cue: "Setup: bar high, soft elbows, hinge slightly. Key: drive the bar to the thighs with the lats, squeeze. Fault: bending the elbows into a pushdown." },
@@ -972,15 +979,22 @@ const LIBRARY = [
   { id: "pallof-press", name: "Pallof Press", type: "strength", equipment: "cable", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "reps", setup: "Single handle on a pulley set at chest height, stand side-on a step away, pick a light weight for steady tension.", cue: "Setup: side-on to a cable at chest height. Key: press straight out and resist the rotation, brace. Fault: letting the torso twist toward the cable." },
   { id: "dead-bug", name: "Dead Bug", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "reps", cue: "Setup: on your back, arms and knees up. Key: lower opposite arm and leg slowly, lower back glued down. Fault: the lower back arching off the floor." },
   { id: "hollow-hold", name: "Hollow Hold", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "sec", cue: "Setup: on your back, arms overhead. Key: press the lower back into the floor, lift the shoulders and legs, brace. Fault: the lower back lifting and losing tension." },
+  { id: "l-sit", name: "L-Sit", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core", "hip flexors"], compound: false, goals: I, unit: "sec", cue: "Setup: hands on parallettes or the floor beside the hips, arms straight. Key: press down to lift the hips, legs out straight and level with the hips, shoulders pressed down away from the ears. Fault: bending the knees to fake the height, or shrugging the shoulders up instead of pressing them down." },
 
   // ---------- CARRY ----------
   { id: "farmer-carry", name: "Farmer Carry", type: "strength", equipment: "dumbbell", pattern: "carry", muscles: ["core", "forearms"], compound: true, goals: I, unit: "sec", cue: "Setup: heavy dumbbells at the sides, tall posture. Key: brace, walk with controlled steps, shoulders back. Fault: leaning or letting the shoulders round forward." },
+
+  // ---------- NECK ----------
+  { id: "neck-flexion", name: "Manual Neck Flexion", type: "strength", equipment: "bodyweight", pattern: "neck", muscles: ["neck"], compound: false, goals: I, unit: "reps", cue: "Setup: seated tall, cup both hands over the forehead. Key: nod the chin toward the chest against steady hand resistance, moving slow and controlled through a full range. Fault: rushing the reps, or resisting so hard the neck can't actually move." },
+  { id: "banded-neck-extension", name: "Banded Neck Extension", type: "strength", equipment: "band", pattern: "neck", muscles: ["neck"], compound: false, goals: I, unit: "reps", cue: "Setup: loop a band around a low anchor and the back of the head, face away with tension already on. Key: extend the head back against the band in a slow, controlled arc, then return under control. Fault: shrugging the traps to help, or jerking the head back instead of a smooth extension." },
 
   // ---------- MOBILITY ----------
   { id: "90-90-hip", name: "90/90 Hip Switch", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips"], compound: false, goals: MOB, unit: "reps", cue: "Setup: sit with both knees at 90 degrees. Key: rotate slowly knee to knee, stay tall, own the end range. Fault: rushing or rounding the back." },
   { id: "couch-stretch", name: "Couch Stretch", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips", "quads"], compound: false, goals: MOB, unit: "sec", cue: "Setup: rear foot up a wall, front foot planted. Key: square the hips, ribs down, breathe into the stretch. Fault: arching the lower back to fake range." },
   { id: "hip-flexor-stretch", name: "Half-Kneeling Hip Flexor Stretch", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips"], compound: false, goals: MOB, unit: "sec", cue: "Setup: half-kneeling, tall torso. Key: tuck the pelvis, shift forward gently, squeeze the back glute. Fault: leaning forward from the lower back." },
   { id: "ankle-rock", name: "Ankle Dorsiflexion Rock", type: "mobility", equipment: "bodyweight", pattern: "ankle-mobility", muscles: ["ankles"], compound: false, goals: MOB, unit: "reps", cue: "Setup: half-kneeling, front foot flat. Key: drive the knee past the toes, heel glued down. Fault: the heel lifting off the floor." },
+  { id: "banded-ankle-distraction", name: "Banded Ankle Distraction", type: "mobility", equipment: "band", pattern: "ankle-mobility", muscles: ["ankles"], compound: false, goals: MOB, unit: "reps", cue: "Setup: loop a band low around a rack, other end around the front of the ankle, kneel facing the anchor. Key: rock the knee forward over the toes while the band pulls the shin into the joint, feel the front of the ankle open up. Fault: rocking from the hip instead of the ankle, or a band angle that pulls sideways instead of straight back." },
+  { id: "soleus-wall-stretch", name: "Soleus Wall Stretch", type: "mobility", equipment: "bodyweight", pattern: "ankle-mobility", muscles: ["ankles", "calves"], compound: false, goals: MOB, unit: "sec", cue: "Setup: rear foot close to a wall, knee bent, heel down. Key: keep the rear knee bent and drive it toward the wall, feeling the stretch low in the calf. Fault: straightening the rear knee, which shifts the stretch off the soleus and into the gastrocnemius." },
   { id: "tspine-rotation", name: "T-Spine Rotation", type: "mobility", equipment: "bodyweight", pattern: "tspine-mobility", muscles: ["spine"], compound: false, goals: MOB, unit: "reps", cue: "Setup: quadruped, one hand behind the head. Key: rotate the elbow up toward the ceiling, follow with the eyes. Fault: rotating from the lower back, not the mid-back." },
   { id: "thoracic-opener", name: "Thoracic Extension (foam roller)", type: "mobility", equipment: "bodyweight", pattern: "tspine-mobility", muscles: ["spine"], compound: false, goals: MOB, unit: "sec", cue: "Setup: roller under the upper back, knees bent. Key: support the head, extend over the roller, ribs down, breathe. Fault: arching from the lower back." },
   { id: "cat-cow", name: "Cat-Cow", type: "mobility", equipment: "bodyweight", pattern: "tspine-mobility", muscles: ["spine"], compound: false, goals: MOB, unit: "reps", cue: "Setup: quadruped, hands under shoulders. Key: move one segment at a time, sync with the breath. Fault: rushing or only moving the lower back." },
@@ -989,6 +1003,8 @@ const LIBRARY = [
   { id: "band-pull-apart", name: "Band Pull-Apart", type: "mobility", equipment: "band", pattern: "shoulder-mobility", muscles: ["shoulders", "back"], compound: false, goals: MOB, unit: "reps", cue: "Setup: band at chest height, straight arms. Key: pull the band apart, squeeze the blades, no shrug. Fault: bending the elbows or shrugging the traps." },
   { id: "shoulder-dislocates", name: "Band Shoulder Dislocates", type: "mobility", equipment: "band", pattern: "shoulder-mobility", muscles: ["shoulders"], compound: false, goals: MOB, unit: "reps", cue: "Setup: wide grip on a band overhead. Key: take the band slowly over and behind, straight arms, ribs down. Fault: bending the elbows or arching the back." },
   { id: "wrist-prep", name: "Wrist Prep Rocks", type: "mobility", equipment: "bodyweight", pattern: "wrist-mobility", muscles: ["wrists"], compound: false, goals: MOB, unit: "reps", cue: "Setup: hands flat on the floor, fingers various directions. Key: rock gently to load the wrists, build range slowly. Fault: forcing into pain." },
+  { id: "wrist-flexor-stretch", name: "Wrist Flexor/Extensor Stretch", type: "mobility", equipment: "bodyweight", pattern: "wrist-mobility", muscles: ["wrists"], compound: false, goals: MOB, unit: "sec", cue: "Setup: arm extended, palm up, gently pull the fingers back with the other hand; then flip the palm down and repeat. Key: keep the elbow straight and ease into each direction until you feel the stretch, not pain. Fault: bending the elbow, which takes the tension out of the wrist and forearm." },
+  { id: "wall-wrist-extension", name: "Wall Wrist Extension Stretch", type: "mobility", equipment: "bodyweight", pattern: "wrist-mobility", muscles: ["wrists"], compound: false, goals: MOB, unit: "sec", cue: "Setup: palms flat on a wall at hip height, fingers pointing down, arms straight. Key: lean the hips back slowly to load the stretch through the wrist and forearm. Fault: bending the elbows, or leaning so hard it turns into wrist pain rather than a stretch." },
 
   // ---------- CONDITIONING (intensity: z2 = steady aerobic base, interval = hard) ----------
   { id: "zone2-bike", name: "Zone 2 Bike", type: "conditioning", equipment: "cardio", pattern: "conditioning", muscles: ["full body"], compound: false, goals: CON, unit: "sec", intensity: "z2", cue: "Setup: easy resistance, seat level with the hip. Key: hold a conversational pace, nose-breathe, smooth cadence the whole block. Fault: drifting too hard so you couldn't hold a conversation." },
@@ -1006,7 +1022,7 @@ const LIBRARY = [
   { id: "tempo-run", name: "Tempo Run", type: "conditioning", equipment: "cardio", pattern: "conditioning", muscles: ["legs"], compound: false, goals: CON, unit: "sec", intensity: "threshold", cue: "Setup: flat ground or treadmill, slight incline fine. Key: hold a steady comfortably hard pace, relaxed shoulders, even breathing rhythm. Fault: drifting into a sprint and losing the rhythm." },
 
   // ---- Expanded coverage (v20): bands, kettlebell, smith, carries, power, rotation, conditioning, mobility ----
-  { id: "band-row", name: "Band Row", type: "strength", equipment: "band", pattern: "hpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", cue: "Setup: ... . Key: ... . Fault: ... ." },
+  { id: "band-row", name: "Band Row", type: "strength", equipment: "band", pattern: "hpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", cue: "Setup: anchor the band at chest height, step back to load it, arms extended with a slight lean against the tension. Key: drive the elbows straight back past the ribs and squeeze the shoulder blades together at the peak, then control the band back out. Fault: yanking with the lower back or letting the shoulders round forward as the band stretches." },
   { id: "band-face-pull", name: "Band Face Pull", type: "strength", equipment: "band", pattern: "hpull", muscles: ["shoulders", "back"], compound: false, goals: I, unit: "reps", cue: "Setup: Anchor the band at eye level, grip the ends or a rope with thumbs back, step into tension with tall posture. Key: Pull toward your forehead while externally rotating so the hands finish beside the ears, knuckles to the sky. Fault: Letting the elbows drop below the wrists, which turns it into a row and robs the rear delts." },
   { id: "band-triceps-pushdown", name: "Band Triceps Pushdown", type: "strength", equipment: "band", pattern: "triceps", muscles: ["triceps"], compound: false, goals: I, unit: "reps", cue: "Setup: Anchor the band overhead, pin both elbows tight to your sides, hinge a touch to stack tension over the hands. Key: Extend until the elbows lock and turn the pinkies out at the bottom to fully shorten the triceps. Fault: Letting the elbows drift forward or flaring them, which converts the move into a press." },
   { id: "band-biceps-curl", name: "Band Biceps Curl", type: "strength", equipment: "band", pattern: "biceps", muscles: ["biceps"], compound: false, goals: I, unit: "reps", cue: "Setup: Stand on the band mid-foot, elbows pinned to the hips, wrists neutral and ribs stacked over pelvis. Key: Curl by supinating hard as the hands rise, squeezing the biceps where band tension peaks near the top. Fault: Swinging the elbows forward or leaning back to cheat the band through the sticking point." },
@@ -1025,8 +1041,8 @@ const LIBRARY = [
   { id: "kb-suitcase-carry", name: "KB Suitcase Carry", type: "strength", equipment: "kettlebell", pattern: "carry", muscles: ["core", "forearms"], compound: true, goals: C, unit: "sec", cue: "Setup: Hold one bell at your side like a suitcase, shoulders level, crush the handle, and stand perfectly upright. Key: Walk tall and resist the lateral pull, keeping both shoulders square so your torso never leans toward the load. Fault: Hiking the loaded shoulder or letting the trunk side-bend to compensate for the offset weight." },
   { id: "kb-turkish-get-up", name: "KB Turkish Get-Up", type: "strength", equipment: "kettlebell", pattern: "core", muscles: ["full body", "core"], compound: true, goals: C, unit: "reps", cue: "Setup: Lie on your back, press the bell to a vertical arm, eyes locked on the bell, same-side knee bent and foot planted. Key: Roll to the elbow, to the hand, bridge the hips, sweep the leg through to a lunge, and stand, keeping the wrist stacked throughout. Fault: Letting the elbow soften or the eyes leave the bell, which collapses the locked-out shoulder." },
   { id: "kb-reverse-lunge", name: "KB Reverse Lunge", type: "strength", equipment: "kettlebell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: Hold the bell in the goblet position or racked on one shoulder, stand tall with feet hip-width and core braced. Key: Step straight back and drop the rear knee toward the floor, keeping the front shin vertical and weight in the front heel. Fault: Letting the front knee cave inward or leaning the torso forward over the front thigh." },
-  { id: "smith-squat", name: "Smith Machine Squat", type: "strength", equipment: "smith", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", setup: "Set the bar on your upper traps at shoulder height, feet a step forward of the bar, safeties just below your bottom depth.", cue: "Setup: ... . Key: ... . Fault: ... ." },
-  { id: "barbell-walking-lunge", name: "Barbell Walking Lunge", type: "strength", equipment: "barbell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: ... . Key: ... . Fault: ... ." },
+  { id: "smith-squat", name: "Smith Machine Squat", type: "strength", equipment: "smith", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", setup: "Set the bar on your upper traps at shoulder height, feet a step forward of the bar, safeties just below your bottom depth.", cue: "Setup: bar locked to the rails, feet stepped forward so the fixed path stays vertical over mid-foot. Key: sit straight down keeping the torso upright, drive back up through the whole foot to lockout. Fault: feet too close to the bar, turning it into a leg press with no real hip travel." },
+  { id: "barbell-walking-lunge", name: "Barbell Walking Lunge", type: "strength", equipment: "barbell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: bar on the back like a squat, tall posture, take a controlled step forward. Key: drop straight down so the back knee grazes the floor, then drive through the front heel to stand and step through to the next rep. Fault: a step too short so the front knee drifts past the toes, or bouncing off the back knee instead of standing tall between reps." },
   { id: "barbell-split-squat", name: "Barbell Split Squat", type: "strength", equipment: "barbell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", cue: "Setup: Split stance fixed, bar on traps, front shin vertical and roughly 70 percent of weight through the front heel. Key: Sink until the rear knee grazes the floor so the front glute loads deep, then press the front foot through the floor. Fault: Bouncing off the back knee or letting the front knee cave inward, robbing the stretched-position tension." },
   { id: "deficit-reverse-lunge", name: "Deficit Reverse Lunge", type: "strength", equipment: "dumbbell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", cue: "Setup: Stand on a 3 to 4 inch platform, dumbbells at sides, step the trail leg back and down off the edge. Key: Let the front hip travel deep into the added range so the glute stretches under load, then drive the platform foot to stand. Fault: Cutting the descent short or pushing off the rear toe, which steals the deficit's extra stretch." },
   { id: "curtsy-lunge", name: "Curtsy Lunge", type: "strength", equipment: "dumbbell", pattern: "lunge", muscles: ["glutes", "quads"], compound: true, goals: C, unit: "reps", cue: "Setup: Dumbbells at sides, hips square, step the trail leg diagonally behind and across the midline. Key: Keep the front knee tracking over the toes as you sink, loading the glute medius on the crossover side. Fault: Letting the front knee collapse inward or twisting the pelvis open, which kills the gluteal tension." },
@@ -1040,7 +1056,7 @@ const LIBRARY = [
   { id: "dumbbell-calf-raise", name: "Dumbbell Calf Raise", type: "strength", equipment: "dumbbell", pattern: "calf", muscles: ["calves"], compound: false, goals: I, unit: "reps", cue: "Setup: Balls of the feet on a block, heels hanging, a dumbbell in each hand. Key: Drop the heels for a deep stretch then press to the top onto the big toe and pause briefly under load. Fault: Bouncing through partial reps off the bottom, which skips the stretch that grows the calf." },
   { id: "single-leg-calf-raise", name: "Single-Leg Calf Raise", type: "strength", equipment: "bodyweight", pattern: "calf", muscles: ["calves"], compound: false, goals: I, unit: "reps", cue: "Setup: Ball of one foot on a block, free foot hooked behind, light fingertip balance only. Key: Lower the heel fully below the block for max stretch, then rise to a controlled peak contraction on the big toe. Fault: Using the hand support to hop the rep up instead of moving the load purely through the calf." },
   { id: "tibialis-raise", name: "Tibialis Raise", type: "strength", equipment: "bodyweight", pattern: "calf", muscles: ["shins"], compound: false, goals: I, unit: "reps", cue: "Setup: Heels planted with the back against a wall, toes free to travel, knees slightly soft. Key: Pull the toes up toward the shins as high as possible then lower slowly to fully stretch the front of the lower leg. Fault: Rocking the whole foot or rushing the lowering phase, cutting the tibialis range short." },
-  { id: "cable-woodchop", name: "Cable Woodchop", type: "strength", equipment: "cable", pattern: "core", muscles: ["core", "obliques"], compound: true, goals: I, unit: "reps", setup: "Single handle on the high pulley, stand side-on a stride away, feet shoulder-width, grip with both hands at shoulder height.", cue: "Setup: ... . Key: ... . Fault: ... ." },
+  { id: "cable-woodchop", name: "Cable Woodchop", type: "strength", equipment: "cable", pattern: "core", muscles: ["core", "obliques"], compound: true, goals: I, unit: "reps", setup: "Single handle on the high pulley, stand side-on a stride away, feet shoulder-width, grip with both hands at shoulder height.", cue: "Setup: hands stacked at shoulder height, hips and feet square to the pulley. Key: rotate through the torso and hips together, pulling the handle down and across the body to the outside of the opposite hip. Fault: only bending the arms, or twisting through the low back instead of rotating through the hips." },
   { id: "landmine-rotation", name: "Landmine Rotation", type: "strength", equipment: "barbell", pattern: "core", muscles: ["core", "obliques"], compound: true, goals: I, unit: "reps", cue: "Setup: Anchor one end of the bar, hold the free end at arms length out front, feet shoulder width. Key: Arc the bar hip to hip by rotating the trunk and pivoting the rear foot, keeping the arms straight and the core braced throughout. Fault: Bending the elbows or swinging from the shoulders so the obliques stop doing the work." },
   { id: "bird-dog", name: "Bird Dog", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core", "back"], compound: false, goals: I, unit: "reps", cue: "Setup: On all fours, wrists under shoulders, knees under hips, spine long and neutral. Key: Extend the opposite arm and leg to full length while keeping the pelvis dead level, then return with control. Fault: Letting the hips tilt or the lower back sag as the limbs reach away." },
   { id: "side-plank", name: "Side Plank", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core", "obliques"], compound: false, goals: I, unit: "sec", cue: "Setup: Stack your feet, plant the bottom elbow under the shoulder, and lift the hips into a straight line. Key: Drive the bottom hip toward the ceiling and brace the obliques so head, hips, and ankles hold one rigid line. Fault: Letting the hips drift forward or sag toward the floor as fatigue sets in." },
@@ -1054,6 +1070,9 @@ const LIBRARY = [
   { id: "medicine-ball-slam", name: "Medicine Ball Slam", type: "strength", equipment: "dumbbell", pattern: "power", muscles: ["core", "full body"], compound: true, goals: C, unit: "reps", cue: "Setup: Stand tall, feet hip width, lift the ball fully overhead with the trunk extended. Key: Snap the hips and abs shut to drive the ball into the floor with violent intent, then catch the bounce and reset overhead. Fault: Slamming with just the arms or rounding the back instead of generating the whip from the trunk." },
   { id: "medicine-ball-chest-throw", name: "Medicine Ball Chest Throw", type: "strength", equipment: "dumbbell", pattern: "power", muscles: ["chest", "full body"], compound: true, goals: C, unit: "reps", cue: "Setup: Face a wall in an athletic stance, hold the ball at your sternum with elbows tucked. Key: Fire the ball explosively off the chest with a full arm punch and slight hip drive, then catch the rebound and immediately reload. Fault: Lobbing the ball slowly or stepping into it so the pressing power is lost." },
   { id: "hang-power-clean", name: "Hang Power Clean", type: "strength", equipment: "barbell", pattern: "power", muscles: ["full body", "back"], compound: true, goals: C, unit: "reps", cue: "Setup: Hold the bar at mid-thigh, shoulders just over the bar, lats tight and back flat. Key: Explosively extend hips and shrug to launch the bar, then whip the elbows through fast to catch it on the front rack in a partial squat. Fault: Pulling early with bent arms or reverse-curling the bar up instead of driving it with the hips." },
+  { id: "power-clean", name: "Power Clean", type: "strength", equipment: "barbell", pattern: "power", muscles: ["full body", "back"], compound: true, goals: C, unit: "reps", cue: "Setup: Bar over mid-foot, shins close, hips higher than the knees, back flat and lats tight. Key: Push the floor away until the bar clears the knees, then explosively extend hips and shrug, whipping the elbows through fast to catch it on the front rack in a partial squat. Fault: Yanking early with the arms before the hips finish extending, or letting the bar drift forward away from the body." },
+  { id: "power-snatch", name: "Power Snatch", type: "strength", equipment: "barbell", pattern: "power", muscles: ["full body", "back", "shoulders"], compound: true, goals: C, unit: "reps", cue: "Setup: Wide snatch grip, bar over mid-foot, hips high and back flat, same first pull as a deadlift. Key: Accelerate the bar past the knees, then explosively extend hips and shrug, pulling the body under fast to catch it overhead with locked arms in a partial squat. Fault: Muscling the bar up with the arms instead of finishing the hip extension, or catching it with soft, bent elbows." },
+  { id: "push-jerk", name: "Push Jerk", type: "strength", equipment: "barbell", pattern: "power", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: Rack the bar on the front delts, elbows up, feet hip width, core braced. Key: Dip a few inches with a vertical torso, drive the legs hard to launch the bar, then punch the body down under it to catch overhead in a shallow squat and stand tall to finish. Fault: Pressing the bar out with the arms instead of re-bending the knees to catch it, or catching with the feet still spread in the dip stance." },
   { id: "barbell-high-pull", name: "Barbell High Pull", type: "strength", equipment: "barbell", pattern: "power", muscles: ["back", "shoulders"], compound: true, goals: C, unit: "reps", cue: "Setup: Hold the bar at the hips with a wide grip, hinge slightly, back braced and flat. Key: Snap the hips open and ride that momentum to pull the bar to collarbone height with high, leading elbows. Fault: Heaving with the arms before the hips fire, or hunching the shoulders forward at the top." },
   { id: "push-press", name: "Push Press", type: "strength", equipment: "barbell", pattern: "power", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", cue: "Setup: Rack the bar on the front delts, elbows up, feet hip width, core braced. Key: Dip a few inches with vertical torso, then drive the legs hard to punch the bar overhead and lock it out fast. Fault: Dipping too deep or leaning back so the leg drive scatters instead of feeding straight up the bar path." },
   { id: "kettlebell-clean", name: "Kettlebell Clean", type: "strength", equipment: "kettlebell", pattern: "power", muscles: ["full body", "glutes"], compound: true, goals: C, unit: "reps", cue: "Setup: Stand over the bell, hinge to grip it, shoulder packed and back flat. Key: Snap the hips to float the bell up close to the body and spear the hand through so it lands soft on the rack, not crashing the wrist. Fault: Letting the bell loop wide and bang the forearm instead of guiding it tight to the body." },
@@ -1067,6 +1086,8 @@ const LIBRARY = [
   { id: "battle-ropes", name: "Battle Ropes", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["shoulders", "full body"], compound: true, goals: CON, intensity: "interval", unit: "sec", cue: "Setup: Athletic quarter-squat, chest up, a rope end in each hand with slight tension. Key: Drive fast alternating or double waves from the hips and shoulders, keeping the waves reaching the anchor for the full work window. Fault: Standing upright and flailing the arms so the waves die halfway down the rope." },
   { id: "sled-drag", name: "Sled Drag", type: "conditioning", equipment: "sled", pattern: "conditioning", muscles: ["legs"], compound: true, goals: CON, intensity: "interval", unit: "sec", cue: "Setup: Face away for a forward drag, straps or handles taut, hips low, chest proud, lean into the load. Key: Push the ground away with a powerful continuous march, full leg extension each stride, holding pace for the whole interval. Fault: Stutter-stepping or letting the torso pop upright, which stalls momentum and turns it into a grind." },
   { id: "band-shoulder-external-rotation", name: "Band Shoulder External Rotation", type: "mobility", equipment: "band", pattern: "shoulder-mobility", muscles: ["shoulders"], compound: false, goals: MOB, unit: "reps", cue: "Setup: Elbow pinned to the side bent ninety degrees, forearm across the body, band anchored at waist height. Key: Rotate the forearm outward by turning at the shoulder, keeping the elbow glued to the ribs and pausing at end range to own the position. Fault: Letting the elbow drift off the side or arching the back to fake range instead of rotating the joint. Dynamic, controlled tempo." },
+  { id: "band-shoulder-internal-rotation", name: "Band Shoulder Internal Rotation", type: "mobility", equipment: "band", pattern: "shoulder-mobility", muscles: ["shoulders"], compound: false, goals: MOB, unit: "reps", cue: "Setup: Elbow pinned to the side bent ninety degrees, forearm out to the side, band anchored at waist height on the opposite side. Key: Rotate the forearm inward across the body by turning at the shoulder, keeping the elbow glued to the ribs and pausing at end range. Fault: Letting the elbow drift off the side, or rotating the whole torso instead of just the shoulder joint. Dynamic, controlled tempo." },
+  { id: "sleeper-stretch", name: "Sleeper Stretch", type: "mobility", equipment: "bodyweight", pattern: "shoulder-mobility", muscles: ["shoulders"], compound: false, goals: MOB, unit: "sec", cue: "Setup: lie on the working side, shoulder underneath, elbow bent ninety degrees pointing forward. Key: use the other hand to gently press the forearm down toward the floor until you feel the stretch behind the shoulder. Fault: letting the shoulder roll forward to fake range, or pressing hard enough to cause sharp pain instead of a stretch." },
   { id: "hip-airplane", name: "Hip Airplane", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips", "glutes"], compound: false, goals: MOB, unit: "reps", cue: "Setup: Balance on one leg, hinge to a near-horizontal torso, free leg extended behind, hands light on support if needed. Key: Rotate the pelvis open toward the ceiling then close it back down, driving the movement from the standing hip and feeling the glute control the rotation. Fault: Spinning from the lower back or the free leg instead of rotating around the planted hip. Dynamic, slow and deliberate." },
   { id: "pigeon-stretch", name: "Pigeon Stretch", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips", "glutes"], compound: false, goals: MOB, unit: "sec", cue: "Setup: Front shin angled across the floor, back leg extended straight behind, hips square to the front. Key: Sink the front hip toward the floor and walk the chest down, breathing into the deep glute stretch and easing further on each exhale. Fault: Letting the hips rotate open or collapsing onto the front hip, which dumps the stretch into the knee. Static hold, breathe through it." },
   { id: "adductor-rock-back", name: "Adductor Rock-Back", type: "mobility", equipment: "bodyweight", pattern: "hip-mobility", muscles: ["hips", "adductors"], compound: false, goals: MOB, unit: "reps", cue: "Setup: On all fours, extend one leg straight out to the side with the foot flat and toes forward, spine neutral. Key: Rock the hips back toward the heel until you feel a deep stretch along the inner thigh, then rock forward and repeat, keeping the back flat. Fault: Rounding the lower back or letting the extended foot roll, which steals tension from the adductor. Dynamic, controlled rock." },
@@ -1202,7 +1223,7 @@ function equipOk(e, allowed) {
 var ALL_PATTERNS = ["squat", "hinge", "lunge", "hpush", "vpush", "hpull", "vpull", "biceps", "triceps", "calf", "core", "carry"];
 // The hip-hinge barbell/db lifts a lifter calls "a deadlift" — capped hard so they
 // never stack across the week (high axial fatigue + the user's explicit gripe).
-var DEADLIFT_FAMILY = ["deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning"];
+var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning"];
 function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap) {
   function ok(e, pats, comp, useGoal) {
     return e.type === "strength"
@@ -1298,9 +1319,17 @@ function conditioningAlternatives(name, allowed) {
     return e.type === "conditioning" && e.intensity === cur.intensity && e.name !== name && equipOk(e, allowed);
   }).map(function (e) { return { name: e.name, equipment: e.equipment, cue: e.cue }; });
 }
-function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload) {
+function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[ex.name.toLowerCase()];
+  // Per-exercise autoregulation: real RPE-based autoregulation responds to what
+  // actually happened, not just the calendar. If the last logged session for
+  // THIS exercise was rated consistently near-max (RPE 9.5+), ease this
+  // prescription by one set instead of blindly repeating the fixed schedule.
+  var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
+  if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
+    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high RPE last time)", rest: p.rest };
+  }
   return {
     name: ex.name, type: ex.type, equipment: ex.equipment, group: "",
     sets: p.sets, reps: p.reps,
@@ -1407,7 +1436,9 @@ function buildLastLogs(state) {
             function (i) { return !!(el.done && el.done[i]); },
             function (i) { return el.reps && el.reps[i]; },
             function (i) { return !!(el.reps && el.reps[i] != null); });
-          map[String(ex.name).toLowerCase()] = { reps: el.reps.slice(), weight: el.weight != null ? el.weight : null, ready: ready };
+          var rpeVals = Array.isArray(el.rpe) ? el.rpe.filter(function (r) { return r != null; }) : [];
+          var rpeAvg = rpeVals.length ? rpeVals.reduce(function (a, b) { return a + b; }, 0) / rpeVals.length : null;
+          map[String(ex.name).toLowerCase()] = { reps: el.reps.slice(), weight: el.weight != null ? el.weight : null, ready: ready, rpeAvg: rpeAvg };
         });
       });
     });
@@ -1430,7 +1461,8 @@ var MUSCLE_PATTERNS = {
   glutes: ["hinge"], glute: ["hinge"], butt: ["hinge"],
   calves: ["calf"], calf: ["calf"],
   core: ["core"], abs: ["core"], stomach: ["core"], obliques: ["core"],
-  adductors: ["lunge"], traps: ["vpull"], forearms: ["biceps"], grip: ["carry"], lats: ["vpull"]
+  adductors: ["lunge"], traps: ["vpull"], forearms: ["biceps"], grip: ["carry"], lats: ["vpull"],
+  neck: ["neck"]
 };
 function titleCaseAreas(areas) {
   var seen = {}, out = [];
@@ -1486,8 +1518,8 @@ function parseSession(text) {
   var summary = focusText + " · ~" + minutes + " min · " + goalText;
   return { role: role, patterns: patterns, areas: areas, minutes: minutes, goal: goal, includes: includes, equipment: equipment, summary: summary, focusText: focusText };
 }
-function generateSession(parsed, weightMap, seed) {
-  parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0;
+function generateSession(parsed, weightMap, seed, lastLogs) {
+  parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
   var allowed = Array.isArray(parsed.equipment) ? parsed.equipment : null;
@@ -1513,10 +1545,10 @@ function generateSession(parsed, weightMap, seed) {
   for (var k = 0; k < slots.length; k++) {
     var ex = pickStrength(slots[k], selGoal, allowed, ctx, seed + k * 13 + 7, patCap, 1);
     if (ex && allowPats && allowPats.indexOf(ex.pattern) < 0) ex = null; // stay on-target for a focused session
-    if (ex) { ctx.used[ex.id] = 1; ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1; if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++; strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false)); }
+    if (ex) { ctx.used[ex.id] = 1; ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1; if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++; strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs)); }
   }
-  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false)); } }
-  if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false)); } }
+  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
+  if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
   var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
   return { name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) };
@@ -1532,28 +1564,36 @@ var RUN_PLAN = {
   intervals: { id: "interval-run", sets: 5, reps: "800 m", target: "~5K pace · hard but controlled", rest: "400 m easy jog" },
   hills:     { id: "hill-repeats", sets: 8, reps: "45 sec uphill", target: "Hard · drive the knees", rest: "jog down" }
 };
+// Genuinely polarized (~80/20, per Seiler's model): each week gets exactly one
+// hard day -- everything else is easy/recovery/long. The hard day's TYPE rotates
+// across the block (intervals -> tempo -> hills) so all three still get used
+// over a few weeks, without ever stacking more than one hard session per week.
+var HARD_RUN_TYPES = ["intervals", "tempo", "hills"];
+function hardRunType(wn) { return HARD_RUN_TYPES[((wn || 1) - 1) % HARD_RUN_TYPES.length]; }
 function runLayout(days) {
   switch (days) {
     case 1: return ["long"];
     case 2: return ["easy", "long"];
-    case 3: return ["easy", "intervals", "long"];
-    case 4: return ["easy", "intervals", "tempo", "long"];
-    case 5: return ["easy", "intervals", "recovery", "tempo", "long"];
-    case 6: return ["easy", "intervals", "recovery", "tempo", "easy", "long"];
-    default: return ["easy", "intervals", "recovery", "tempo", "easy", "hills", "long"];
+    case 3: return ["easy", "hard", "long"];
+    case 4: return ["easy", "hard", "easy", "long"];
+    case 5: return ["easy", "hard", "recovery", "easy", "long"];
+    case 6: return ["easy", "hard", "recovery", "easy", "easy", "long"];
+    default: return ["easy", "hard", "recovery", "easy", "easy", "easy", "long"];
   }
 }
-function runWorkout(si, days, minutes) {
-  var layout = runLayout(days), tpl = RUN_PLAN[layout[si % layout.length]];
+function runWorkout(si, days, minutes, wn) {
+  var layout = runLayout(days), slot = layout[si % layout.length];
+  var tpl = RUN_PLAN[slot === "hard" ? hardRunType(wn) : slot];
   if (!tpl) return null;
   var libEx = LIBRARY.filter(function (e) { return e.id === tpl.id; })[0];
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed) {
+function generateProgram(intake, weightMap, seed, lastLogs) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
+  lastLogs = lastLogs || {};
 
   var goal     = intake.goal || "general";
   var days     = clampInt(intake.days, 1, 7, 4);
@@ -1581,7 +1621,7 @@ function generateProgram(intake, weightMap, seed) {
     if (deload)    return "Deload: consolidate, 50% volume, RPE 6";
     if (wn === 1)  return "Accumulation: build work capacity, 3 RIR";
     if (wn === 2)  return "Accumulation: volume increasing, 2 RIR";
-    return                "Overreach: peak volume, 1 RIR, push the ceiling";
+    return                "Intensification: peak volume, 1 RIR, push the ceiling";
   }
 
   var weeks = [];
@@ -1591,6 +1631,9 @@ function generateProgram(intake, weightMap, seed) {
     var ctx = { used: {}, pat: {}, dl: 0 };
     var patCap = days >= 5 ? 3 : 2;
     var occOf  = {}, nameSeen = {};
+    // Hybrid conditioning stays polarized too: exactly one hard finisher a week
+    // (index picked once per week, not every-other-session), everything else z2.
+    var hardConIdx = Math.min(days - 1, 2);
 
     var sessions = roleList.map(function (role, si) {
       var occ = (occOf[role] = (occOf[role] || 0));
@@ -1607,25 +1650,25 @@ function generateProgram(intake, weightMap, seed) {
           ctx.used[ex.id] = 1;
           ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1;
           if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++;
-          strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload));
+          strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs));
         }
       }
 
       if (includeCon) {
         if (isEnd) {
           // Endurance = a real run week: the run workout leads the day (swap changes the modality).
-          var runEx = runWorkout(si, days, minutes);
+          var runEx = runWorkout(si, days, minutes, wn);
           if (runEx) leadEx.push(runEx);
         } else {
-          var intensity = isHybrid ? (si % 2 === 0 ? "z2" : "interval") : "interval";
+          var intensity = isHybrid ? (si === hardConIdx ? "interval" : "z2") : "interval";
           var con = pickConditioning(intensity, allowed, ctx.used, seed + si * 5 + wn * 11);
-          if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload)); }
+          if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload, lastLogs)); }
         }
       }
 
       if (includeMob) {
         var mob = pickByType("mobility", allowed, ctx.used, seed + si * 3 + wn * 7);
-        if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, wn, isDeload)); }
+        if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, wn, isDeload, lastLogs)); }
       }
 
       if (minutes <= 45) assignSupersets(strengthEx);
@@ -2393,7 +2436,7 @@ function generateProgram(intake, weightMap, seed) {
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
-      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed);
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state));
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
         '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · full gym assumed</div>' +
@@ -2439,7 +2482,7 @@ function generateProgram(intake, weightMap, seed) {
     // build sheet instead of assuming full gym access.
     if (!parsed.equipment) parsed.equipment = buildPrefs().equipment;
     todaySeed++;
-    pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed);
+    pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state));
     var rows = pendingToday.exercises.map(function (e) {
       return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
     }).join("");
