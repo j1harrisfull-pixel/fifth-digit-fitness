@@ -198,14 +198,17 @@ input, textarea { font: inherit; color: inherit; }
 .pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .setlist { display: flex; flex-direction: column; gap: 7px; }
-.setrow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
+.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
 .setrow.is-done { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
-.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
 .rstep { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 12px; font-size: 19px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
 .runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.setrow__wt { flex: none; min-width: 34px; min-height: 44px; padding: 4px 4px; border: 1px dashed var(--line-strong); background: none; border-radius: 10px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.setrow__wt:hover { border-color: var(--accent-ink); color: var(--ink); }
+.setrow__wtinput { flex: none; width: 46px; min-height: 44px; padding: 4px 2px; border: 1px solid var(--accent-ink); border-radius: 10px; background: var(--surface-2); font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
 .setrow__rpe { flex: none; min-width: 50px; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
 .setrow__done { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
@@ -784,8 +787,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     var sl = state.log[ses.id]; if (!sl || !sl.ex) return false;
     var sum = 0, n = 0;
     Object.keys(sl.ex).forEach(function (k) {
-      var el = sl.ex[k]; if (!el || !Array.isArray(el.rpe)) return;
-      el.rpe.forEach(function (r) { if (r != null) { sum += r; n++; } });
+      var el = sl.ex[k]; if (!el || !Array.isArray(el.sets)) return;
+      el.sets.forEach(function (s) { if (s.actual_rpe != null) { sum += s.actual_rpe; n++; } });
     });
     return n >= 3 && (sum / n) >= 9;
   }
@@ -800,7 +803,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     Object.keys(log).forEach(function (sid) {
       var sl = log[sid]; if (!sl || !sl.ex) return;
       var ex = {};
-      Object.keys(sl.ex).forEach(function (eid) { var el = sl.ex[eid]; if (el && Array.isArray(el.done) && el.done.some(Boolean)) ex[eid] = el; });
+      Object.keys(sl.ex).forEach(function (eid) { var el = sl.ex[eid]; if (el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; })) ex[eid] = el; });
       if (Object.keys(ex).length) out[sid] = { date: sl.date || null, ex: ex };
     });
     return out;
@@ -842,7 +845,54 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       log[ses.id] = { date: null, ex: ex };
     });
     return { version: 2, unit: unit, theme: ["light", "dark", "system"].indexOf(v1.theme) >= 0 ? v1.theme : "system",
-      program: program, activeWeek: 0, activeSession: Math.max(0, present.indexOf(v1.activeSession)), log: log, archive: [] };
+      program: program, activeWeek: 0, activeSession: Math.max(0, present.indexOf(v1.activeSession)), log: migrateLogToSets(log, program), archive: [] };
+  }
+  // Upgrades one exercise's logged sets from the pre-Set-schema shape
+  // ({done[],weight,reps[],rpe[]}) to per-set records with a planned/actual
+  // split. `weight` stays as the exercise-level default that a set with a null
+  // actual_weight inherits -- every pre-migration set inherits it, since weight
+  // was only ever tracked once per exercise, never per set.
+  function migrateLogEntry(el, ex) {
+    var n = Math.max(ex.sets || 0, Array.isArray(el.done) ? el.done.length : 0);
+    if (Array.isArray(el.sets) && el.sets.length === n) return el; // already migrated -- idempotent no-op
+    var oldDone = Array.isArray(el.done) ? el.done : [];
+    var oldReps = Array.isArray(el.reps) ? el.reps : [];
+    var oldRpe = Array.isArray(el.rpe) ? el.rpe : [];
+    var dfltWeight = el.weight != null ? el.weight : (ex.weight != null ? ex.weight : 0);
+    var targetReps = repsTop(ex);
+    var sets = [];
+    for (var i = 0; i < n; i++) {
+      sets.push({
+        target_weight: dfltWeight, actual_weight: null,
+        target_reps: targetReps, actual_reps: oldReps[i] != null ? oldReps[i] : null,
+        target_rpe: null, actual_rpe: oldRpe[i] != null ? oldRpe[i] : null,
+        set_type: "working", side: "bilateral",
+        completed: !!oldDone[i]
+      });
+    }
+    return { weight: dfltWeight, sets: sets, warm: Array.isArray(el.warm) ? el.warm : [] };
+  }
+  // Upgrades every logged exercise in a log object (the live log, or an archived
+  // one) to the current Set shape. Runs once at load/import time so every
+  // read/write site downstream can assume the current shape unconditionally.
+  function migrateLogToSets(log, program) {
+    if (!log || typeof log !== "object" || !program || !Array.isArray(program.weeks)) return log || {};
+    var exBySession = {};
+    program.weeks.forEach(function (wk) {
+      wk.sessions.forEach(function (ses) {
+        var map = {}; ses.exercises.forEach(function (e) { map[e.id] = e; });
+        exBySession[ses.id] = map;
+      });
+    });
+    Object.keys(log).forEach(function (sid) {
+      var sl = log[sid], exMap = exBySession[sid];
+      if (!sl || !sl.ex || !exMap) return;
+      Object.keys(sl.ex).forEach(function (eid) {
+        var el = sl.ex[eid], ex = exMap[eid];
+        if (el && ex) sl.ex[eid] = migrateLogEntry(el, ex);
+      });
+    });
+    return log;
   }
   function buildProgressSummary(state) {
     if (!state || !state.program || !Array.isArray(state.program.weeks)) return "No training logged yet. This is a fresh start.";
@@ -857,7 +907,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         var slog = lg[ses.id], anyDone = false, exLines = [];
         ses.exercises.forEach(function (ex) {
           var el = slog && slog.ex ? slog.ex[ex.id] : null;
-          var hit = el && Array.isArray(el.done) ? el.done.filter(Boolean).length : 0;
+          var hit = el && Array.isArray(el.sets) ? el.sets.filter(function (s) { return s.completed; }).length : 0;
           var ww = el && el.weight != null ? el.weight : ex.weight;
           if (hit > 0) anyDone = true;
           exLines.push("    " + ex.name + ": " + hit + "/" + ex.sets + " sets @ " + ww + unit + " (target " + ex.sets + "×" + ex.reps + (ex.target ? ", " + ex.target : "") + ")");
@@ -1428,17 +1478,18 @@ function buildLastLogs(state) {
       wk.sessions.forEach(function (ses) {
         var sl = log && log[ses.id];
         ses.exercises.forEach(function (ex) {
-          var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el) return;
-          var hasReps = Array.isArray(el.reps) && el.reps.some(function (r) { return r != null; });
+          var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
+          var hasReps = el.sets.some(function (s) { return s.actual_reps != null; });
           if (!hasReps) return;
           var top = topRepsOf(ex.reps), n = ex.sets || 0;
           var ready = allSetsAtTop(n, top,
-            function (i) { return !!(el.done && el.done[i]); },
-            function (i) { return el.reps && el.reps[i]; },
-            function (i) { return !!(el.reps && el.reps[i] != null); });
-          var rpeVals = Array.isArray(el.rpe) ? el.rpe.filter(function (r) { return r != null; }) : [];
+            function (i) { return !!(el.sets[i] && el.sets[i].completed); },
+            function (i) { return el.sets[i] && el.sets[i].actual_reps; },
+            function (i) { return !!(el.sets[i] && el.sets[i].actual_reps != null); });
+          var rpeVals = el.sets.map(function (s) { return s.actual_rpe; }).filter(function (r) { return r != null; });
           var rpeAvg = rpeVals.length ? rpeVals.reduce(function (a, b) { return a + b; }, 0) / rpeVals.length : null;
-          map[String(ex.name).toLowerCase()] = { reps: el.reps.slice(), weight: el.weight != null ? el.weight : null, ready: ready, rpeAvg: rpeAvg };
+          var repsArr = el.sets.map(function (s) { return s.actual_reps; });
+          map[String(ex.name).toLowerCase()] = { reps: repsArr, weight: el.weight != null ? el.weight : null, ready: ready, rpeAvg: rpeAvg };
         });
       });
     });
@@ -1715,9 +1766,16 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
   function coerceState(parsed) {
     if (parsed && parsed.program) {
       var program = normalizeProgram(parsed.program);
+      // Archived programs/logs go through the same per-set migration as the live
+      // log -- a backup exported before this shape existed must still load clean.
+      var archive = (Array.isArray(parsed.archive) ? parsed.archive : []).map(function (a) {
+        if (!a || !a.program) return a;
+        var aProgram = normalizeProgram(a.program);
+        return { title: a.title, program: aProgram, log: migrateLogToSets(a.log && typeof a.log === "object" ? a.log : {}, aProgram), archivedAt: a.archivedAt };
+      });
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: parsed.log && typeof parsed.log === "object" ? parsed.log : {}, archive: Array.isArray(parsed.archive) ? parsed.archive : [], restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
+        log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -1742,7 +1800,7 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     var log = st.log || {};
     var used = Object.keys(log).some(function (sid) {
       var ex = log[sid] && log[sid].ex; if (!ex) return false;
-      return Object.keys(ex).some(function (eid) { var el = ex[eid]; return el && Array.isArray(el.done) && el.done.some(Boolean); });
+      return Object.keys(ex).some(function (eid) { var el = ex[eid]; return el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; }); });
     });
     return !used;
   }
@@ -1793,41 +1851,63 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     if (lr && lr.weight != null) return roundW(lr.ready ? lr.weight + STEP : lr.weight);
     return (ex.weight != null ? ex.weight : 0);
   }
+  // Reads back a display-ready projection of the stored per-set records: prefill
+  // guesses are resolved into `reps`, and a set's effective `weight` inherits the
+  // exercise-level default unless that specific set carries its own override.
   function readLog(ses, ex) {
-    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null, done = [], reps = [], rpe = [], real = [];
+    var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null;
     var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
+    var dfltWeight = el && el.weight != null ? el.weight : suggestedWeight(ex);
+    var raw = (el && Array.isArray(el.sets)) ? el.sets : [];
+    var sets = [];
     for (var i = 0; i < ex.sets; i++) {
-      done.push(!!(el && el.done && el.done[i]));
-      var hasReal = !!(el && el.reps && el.reps[i] != null);
-      real.push(hasReal);
-      var rv = hasReal ? el.reps[i]
+      var rs = raw[i] || {};
+      // `real` marks which reps came from an actual logged value vs. a prefill
+      // guess -- a done set with no real value predates per-set rep tracking, so
+      // its guessed number must not be treated as a genuine result (est-1RM/ready).
+      var hasReal = rs.actual_reps != null;
+      // lastLogs can self-reference THIS session's own still-in-progress entry
+      // (e.g. navigate away and back before it's archived) -- its trailing sets
+      // may be null, so the last-value fallback must skip a null, not render it.
+      var rv = hasReal ? rs.actual_reps
         : (lr && lr.reps && lr.reps[i] != null) ? lr.reps[i]
-        : (lr && lr.reps && lr.reps.length) ? lr.reps[lr.reps.length - 1]
+        : (lr && lr.reps && lr.reps.length && lr.reps[lr.reps.length - 1] != null) ? lr.reps[lr.reps.length - 1]
         : (lo != null ? lo : 0);
-      reps.push(rv);
-      rpe.push(el && el.rpe && el.rpe[i] != null ? el.rpe[i] : null);
+      var overridden = rs.actual_weight != null;
+      sets.push({
+        completed: !!rs.completed,
+        weight: overridden ? rs.actual_weight : dfltWeight, overridden: overridden,
+        reps: rv, real: hasReal,
+        rpe: rs.actual_rpe != null ? rs.actual_rpe : null,
+        target_weight: rs.target_weight != null ? rs.target_weight : dfltWeight,
+        target_reps: rs.target_reps != null ? rs.target_reps : null,
+        target_rpe: rs.target_rpe != null ? rs.target_rpe : null
+      });
     }
-    // `real` marks which reps came from an actual logged value vs. a prefill
-    // guess -- a done set with no real value predates per-set rep tracking, so
-    // its guessed number must not be treated as a genuine result (est-1RM/ready).
-    return { done: done, weight: el && el.weight != null ? el.weight : suggestedWeight(ex), warm: el && el.warm ? el.warm : [], reps: reps, rpe: rpe, real: real };
+    return { weight: dfltWeight, warm: el && el.warm ? el.warm : [], sets: sets };
   }
   function writeLog(ses, ex) {
     var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
-    var el = sl.ex[ex.id]; if (!el) { el = { done: [], weight: suggestedWeight(ex) }; sl.ex[ex.id] = el; }
-    while (el.done.length < ex.sets) el.done.push(false);
-    if (el.done.length > ex.sets) el.done = el.done.slice(0, ex.sets);
-    if (el.weight == null) el.weight = ex.weight;
-    // reps/rpe are kept the same length as done (grown with null, not guessed
-    // values) so the arrays never drift out of sync when the set count changes.
-    ensureArr(el, "reps", ex.sets);
-    if (el.reps.length > ex.sets) el.reps = el.reps.slice(0, ex.sets);
-    ensureArr(el, "rpe", ex.sets);
-    if (el.rpe.length > ex.sets) el.rpe = el.rpe.slice(0, ex.sets);
+    var el = sl.ex[ex.id]; if (!el) { el = { weight: suggestedWeight(ex), sets: [], warm: [] }; sl.ex[ex.id] = el; }
+    if (el.weight == null) el.weight = suggestedWeight(ex);
+    if (!Array.isArray(el.sets)) el.sets = [];
+    // Grown sets inherit the exercise default (null actual_weight) rather than a
+    // guessed number, same principle as the old reps/rpe arrays growing with null.
+    var targetReps = repsTop(ex);
+    while (el.sets.length < ex.sets) {
+      el.sets.push({
+        target_weight: el.weight, actual_weight: null,
+        target_reps: targetReps, actual_reps: null,
+        target_rpe: null, actual_rpe: null,
+        set_type: "working", side: "bilateral",
+        completed: false
+      });
+    }
+    if (el.sets.length > ex.sets) el.sets = el.sets.slice(0, ex.sets);
     return { sl: sl, el: el };
   }
   function sessionItemsFor(ses) {
-    return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.done.filter(Boolean).length }; });
+    return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.sets.filter(function (s) { return s.completed; }).length }; });
   }
   function sessionItems() { return sessionItemsFor(curSession()); }
   function currentId() {
@@ -1921,13 +2001,16 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
   function repsLow(ex) { var m = String(ex.reps || "").match(/\d+/); return m ? parseInt(m[0], 10) : null; }
   function repsTop(ex) { return topRepsOf(ex.reps); }
   function est1RM(w, reps) { return (w > 0 && reps > 0) ? Math.round(w * (1 + reps / 30)) : 0; }
-  function ensureArr(el, key, n) { if (!Array.isArray(el[key])) el[key] = []; while (el[key].length < n) el[key].push(null); }
   function setRowsInner(e, lg) {
     var html = "";
     for (var k = 0; k < e.sets; k++) {
-      var d = !!lg.done[k], rv = lg.reps[k], rp = lg.rpe[k];
+      var s = lg.sets[k], d = s.completed, rv = s.reps, rp = s.rpe;
+      var wtCtrl = s.overridden
+        ? '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight override for set ' + (k + 1) + '">'
+        : '<button type="button" class="setrow__wt" data-act="wt-edit" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Set ' + (k + 1) + ' weight ' + s.weight + ', tap to use a different weight for this set">' + s.weight + '</button>';
       html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
         '<span class="setrow__n">' + (k + 1) + '</span>' +
+        wtCtrl +
         '<div class="setrow__reps">' +
           '<button type="button" class="rstep" data-act="rep-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One fewer rep, set ' + (k + 1) + '">−</button>' +
           '<span class="rval">' + rv + '</span><span class="runit">reps</span>' +
@@ -1941,11 +2024,13 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
   }
   function strengthFoot(e, lg, unit) {
     var best = 0, n = e.sets, top = repsTop(e);
-    for (var k = 0; k < n; k++) { if (lg.done[k] && lg.real[k]) { var o = est1RM(lg.weight, lg.reps[k]); if (o > best) best = o; } }
+    // Uses each set's own effective weight (default or override), not the shared
+    // exercise weight -- a backoff set logged lighter no longer inflates est-1RM.
+    for (var k = 0; k < n; k++) { var s = lg.sets[k]; if (s.completed && s.real) { var o = est1RM(s.weight, s.reps); if (o > best) best = o; } }
     var ready = allSetsAtTop(n, top,
-      function (i) { return lg.done[i]; },
-      function (i) { return lg.reps[i]; },
-      function (i) { return lg.real[i]; });
+      function (i) { return lg.sets[i].completed; },
+      function (i) { return lg.sets[i].reps; },
+      function (i) { return lg.sets[i].real; });
     var ormTxt = best > 0 ? best + " " + unit : "—";
     var progTxt = top == null ? "" : ready ? "Ready · add " + roundW(STEP) + " " + unit + " next time" : "Hit " + top + " reps on every set to add weight";
     return { ormTxt: ormTxt, ready: ready, progTxt: progTxt };
@@ -2023,8 +2108,8 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     else if (html) { var anchor = card.querySelector(".setshead") || card.querySelector(".pills"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
   }
   function buildCard(e, i, ses, badge) {
-    var lg = readLog(ses, e), total = e.sets, doneCount = lg.done.filter(Boolean).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
-    var pills = pillsHtml(e, lg.done);
+    var lg = readLog(ses, e), total = e.sets, doneCount = lg.sets.filter(function (s) { return s.completed; }).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
+    var pills = pillsHtml(e, lg.sets.map(function (s) { return s.completed; }));
     var lastW = lastWeights[e.name.toLowerCase()];
     var lastHint = (e.type === "strength" && lastW > 0) ? '<span class="card__last">last ' + esc(roundW(lastW) + " " + unit) + '</span>' : "";
     var platesNote = (e.type === "strength" && e.equipment === "barbell" && lg.weight > 0) ? platesText(lg.weight, unit) : "";
@@ -2125,15 +2210,15 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     var act = btn.getAttribute("data-act"), id = btn.getAttribute("data-ex"), e = findEx(id); if (!e) return;
     var ses = curSession();
     if (act === "set") {
-      var si = parseInt(btn.getAttribute("data-set"), 10), w = writeLog(ses, e);
-      w.el.done[si] = !w.el.done[si];
-      if (!w.sl.date && w.el.done[si]) w.sl.date = new Date().toISOString();
+      var si = parseInt(btn.getAttribute("data-set"), 10), w = writeLog(ses, e), sset = w.el.sets[si];
+      sset.completed = !sset.completed;
+      if (!w.sl.date && sset.completed) w.sl.date = new Date().toISOString();
       save();
-      var on = w.el.done[si];
+      var on = sset.completed;
       btn.classList.toggle("is-done", on); btn.setAttribute("aria-pressed", on);
       btn.setAttribute("aria-label", "Set " + (si + 1) + " of " + e.sets + (on ? ", done" : ""));
       btn.classList.remove("pulse"); void btn.offsetWidth; btn.classList.add("pulse");
-      var card = btn.closest(".card"), dc = w.el.done.slice(0, e.sets).filter(Boolean).length;
+      var card = btn.closest(".card"), dc = w.el.sets.filter(function (s) { return s.completed; }).length;
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
       if (on) { unlockAudio(); startRest(e); }
@@ -2144,7 +2229,17 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
       var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
       var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
       refreshWarm(wcard, e, ses, wl.el.weight, state.program.unit);
+      // The shared default moved -- refresh the setlist too, since any set still
+      // inheriting it (no per-set override) shows a stale weight chip otherwise.
+      var wsetlist = wcard.querySelector(".setlist"); if (wsetlist) wsetlist.innerHTML = setRowsInner(e, readLog(ses, e));
       refreshFoot(wcard, e, ses);
+    } else if (act === "wt-edit") {
+      var wi2 = parseInt(btn.getAttribute("data-set"), 10), ww = writeLog(ses, e);
+      ww.el.sets[wi2].actual_weight = readLog(ses, e).sets[wi2].weight; save();
+      var wtcard = btn.closest(".card");
+      wtcard.querySelector(".setlist").innerHTML = setRowsInner(e, readLog(ses, e));
+      var newInput = wtcard.querySelector('.setrow[data-set="' + wi2 + '"] .setrow__wtinput');
+      if (newInput) { newInput.focus(); newInput.select(); }
     } else if (act === "warm") {
       var wi = parseInt(btn.getAttribute("data-warm"), 10), wwl = writeLog(ses, e);
       if (!wwl.el.warm) wwl.el.warm = [];
@@ -2172,14 +2267,15 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
       if (act === "sets-") {
         var slBefore = state.log[undoSid], elBefore = slBefore && slBefore.ex ? slBefore.ex[e.id] : null;
         var lastIdx = e.sets - 1;
-        if (elBefore && ((elBefore.done && elBefore.done[lastIdx]) || (elBefore.reps && elBefore.reps[lastIdx] != null))) {
+        var lastSetBefore = elBefore && Array.isArray(elBefore.sets) ? elBefore.sets[lastIdx] : null;
+        if (lastSetBefore && (lastSetBefore.completed || lastSetBefore.actual_reps != null)) {
           undoSnapshot = JSON.parse(JSON.stringify(elBefore));
         }
       }
       e.sets = ns; writeLog(ses, e); save();
-      var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.done.filter(Boolean).length;
+      var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.sets.filter(function (s) { return s.completed; }).length;
       if (e.type === "strength") { card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2); refreshFoot(card2, e, ses); }
-      else card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.done);
+      else card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.sets.map(function (s) { return s.completed; }));
       card2.querySelector(".setcount__total").textContent = e.sets;
       card2.querySelector(".setcount__done").textContent = dc2;
       var sv = card2.querySelector(".stepper__val"); if (sv) sv.textContent = e.sets;
@@ -2194,36 +2290,33 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
         });
       }
     } else if (act === "setdone") {
-      var di = parseInt(btn.getAttribute("data-set"), 10), wd = writeLog(ses, e);
-      ensureArr(wd.el, "reps", e.sets); ensureArr(wd.el, "rpe", e.sets);
-      var on2 = !wd.el.done[di];
-      if (on2 && wd.el.reps[di] == null) { var rr = btn.closest(".setrow").querySelector(".rval"); wd.el.reps[di] = rr ? (parseInt(rr.textContent, 10) || 0) : 0; }
-      wd.el.done[di] = on2;
+      var di = parseInt(btn.getAttribute("data-set"), 10), wd = writeLog(ses, e), ds = wd.el.sets[di];
+      var on2 = !ds.completed;
+      if (on2 && ds.actual_reps == null) { var rr = btn.closest(".setrow").querySelector(".rval"); ds.actual_reps = rr ? (parseInt(rr.textContent, 10) || 0) : 0; }
+      ds.completed = on2;
       if (!wd.sl.date && on2) wd.sl.date = new Date().toISOString();
       save();
       var drow = btn.closest(".setrow"); drow.classList.toggle("is-done", on2); btn.setAttribute("aria-pressed", on2);
       btn.setAttribute("aria-label", "Complete set " + (di + 1) + " of " + e.sets + (on2 ? ", done" : ""));
       drow.classList.remove("pulse"); void drow.offsetWidth; drow.classList.add("pulse");
-      var dcard = btn.closest(".card"), ddc = wd.el.done.slice(0, e.sets).filter(Boolean).length;
+      var dcard = btn.closest(".card"), ddc = wd.el.sets.filter(function (s) { return s.completed; }).length;
       dcard.querySelector(".setcount__done").textContent = ddc;
       dcard.classList.toggle("is-complete", e.sets > 0 && ddc === e.sets);
       refreshFoot(dcard, e, ses);
       if (on2) { unlockAudio(); startRest(e); }
       applyGlance();
     } else if (act === "rep-" || act === "rep+") {
-      var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e);
-      ensureArr(wr.el, "reps", e.sets);
-      var rrow = btn.closest(".setrow"), rcur = wr.el.reps[ri] != null ? wr.el.reps[ri] : (parseInt(rrow.querySelector(".rval").textContent, 10) || 0);
+      var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e), rs = wr.el.sets[ri];
+      var rrow = btn.closest(".setrow"), rcur = rs.actual_reps != null ? rs.actual_reps : (parseInt(rrow.querySelector(".rval").textContent, 10) || 0);
       var rnv = Math.max(0, rcur + (act === "rep+" ? 1 : -1));
-      wr.el.reps[ri] = rnv; saveSoon();
+      rs.actual_reps = rnv; saveSoon();
       rrow.querySelector(".rval").textContent = rnv;
       refreshFoot(btn.closest(".card"), e, ses);
     } else if (act === "rpe") {
-      var pi = parseInt(btn.getAttribute("data-set"), 10), wp = writeLog(ses, e);
-      ensureArr(wp.el, "rpe", e.sets);
-      var order = [null, 6, 7, 8, 9, 10], oi = order.indexOf(wp.el.rpe[pi] == null ? null : wp.el.rpe[pi]);
+      var pi = parseInt(btn.getAttribute("data-set"), 10), wp = writeLog(ses, e), ps = wp.el.sets[pi];
+      var order = [null, 6, 7, 8, 9, 10], oi = order.indexOf(ps.actual_rpe == null ? null : ps.actual_rpe);
       oi = (oi + 1) % order.length; var pv = order[oi];
-      wp.el.rpe[pi] = pv; saveSoon();
+      ps.actual_rpe = pv; saveSoon();
       btn.textContent = pv != null ? "@" + pv : "RPE"; btn.classList.toggle("is-set", pv != null);
       btn.setAttribute("aria-label", "Effort for set " + (pi + 1) + (pv != null ? ": RPE " + pv : ", optional"));
       renderHead(); // keeps the "high effort logged" nudge live as RPE is rated
@@ -2232,8 +2325,19 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
   function onListInput(ev) {
     var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
     var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
-    if (act === "wset") { var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon(); var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit); refreshWarm(wc, e, ses, w.el.weight, state.program.unit); refreshFoot(wc, e, ses); }
-    else if (act === "reps") {
+    if (act === "wset") {
+      var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
+      var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit);
+      refreshWarm(wc, e, ses, w.el.weight, state.program.unit);
+      var iwsetlist = wc.querySelector(".setlist"); if (iwsetlist) iwsetlist.innerHTML = setRowsInner(e, readLog(ses, e));
+      refreshFoot(wc, e, ses);
+    } else if (act === "setwt") {
+      // Refreshes only the foot (est-1RM), never the setlist -- re-rendering it
+      // here would destroy the input the user is actively typing into mid-edit.
+      var wsi = parseInt(el.getAttribute("data-set"), 10), w2 = writeLog(ses, e);
+      w2.el.sets[wsi].actual_weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
+      refreshFoot(el.closest(".card"), e, ses);
+    } else if (act === "reps") {
       e.reps = el.value; saveSoon();
       el.closest(".card").querySelectorAll(".pill__reps").forEach(function (r) { r.textContent = e.reps; });
     }
@@ -2242,7 +2346,14 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     var ses = curSession(), sid = ses.id;
     var sl = state.log[sid];
     var prev = sl ? JSON.parse(JSON.stringify(sl)) : null; // snapshot for Undo
-    if (sl && sl.ex) { Object.keys(sl.ex).forEach(function (k) { sl.ex[k].done = sl.ex[k].done.map(function () { return false; }); if (sl.ex[k].warm) sl.ex[k].warm = []; if (sl.ex[k].rpe) sl.ex[k].rpe = []; if (sl.ex[k].reps) sl.ex[k].reps = []; }); sl.date = null; }
+    if (sl && sl.ex) {
+      Object.keys(sl.ex).forEach(function (k) {
+        var el = sl.ex[k];
+        if (Array.isArray(el.sets)) el.sets.forEach(function (s) { s.completed = false; s.actual_reps = null; s.actual_rpe = null; s.actual_weight = null; });
+        if (el.warm) el.warm = [];
+      });
+      sl.date = null;
+    }
     save(); renderHead(); renderList(true);
     toastUndo(ses.name + " reset", function () {
       if (prev) state.log[sid] = prev; else delete state.log[sid];
