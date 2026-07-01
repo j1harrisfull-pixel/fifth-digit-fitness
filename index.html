@@ -2351,6 +2351,10 @@ function generateProgram(intake, weightMap, seed) {
     var text = $("todayText").value, pv = $("todayPreview");
     if (!text.trim()) { pv.innerHTML = '<div class="preview__error" role="alert">Type what you want to train, for example ‘chest and triceps, 40 min’.</div>'; pv.classList.remove("hidden"); return; }
     var parsed = parseSession(text);
+    // parseSession only detects equipment you actually typed (e.g. "dumbbells
+    // only"); absent that, honour the saved equipment profile from Settings/the
+    // build sheet instead of assuming full gym access.
+    if (!parsed.equipment) parsed.equipment = buildPrefs().equipment;
     todaySeed++;
     pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed);
     var rows = pendingToday.exercises.map(function (e) {
