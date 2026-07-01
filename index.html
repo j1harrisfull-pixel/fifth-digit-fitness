@@ -2756,6 +2756,15 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showWelcome(!hasProgram()); });
     refreshWelcome();
   }
+  // Belt-and-suspenders zoom block. The viewport meta's maximum-scale/user-scalable
+  // is NOT enough on iOS: WebKit has deliberately ignored it for pinch-zoom since
+  // iOS 10 (an accessibility override), so pinch can still get through even with
+  // the meta tag set correctly. gesturestart/gesturechange are Safari-only
+  // pinch/rotate events; the touchmove check is a cross-browser fallback for any
+  // multi-touch gesture that isn't caught as a "gesture" event.
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
   if ("serviceWorker" in navigator) {
     // Auto-update. The SW skipWaits + claims, so a newly deployed version becomes
