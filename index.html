@@ -100,10 +100,11 @@ input, textarea { font: inherit; color: inherit; }
 .daybar__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 .weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
-.weekrow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 16px 6px; cursor: pointer; color: var(--ink); transition: background .12s ease; }
+.weekrow { display: flex; align-items: center; width: 100%; border-top: 1px solid var(--line); }
 .weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
-.weekrow:hover { background: var(--surface-2); }
-.weekrow:active { transform: scale(.995); }
+.weekrow__open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: left; background: none; border: 0; padding: 16px 6px; cursor: pointer; color: var(--ink); transition: background .12s ease; }
+.weekrow__open:hover { background: var(--surface-2); }
+.weekrow__open:active { transform: scale(.995); }
 .weekrow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
 .weekrow__focus { font-size: 12px; color: var(--ink-dim); margin-top: 1px; }
@@ -111,6 +112,8 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__prog { font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); flex: none; }
 .weekrow__prog.is-done { color: var(--mob); }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
+.weekrow__del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 10px; transition: background .12s ease, color .12s ease; }
+.weekrow__del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; }
 .weekbar__title { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
@@ -472,7 +475,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button data-days="6" type="button">6</button>
       </div>
     </div>
-    <details class="adv adv--adjust">
+    <details class="adv adv--adjust" id="weekAdjust">
       <summary><span class="adv__label">Adjust</span> <span class="adv__hint" id="adjustHint"></span></summary>
       <div class="adv__body">
         <div class="bsect">
@@ -515,7 +518,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <textarea class="pastebox" id="todayText" rows="2" placeholder="e.g. 'chest and triceps, 40 min' / 'heavy legs' / 'quick upper body'" aria-label="What do you want to train today"></textarea>
         <p class="sect__hint" style="margin-top:8px">Name the muscles or a split, add a time and how it should feel. It reads back what it understood before building.</p>
       </div>
-      <div class="btn-row" style="margin-top:6px"><button class="btn btn--primary" id="todayBtn" type="button">Build today's session</button></div>
+      <details class="adv adv--adjust" id="todayAdjust" style="margin-top:14px">
+        <summary><span class="adv__label">Equipment</span> <span class="adv__hint" id="todayEquipHint"></span></summary>
+        <div class="adv__body">
+          <div class="chips" id="todayEquip" role="group" aria-label="Equipment I have"></div>
+          <p class="sect__hint" style="margin-top:8px">Defaults to your saved equipment. Naming specific kit above (e.g. "dumbbells only") overrides it for just this session.</p>
+        </div>
+      </details>
+      <div class="btn-row" style="margin-top:18px"><button class="btn btn--primary" id="todayBtn" type="button">Build today's session</button></div>
       <div class="preview hidden" id="todayPreview"></div>
     </div>
 
@@ -1808,18 +1818,37 @@ function generateProgram(intake, weightMap, seed) {
     $("weekNext").disabled = state.activeWeek >= p.weeks.length - 1;
   }
   var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+  var trashIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
   function renderWeekList() {
     var sessions = curWeek().sessions;
     if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
     weekListEl.innerHTML = sessions.map(function (s, i) {
       var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
       var focus = s.focus && s.focus !== s.name ? '<span class="weekrow__focus">' + esc(s.focus) + '</span>' : '';
-      return '<button class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" type="button" data-day="' + i + '">' +
+      return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
+        '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(s.name) + '">' +
         '<span class="weekrow__main"><span class="weekrow__name">' + esc(s.name) + '</span>' + focus + '</span>' +
         '<span class="weekrow__prog' + (done ? " is-done" : "") + '">' + (done ? "done" : pr.done + " / " + pr.total) + '</span>' +
         '<span class="weekrow__chev">' + chevRight + '</span>' +
-        '</button>';
+        '</button>' +
+        '<button class="weekrow__del" type="button" data-day="' + i + '" aria-label="Delete ' + esc(s.name) + '">' + trashIcon + '</button>' +
+        '</div>';
     }).join("");
+  }
+  function deleteSession(i) {
+    var wk = curWeek(), sessions = wk.sessions;
+    if (i < 0 || i >= sessions.length) return;
+    var removed = sessions[i], removedLog = state.log[removed.id] ? JSON.parse(JSON.stringify(state.log[removed.id])) : null;
+    sessions.splice(i, 1);
+    delete state.log[removed.id];
+    if (i < state.activeSession) state.activeSession--;
+    if (state.activeSession >= sessions.length) state.activeSession = Math.max(0, sessions.length - 1);
+    save(); renderWeekList();
+    toastUndo(removed.name + " deleted", function () {
+      sessions.splice(i, 0, removed);
+      if (removedLog) state.log[removed.id] = removedLog;
+      save(); renderAll(false); toast("Restored");
+    });
   }
   function renderDayBar() {
     var sessions = curWeek().sessions;
@@ -2190,7 +2219,12 @@ function generateProgram(intake, weightMap, seed) {
     if (ni < 0 || ni >= state.program.weeks.length) return;
     hideRest(); state.activeWeek = ni; state.activeSession = 0; save(); renderAll(true);
   }
-  weekListEl.addEventListener("click", function (ev) { var r = ev.target.closest(".weekrow"); if (r) openDay(parseInt(r.getAttribute("data-day"), 10)); });
+  weekListEl.addEventListener("click", function (ev) {
+    var del = ev.target.closest(".weekrow__del");
+    if (del) { deleteSession(parseInt(del.getAttribute("data-day"), 10)); return; }
+    var open = ev.target.closest(".weekrow__open");
+    if (open) openDay(parseInt(open.getAttribute("data-day"), 10));
+  });
   $("backWeek").addEventListener("click", backToWeek);
   $("dayPrev").addEventListener("click", function () { switchSession(state.activeSession - 1); });
   $("dayNext").addEventListener("click", function () { switchSession(state.activeSession + 1); });
@@ -2278,7 +2312,12 @@ function generateProgram(intake, weightMap, seed) {
   // of maintaining two copies of the same 9 chips.
   function equipChipsHtml() { return EQUIP_ALL.map(function (id) { return '<button class="chip" data-eq="' + id + '" type="button">' + esc(EQUIP_LABELS[id]) + '</button>'; }).join(""); }
   function syncEquipChips(id) { var eq = buildPrefs().equipment; document.querySelectorAll("#" + id + " button").forEach(function (b) { b.setAttribute("aria-pressed", eq.indexOf(b.getAttribute("data-eq")) >= 0); }); }
-  function syncAllEquipChips() { syncEquipChips("bEquip"); syncEquipChips("myEquip"); }
+  function syncAllEquipChips() { syncEquipChips("bEquip"); syncEquipChips("myEquip"); syncEquipChips("todayEquip"); syncTodayEquipHint(); }
+  function syncTodayEquipHint() {
+    var hintEl = $("todayEquipHint"); if (!hintEl) return;
+    var n = buildPrefs().equipment.length;
+    hintEl.textContent = n >= 8 ? "full gym" : (n ? n + " kit" : "bodyweight");
+  }
   function wireEquipChips(id) {
     var el = $(id); if (!el) return;
     el.innerHTML = equipChipsHtml();
@@ -2335,7 +2374,13 @@ function generateProgram(intake, weightMap, seed) {
     $("buildPreview").classList.add("hidden");
     $("todayPreview").classList.add("hidden");
     syncBuild();
+    syncEquipChips("todayEquip"); syncTodayEquipHint();
     $("reqText").value = buildRequest();
+    // First build ever: surface equipment up front instead of leaving it collapsed,
+    // so the very first program actually fits the kit you have. Every later open
+    // goes back to the normal collapsed default.
+    var firstBuild = !hasProgram(), wa = $("weekAdjust"), ta = $("todayAdjust");
+    if (wa) wa.open = firstBuild; if (ta) ta.open = firstBuild;
     if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
   }
   function onBuild(showThinking) {
@@ -2494,6 +2539,7 @@ function generateProgram(intake, weightMap, seed) {
   $("warmSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-warm-val]"); if (!b) return; state.warmups = b.getAttribute("data-warm-val") === "on"; save(); syncSegs(); renderList(false); });
   $("fillerSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-filler-val]"); if (!b) return; state.fillers = b.getAttribute("data-filler-val") === "on"; save(); syncSegs(); if (state.fillers === false) hideFiller(); });
   wireEquipChips("myEquip");
+  wireEquipChips("todayEquip");
 
   /* ===================== Backup ===================== */
   function exportBackup() {
