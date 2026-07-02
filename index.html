@@ -182,6 +182,7 @@ input, textarea { font: inherit; color: inherit; }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: "Hanken Grotesk", sans-serif; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
+.card__why { font-size: 12px; color: var(--ink-dim); margin: -4px 0 10px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
 .setshead__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; }
 .setshead .setcount { margin-left: auto; }
@@ -199,6 +200,7 @@ input, textarea { font: inherit; color: inherit; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .setlist { display: flex; flex-direction: column; gap: 7px; }
 .setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
+.setrow__target { flex-basis: 100%; font-size: 11px; color: var(--ink-dim); padding-left: 20px; font-family: "Spline Sans Mono", monospace; }
 .setrow.is-done { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
 .setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
@@ -758,7 +760,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           reps: s.reps == null ? null : clampInt(s.reps, 0, 100, 0),
           rest: s.rest == null ? null : (typeof s.rest === "number" ? s.rest : str(s.rest, ""))
         };
-      }) : [] };
+      }) : [], why: str(e.why, "") };
   }
   function parseRestSeconds(v) {
     if (v == null) return 0;
@@ -1416,7 +1418,7 @@ function selectComplementary(o) {
       return s;
     };
   }
-  var placed = [];
+  var placed = [], why = [];
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
     var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, o.patCap, o.dlCap,
@@ -1427,6 +1429,25 @@ function selectComplementary(o) {
     // spent, so no session ever exceeds it (never 3 heavy squat/hinge lifts).
     if (ex && ex.fatigue_cost === "high" && high >= fatigueBudget) ex = null;
     if (!ex) continue;
+    // An honest plain-language reason, computed from the SAME real inputs the
+    // ranker just used above -- never a fabricated/plausible-sounding line.
+    // Priority: real weekly debt (quantified) > the lengthened-bias signal >
+    // fatigue-budget avoidance > "it's the anchor" (a true structural fact) >
+    // otherwise say plainly that nothing strongly drove this pick.
+    var mpNow = ex.movement_pattern || ex.pattern;
+    var debtHere = debt && debt[mpNow] ? debt[mpNow].debt : 0;
+    var reason;
+    if (debtHere >= 4) {
+      reason = "You're " + debtHere + " set" + (debtHere === 1 ? "" : "s") + " behind on " + (MP_LABEL[mpNow] || mpNow).toLowerCase() + " this week";
+    } else if (!slot.compound && ex.lengthened && (selGoal === "hypertrophy" || selGoal === "general")) {
+      reason = "Chosen for a deep stretch under load";
+    } else if (!slot.compound && high >= fatigueBudget && ex.fatigue_cost !== "high") {
+      reason = "Kept lighter to manage today's fatigue budget";
+    } else if (k === 0) {
+      reason = "Primary lift for today's session";
+    } else {
+      reason = "General accessory work"; // honest: no strong driver behind this specific pick
+    }
     ctx.used[ex.id] = 1;
     ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1;
     if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++;
@@ -1434,7 +1455,9 @@ function selectComplementary(o) {
     var pm2 = (ex.primary_muscles && ex.primary_muscles[0]) || (ex.muscles && ex.muscles[0]);
     if (pm2) mus[pm2] = (mus[pm2] || 0) + 1;
     placed.push(ex);
+    why.push(reason);
   }
+  placed.why = why; // parallel array (same order/length as placed); does not affect array semantics
   return placed; // order follows the split-ordered slots: anchors first, isolation last
 }
 function pickByType(type, allowed, used, seed) {
@@ -1545,7 +1568,20 @@ function buildSetPlan(curve, sets, repsStr, restStr) {
   for (var j = 0; j < sets; j++) plan.push({ wpct: 1, reps: null, rest: null });
   return plan;
 }
-function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease) {
+// Honest, non-fabricated default "why" for exercise types that don't go through
+// selectComplementary's ranker (conditioning/mobility have no debt/lengthened/
+// fatigue-budget signal computed for them) -- derived from real, already-tagged
+// fields (intensity), never invented.
+function defaultWhy(ex) {
+  if (ex.type === "conditioning") {
+    if (ex.intensity === "interval" || ex.intensity === "threshold") return "This week's one hard conditioning session";
+    if (ex.intensity === "z2") return "Easy aerobic work, protecting recovery";
+    return "Conditioning work";
+  }
+  if (ex.type === "mobility") return "Mobility work";
+  return "General accessory work";
+}
+function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[ex.name.toLowerCase()];
   // Per-exercise autoregulation: real RPE-based autoregulation responds to what
@@ -1569,7 +1605,7 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
     sets: p.sets, reps: p.reps,
     weight: (w && w > 0) ? w : 0,
     target: p.target + (curve === "ramp" ? " · ramp to top set" : ""), rest: p.rest, notes: ex.cue,
-    curve: curve, setPlan: setPlan
+    curve: curve, setPlan: setPlan, why: why || defaultWhy(ex)
   };
 }
 var ANTAGONIST_MAP = {
@@ -1766,7 +1802,7 @@ function absoluteFloorExercises() {
   function fx(name, sets, reps, cue) {
     return { name: name, type: "strength", equipment: "bodyweight", group: "",
       sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
-      notes: cue, curve: "straight", setPlan: [] };
+      notes: cue, curve: "straight", setPlan: [], why: "Bodyweight foundation, no equipment needed" };
   }
   return [
     fx("Bodyweight Squat", 3, "12-15", "Setup: feet shoulder-width, chest tall. Key: sit between the hips to depth, drive up through the whole foot. Fault: knees caving or heels lifting."),
@@ -1814,7 +1850,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease) {
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
     debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2
   });
-  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease)); });
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease, picks.why && picks.why[k])); });
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
@@ -1919,7 +1955,7 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
         seed: seed + si * 7 + wn * 31, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
         debt: null, lastLogs: lastLogs, fatigueBudget: 2
       });
-      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs)); });
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs, false, picks.why && picks.why[k])); });
 
       if (includeCon) {
         if (isEnd) {
@@ -2187,10 +2223,10 @@ function recoverySession(allowed, seed) {
   var used = {}, mobs = [];
   for (var i = 0; i < 4; i++) {
     var m = pickByType("mobility", allowed, used, seed + i * 3);
-    if (m) { used[m.id] = 1; mobs.push(buildEx(m, "general", false, {}, 30, 1, false, {})); }
+    if (m) { used[m.id] = 1; mobs.push(buildEx(m, "general", false, {}, 30, 1, false, {}, false, "Active recovery, prioritising mobility")); }
   }
   var extra = [], con = pickConditioning("z2", allowed, used, seed + 20);
-  if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {})); }
+  if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {}, false, "Active recovery, easy effort only")); }
   return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) });
 }
 // Resolve: RequestObject + user state -> a Session Spec. Weekly debt, fatigue, and
@@ -2451,9 +2487,18 @@ function resolveSpec(request, state) {
     var ses = curSession(), wk = curWeek(), p = sessionProgress(sessionItems());
     var fatigue = !wk.deload && sessionFatigueFlag(ses);
     var tag = wk.deload ? '<span class="sprog__tag">deload</span>' : (fatigue ? '<span class="sprog__tag sprog__tag--fatigue">high effort logged</span>' : '');
+    // Task 3.2: the same multi-session fatigue reading already computed for the
+    // Just-Today preview (computeFatigueState), now also surfaced here on the
+    // actual day view -- previously it vanished once you left that one screen.
+    // Distinct wording from the tag above: that one is THIS session's own RPE;
+    // this one is the trend across recent sessions. Amber/red only, same
+    // "silence when there's nothing to say" rule as the preview.
+    var fs = (typeof computeFatigueState === "function") ? computeFatigueState(state) : null;
+    var fatigueTag = (fs && (fs.band === "amber" || fs.band === "red"))
+      ? '<span class="sprog__tag sprog__tag--fatigue">fatigue ' + fs.band + '</span>' : '';
     headEl.innerHTML =
       '<div class="session__main"><h1 class="session__focus">' + esc(ses.focus || ses.name) + '</h1>' +
-      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' done</span>' + tag + '</div></div>' +
+      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' done</span>' + tag + fatigueTag + '</div></div>' +
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>';
     $("resetBtn").addEventListener("click", resetDay);
   }
@@ -2485,6 +2530,11 @@ function resolveSpec(request, state) {
         '</div>' +
         '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>' +
         '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
+        // Task 3.3: planned vs actual, side by side. Real data already computed by
+        // readLog (target_weight/target_reps) -- wraps to its own line within the
+        // existing flex-wrap row, so it doesn't widen the row or disturb the
+        // interactive controls' spacing.
+        '<span class="setrow__target">planned ' + esc(s.target_weight) + esc(state.program.unit) + ' × ' + esc(s.target_reps != null ? s.target_reps : '–') + '</span>' +
       '</div>';
     }
     return html;
@@ -2620,8 +2670,13 @@ function resolveSpec(request, state) {
       foot = '<div class="card__foot"><div class="card__1rm"><span>est. 1RM</span><b>' + fd.ormTxt + '</b></div>' +
         '<div class="card__prog' + (fd.ready ? " is-ready" : "") + '"' + (fd.progTxt ? "" : ' style="display:none"') + '>' + esc(fd.progTxt) + '</div></div>';
     }
+    // Task 3.1: a plain one-line "why" under the name, generated only from the
+    // real inputs that drove selection (see selectComplementary/defaultWhy) --
+    // never a fabricated reason.
+    var whyLine = e.why ? '<p class="card__why">' + esc(e.why) + '</p>' : "";
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
+      whyLine +
       (e.type === "strength" ? '<div class="card__row">' + weightCtrl + lastHint + '</div>' : weightCtrl) +
       warmRow + setsHead + setsContainer + foot + faceCue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes' + (e.notes && e.notes.trim() ? ' <span class="dot" aria-hidden="true"></span>' : "") + '</button>' +
