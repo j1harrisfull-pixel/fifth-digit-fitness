@@ -1,15 +1,15 @@
-/* Training Log — service worker
-   - Precaches the app shell for instant, offline-first loads
+/* Fifth Digit Fitness — service worker
+   - Precaches the app shell (incl. self-hosted fonts) for instant, offline-first loads
    - Navigations are served from the cached shell first (app-shell model)
    - Same-origin assets: cache-first with background fill
-   - Google Fonts (CSS + font files): runtime cache, cache-first
    Bump CACHE_VERSION to ship a new shell. */
 
 const CACHE_VERSION = "v53";
 const SHELL_CACHE = `training-log-shell-${CACHE_VERSION}`;
-const FONT_CACHE = `training-log-fonts-${CACHE_VERSION}`;
 
 // Relative URLs so this works under any base path (e.g. GitHub Pages project page).
+// Fonts are self-hosted (no more Google Fonts CDN) so they precache here like any
+// other shell asset instead of the old runtime font-cache.
 const SHELL_ASSETS = [
   "./",
   "./index.html",
@@ -17,9 +17,12 @@ const SHELL_ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
+  "./fonts/Geist-Regular.woff2",
+  "./fonts/Geist-SemiBold.woff2",
+  "./fonts/Geist-Bold.woff2",
+  "./fonts/SplineSansMono-Medium.woff2",
+  "./fonts/SplineSansMono-SemiBold.woff2",
 ];
-
-const FONT_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -32,7 +35,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== SHELL_CACHE && key !== FONT_CACHE)
+          .filter((key) => key !== SHELL_CACHE)
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -56,12 +59,6 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-
-  // Google Fonts — runtime cache, cache-first.
-  if (FONT_HOSTS.includes(url.hostname)) {
-    event.respondWith(cacheFirst(request, FONT_CACHE));
-    return;
-  }
 
   // App navigations — stale-while-revalidate: serve the cached shell instantly,
   // then refresh it in the background so a deployed update reaches the user on the

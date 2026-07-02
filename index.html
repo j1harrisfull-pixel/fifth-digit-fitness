@@ -3,26 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#2638E0">
+<meta name="theme-color" content="#E8612A">
 <meta name="description" content="A personal offline strength and mobility training log with Claude-driven adaptive programs.">
-<title>Training Log</title>
+<title>Fifth Digit Fitness</title>
 
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Training Log">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
+<meta name="apple-mobile-web-app-title" content="Fifth Digit Fitness">
 
 <style>
+/* Self-hosted fonts (no CDN, no Google Fonts <link>).
+   Geist (SIL OFL) is a TEMPORARY licensed-safe stand-in for Söhne -- both faces
+   are routed through --font-display/--font-body below so swapping to the real
+   Söhne later is a token-level change: drop in Söhne's @font-face rules and
+   repoint those two variables, nothing else in this file has to move.
+   Spline Sans Mono is unrelated to that swap (kept as the numeric/data face);
+   self-hosted here too so the page makes zero Google Fonts CDN requests. */
+@font-face { font-family: "Geist"; src: url("fonts/Geist-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/Geist-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/Geist-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Spline Sans Mono"; src: url("fonts/SplineSansMono-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Spline Sans Mono"; src: url("fonts/SplineSansMono-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 /* ============================================================
-   Training Log v2 — engineering-blueprint aesthetic, cobalt #2638E0
-   Light + dark via prefers-color-scheme, manual override on <html>.
-   WCAG AA for text + interactive colour pairs in both themes.
+   Fifth Digit Fitness — light visual direction, warm neutrals + a
+   softened orange accent. Light + dark via prefers-color-scheme,
+   manual override on <html>. WCAG AA for text + interactive colour
+   pairs in both themes.
    ============================================================ */
 /* Reskin (2026-07-02): new light visual direction. Same variable names so every
    existing rule re-colors automatically; --line/--line-strong keep their old
@@ -37,12 +46,16 @@
 :root {
   --bg: #F3F4F6; --grid: transparent; --surface: #FFFFFF; --surface-2: #F1F2F5;
   --ink: #16181C; --ink-dim: #666B73; --line: #EDEEF1; --line-strong: #E4E6EA; --line-soft: #EDEEF1;
-  --accent: #FF4A1C; --accent-ink: #E0421A; --on-accent: #FFFFFF; --accent-tint: #FFEDE7;
+  --accent: #E8612A; --accent-ink: #CC5525; --on-accent: #FFFFFF; --accent-tint: #FBEDE4;
   --mob: #12945F; --danger: #E24427;
   --ready: #12945F; --ready-tint: #E4F4EC; --manage: #D98A1E; --rough: #E24427;
   --muted: #666B73; --faint: #9BA1A9;
   --shadow: 0 1px 2px rgba(17,18,22,.04), 0 10px 26px -14px rgba(17,18,22,.16);
   --radius: 20px; --tap: 48px; color-scheme: light;
+  /* Swap-ready type system: repoint these two to switch the whole app's
+     display/body face (e.g. to real Söhne) without touching any other rule. */
+  --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -58,7 +71,7 @@
 :root[data-theme="light"] {
   --bg: #F3F4F6; --grid: transparent; --surface: #FFFFFF; --surface-2: #F1F2F5;
   --ink: #16181C; --ink-dim: #666B73; --line: #EDEEF1; --line-strong: #E4E6EA; --line-soft: #EDEEF1;
-  --accent: #FF4A1C; --accent-ink: #E0421A; --on-accent: #FFFFFF; --accent-tint: #FFEDE7;
+  --accent: #E8612A; --accent-ink: #CC5525; --on-accent: #FFFFFF; --accent-tint: #FBEDE4;
   --mob: #12945F; --danger: #E24427;
   --ready: #12945F; --ready-tint: #E4F4EC; --manage: #D98A1E; --rough: #E24427;
   --muted: #666B73; --faint: #9BA1A9;
@@ -77,7 +90,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  font-family: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg); color: var(--ink);
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   line-height: 1.45; min-height: 100svh; overscroll-behavior-y: none;
@@ -105,7 +118,7 @@ input, textarea { font: inherit; color: inherit; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(env(safe-area-inset-top) + 12px) 18px 10px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand__mark { width: 32px; height: 16px; color: var(--accent-ink); flex: none; }
-.brand__name { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
+.brand__name { font-family: var(--font-display); font-weight: 800; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
 .topbar__actions { display: flex; gap: 8px; }
 .icon-btn { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; transition: transform .12s ease, border-color .12s ease; }
 .icon-btn:hover { border-color: var(--line-strong); }
@@ -118,9 +131,9 @@ input, textarea { font: inherit; color: inherit; }
 .app[data-view="week"] .view-day { display: none; }
 .app[data-view="day"] .view-week { display: none; }
 .daybar { display: flex; align-items: center; gap: 10px; padding: 2px 14px 12px; }
-.daybar__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: "Hanken Grotesk", sans-serif; font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; border-radius: 8px; cursor: pointer; }
+.daybar__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; border-radius: 8px; cursor: pointer; }
 .daybar__back:hover { color: var(--ink); }
-.daybar__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
+.daybar__title { font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 /* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
 .home-hero { padding: 8px 14px 4px; }
@@ -129,14 +142,13 @@ input, textarea { font: inherit; color: inherit; }
 .recovery-ring.is-manage { --ring-color: var(--manage); }
 .recovery-ring.is-rough { --ring-color: var(--rough); }
 .recovery-ring__hole { position: absolute; inset: 6px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
-.recovery-ring__pct { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; color: var(--ink); }
+.recovery-ring__pct { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--ink); }
 .home-hero__readiness { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .home-hero__readiness-label { font-size: 15px; font-weight: 700; color: var(--ink); }
 .home-hero__readiness-sub { font-size: 13px; color: var(--muted); }
 .today-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
 .today-card__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin-bottom: 6px; }
-.today-card__name { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
-.today-card__focus { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.today-card__name { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
 .today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
 .today-card__cta { display: block; width: 100%; margin-top: 16px; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 13px; padding: 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; }
 .week-strip { display: flex; gap: 9px; margin: 18px 2px 0; }
@@ -151,15 +163,16 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__open:active { transform: scale(.995); }
 .weekrow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
-.weekrow__focus { font-size: 12px; color: var(--ink-dim); margin-top: 1px; }
-.weekrow.is-current .weekrow__name { color: var(--accent-ink); }
+/* Accent is reserved for the one primary action (the hero CTA); the current-day
+   row is marked by the week strip + its position, not by recoloring its title. */
+.weekrow.is-current .weekrow__name { color: var(--ink); }
 .weekrow__prog { font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); flex: none; }
 .weekrow__prog.is-done { color: var(--mob); }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
 .weekrow__del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 10px; transition: background .12s ease, color .12s ease; }
 .weekrow__del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; }
-.weekbar__title { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weekbar__title { font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
 .weeknav { display: inline-flex; align-items: center; gap: 4px; flex: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
 .weeknav__btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; border-radius: 9px; font-size: 22px; line-height: 1; color: var(--ink); }
@@ -181,7 +194,7 @@ input, textarea { font: inherit; color: inherit; }
 /* ---------- Session head ---------- */
 .session { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px 6px; }
 .session__main { min-width: 0; flex: 1 1 auto; }
-.session__focus { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 21px; letter-spacing: -.01em; line-height: 1.06; margin: 0; }
+.session__focus { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: -.01em; line-height: 1.06; margin: 0; }
 .sprog { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
 .sprog__track { flex: 0 1 150px; height: 6px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
 .sprog__fill { height: 100%; width: 100%; transform-origin: left; background: var(--accent); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
@@ -223,7 +236,7 @@ input, textarea { font: inherit; color: inherit; }
 .setcount { display: flex; align-items: baseline; gap: 3px; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; }
 .setcount__done { font-size: 22px; font-weight: 600; color: var(--accent-ink); }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
-.setcount__label { font-family: "Hanken Grotesk", sans-serif; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
+.setcount__label { font-family: var(--font-body); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
 .card__why { font-size: 12px; color: var(--ink-dim); margin: -4px 0 10px; }
 .card__cue { margin: 0 0 14px; }
@@ -290,7 +303,7 @@ input, textarea { font: inherit; color: inherit; }
 .swapbox.is-open { display: block; }
 .swap-hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 8px; }
 .swap-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.swap-chip { font-family: "Hanken Grotesk", sans-serif; font-size: 13px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); cursor: pointer; transition: border-color .15s, color .15s; }
+.swap-chip { font-family: var(--font-body); font-size: 13px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); cursor: pointer; transition: border-color .15s, color .15s; }
 .swap-chip:hover { border-color: var(--accent); color: var(--accent-ink); }
 .swap-chip:active { transform: scale(.97); }
 .notes__text:focus, .reps__input:focus { border-color: var(--accent-ink); outline: none; }
@@ -307,7 +320,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet__grip { width: 38px; height: 4px; border-radius: 4px; background: var(--line-strong); margin: 10px auto 2px; }
 .sheet__body { padding: 8px 20px calc(env(safe-area-inset-bottom) + 22px); overflow-y: auto; max-height: calc(92svh - 20px); }
-.sheet h2 { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
+.sheet h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
 .sheet__lead { font-size: 13px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
 .sect { margin-bottom: 22px; }
 .sect__label { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim); font-weight: 700; margin-bottom: 10px; }
@@ -343,7 +356,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .intro[hidden] { display: none; }
 .intro__card { max-width: 440px; width: 100%; animation: rise .5s cubic-bezier(.2,.8,.2,1); }
 .intro__mark { width: 60px; height: 30px; color: var(--accent-ink); display: block; margin-bottom: 18px; }
-.intro__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -.01em; margin: 0 0 10px; }
+.intro__title { font-family: var(--font-display); font-weight: 800; font-size: 30px; letter-spacing: -.01em; margin: 0 0 10px; }
 .intro__lead { font-size: 15px; line-height: 1.55; color: var(--ink-dim); margin: 0 0 20px; }
 .intro__list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 13px; }
 .intro__list li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.5; color: var(--ink); }
@@ -418,7 +431,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.has-action { pointer-events: auto; display: inline-flex; align-items: center; gap: 16px; }
 .toast__action { background: none; border: 0; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 2px; cursor: pointer; min-height: 32px; }
-.confirm__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
+.confirm__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
 .confirm__icon { flex: none; }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
 .preview__error { color: var(--danger); font-size: 13px; line-height: 1.45; padding: 12px 14px; border: 1px solid var(--danger); border-radius: 11px; background: var(--surface-2); }
@@ -431,7 +444,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .lasttime { font-size: 11px; color: var(--ink-dim); }
 .plates { font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--ink-dim); letter-spacing: .01em; }
 .empty { text-align: center; padding: 48px 24px; }
-.empty__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 20px; color: var(--ink); margin: 0 0 6px; }
+.empty__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); margin: 0 0 6px; }
 .empty__hint { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0; }
 .exmeta { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
 .exmeta__row { display: flex; gap: 12px; font-size: 13px; line-height: 1.4; }
@@ -460,7 +473,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           <rect x="6.5" y="8.3" width="3.6" height="7.4" rx="1.8"/>
           <rect x="37.9" y="8.3" width="3.6" height="7.4" rx="1.8"/>
         </g></svg>
-        <span class="brand__name">Training Log</span>
+        <span class="brand__name">Fifth Digit Fitness</span>
       </div>
       <div class="topbar__actions">
         <button class="icon-btn is-accent" id="planBtn" aria-label="Get or load a workout from Claude" aria-haspopup="dialog">
@@ -685,7 +698,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="btn-row"><button class="btn btn--danger" id="eraseBtn" type="button">Erase all data</button></div>
     </div>
     <button class="btn sheet__close" id="closeSheet" type="button">Done</button>
-    <p class="sheet__about">Training Log · v2 · works fully offline</p>
+    <p class="sheet__about">Fifth Digit Fitness · v2 · works fully offline</p>
   </div>
 </dialog>
 
@@ -718,7 +731,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <rect x="6.5" y="8.3" width="3.6" height="7.4" rx="1.8"/>
       <rect x="37.9" y="8.3" width="3.6" height="7.4" rx="1.8"/>
     </g></svg>
-    <h1 class="intro__title">Training Log</h1>
+    <h1 class="intro__title">Fifth Digit Fitness</h1>
     <p class="intro__lead">Your offline training companion. Build a week, train, log every set. Everything stays on your phone, no account, no internet needed.</p>
     <ul class="intro__list">
       <li><b>Build a week:</b> pick your goal, days, time and kit. It builds instantly, fully offline.</li>
@@ -780,7 +793,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) s = fence[1].trim();
     var blob = extractFirstJsonObject(s);
-    if (blob == null) throw new Error("That doesn't look like a Training Log workout. Paste the whole block, including the { … }.");
+    if (blob == null) throw new Error("That doesn't look like a Fifth Digit Fitness workout. Paste the whole block, including the { … }.");
     try { return JSON.parse(blob); } catch (e) { throw new Error("Couldn't read that as a valid workout. Make sure you copied the whole { … } block."); }
   }
   function validateProgram(obj) {
@@ -995,7 +1008,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   }
 
   /*__COACH_START__*/
-// Training Log — exercise library (single source; embedded into index.html).
+// Fifth Digit Fitness — exercise library (single source; embedded into index.html).
 // Every entry: id, name, type, equipment, pattern, muscles[], compound, goals[], unit, cue.
 // cue is an elite technique note: "Setup: ... Key: ... Fault: ..."
 // goals: which goals the move suits. mobility/conditioning are their own goals.
@@ -2520,6 +2533,16 @@ function resolveSpec(request, state) {
   }
 
   /* ===================== Render ===================== */
+  // "Day N · Focus" -- N is the session's fixed position in the program (its
+  // array index), never a value that renumbers as sessions complete. Focus word
+  // strips the generator's own " A"/" B" split-suffix off the session name
+  // (e.g. "Upper A" -> "Upper"); an imported/free-text name with no such suffix
+  // passes through unchanged, so this never mangles a name we didn't generate.
+  function dayPositionLabel(sessions, i) {
+    var raw = (sessions[i] && sessions[i].name) || "";
+    var focusWord = raw.replace(/ [A-Z]$/, "");
+    return "Day " + (i + 1) + " · " + focusWord;
+  }
   function renderWeekBar() {
     var p = state.program, wk = curWeek();
     $("progTitle").textContent = p.title;
@@ -2551,15 +2574,22 @@ function resolveSpec(request, state) {
     var ringClass = band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "";
     var label = band === "red" ? "High fatigue" : band === "amber" ? "Managing fatigue" : "Fully recovered";
     var sub = band === "red" ? "Consider an easier session today" : band === "amber" ? "Take it a bit easier today" : "You're ready to train";
-    var focusHtml = ses.focus && ses.focus !== ses.name ? '<p class="today-card__focus">' + esc(ses.focus) + '</p>' : "";
     var whyText = "";
     for (var i = 0; i < ses.exercises.length; i++) { var e = ses.exercises[i]; if (e.type === "strength" && e.why) { whyText = e.why; break; } }
     var whyHtml = whyText ? '<p class="today-card__why">' + esc(whyText) + '</p>' : "";
-    var dots = wk.sessions.map(function (s, i) {
-      var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
-      var cls = i === state.activeSession ? "is-current" : (done ? "is-done" : "");
-      return '<span class="week-strip__dot ' + cls + '"></span>';
-    }).join("");
+    // The strip only means something once there's an actual week to show (2+
+    // sessions) -- a single-session program (e.g. a first "Just Today" build
+    // with nothing else yet) has nothing to compare it against, so it's omitted
+    // rather than rendering one orphaned dot.
+    var stripHtml = "";
+    if (wk.sessions.length > 1) {
+      var dots = wk.sessions.map(function (s, i) {
+        var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
+        var cls = i === state.activeSession ? "is-current" : (done ? "is-done" : "");
+        return '<span class="week-strip__dot ' + cls + '"></span>';
+      }).join("");
+      stripHtml = '<div class="week-strip" role="img" aria-label="This week: ' + wk.sessions.length + ' sessions">' + dots + '</div>';
+    }
     el.innerHTML =
       '<div class="home-hero__top">' +
         '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + recoveryPct + '%</span></div></div>' +
@@ -2567,11 +2597,11 @@ function resolveSpec(request, state) {
       '</div>' +
       '<div class="today-card">' +
         '<div class="today-card__label">Up next</div>' +
-        '<h2 class="today-card__name">' + esc(ses.name) + '</h2>' +
-        focusHtml + whyHtml +
+        '<h2 class="today-card__name">' + esc(dayPositionLabel(wk.sessions, state.activeSession)) + '</h2>' +
+        whyHtml +
         '<button type="button" class="today-card__cta" id="homeHeroCta">Build today’s session</button>' +
       '</div>' +
-      '<div class="week-strip" role="img" aria-label="This week: ' + wk.sessions.length + ' sessions">' + dots + '</div>';
+      stripHtml;
     var cta = $("homeHeroCta"); if (cta) cta.addEventListener("click", openPlan);
   }
   var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
@@ -2581,10 +2611,9 @@ function resolveSpec(request, state) {
     if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
     weekListEl.innerHTML = sessions.map(function (s, i) {
       var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
-      var focus = s.focus && s.focus !== s.name ? '<span class="weekrow__focus">' + esc(s.focus) + '</span>' : '';
       return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
-        '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(s.name) + '">' +
-        '<span class="weekrow__main"><span class="weekrow__name">' + esc(s.name) + '</span>' + focus + '</span>' +
+        '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(dayPositionLabel(sessions, i)) + '">' +
+        '<span class="weekrow__main"><span class="weekrow__name">' + esc(dayPositionLabel(sessions, i)) + '</span></span>' +
         '<span class="weekrow__prog' + (done ? " is-done" : "") + '">' + (done ? "done" : pr.done + " / " + pr.total) + '</span>' +
         '<span class="weekrow__chev">' + chevRight + '</span>' +
         '</button>' +
