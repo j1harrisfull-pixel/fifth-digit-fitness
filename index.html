@@ -526,6 +526,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <textarea class="pastebox" id="todayText" rows="2" placeholder="e.g. 'chest and triceps, 40 min' / 'heavy legs' / 'quick upper body'" aria-label="What do you want to train today"></textarea>
         <p class="sect__hint" style="margin-top:8px">Name the muscles or a split, add a time and how it should feel. It reads back what it understood before building.</p>
       </div>
+      <div class="bsect">
+        <div class="blabel">How do you feel today?</div>
+        <div class="chips" id="readinessChips" role="group" aria-label="Today's readiness">
+          <button type="button" class="chip" data-readiness="0">Rough</button>
+          <button type="button" class="chip" data-readiness="1">So-so</button>
+          <button type="button" class="chip" data-readiness="2">Great</button>
+        </div>
+        <p class="sect__hint" style="margin-top:8px">Optional. A rough day eases off or offers active recovery instead of forcing today's load.</p>
+      </div>
       <details class="adv adv--adjust" id="todayAdjust" style="margin-top:14px">
         <summary><span class="adv__label">Equipment</span> <span class="adv__hint" id="todayEquipHint"></span></summary>
         <div class="adv__body">
@@ -1517,7 +1526,7 @@ function buildSetPlan(curve, sets, repsStr, restStr) {
   for (var j = 0; j < sets; j++) plan.push({ wpct: 1, reps: null, rest: null });
   return plan;
 }
-function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs) {
+function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[ex.name.toLowerCase()];
   // Per-exercise autoregulation: real RPE-based autoregulation responds to what
@@ -1527,6 +1536,12 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
   if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
     p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high RPE last time)", rest: p.rest };
+  }
+  // Phase 7 (2.1b): reactive easing from TODAY's manual readiness tap or the fatigue
+  // sensing layer (amber band) -- same mechanism as the per-exercise RPE ease above,
+  // but triggered by a today-level signal rather than this specific lift's history.
+  if (ease && !isDeload && p.sets > 2 && !/eased/.test(p.target)) {
+    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (today)", rest: p.rest };
   }
   var curve = curveFor(ex, goal, isAnchor);
   var setPlan = buildSetPlan(curve, p.sets, p.reps, p.rest);
@@ -1752,7 +1767,7 @@ function guaranteeSession(session) {
     exercises: absoluteFloorExercises()
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
@@ -1778,11 +1793,11 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt) {
   var picks = selectComplementary({
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
-    debt: debt || null, lastLogs: lastLogs, fatigueBudget: 2
+    debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2
   });
-  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs)); });
-  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
-  if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease)); });
+  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
+  if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
   var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
   return guaranteeSession({ name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) });
@@ -2111,16 +2126,54 @@ function computeFatigueState(state) {
 }
 // Resolve-stage stubs (block-week / readiness land in Phases 9 / 2.1b).
 function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
-function stubReadiness() { return { _stub: true, score: null, note: "manual readiness input lands in Phase 7 (2.1b)" }; }
-// Resolve: RequestObject + user state -> a Session Spec. Weekly debt + fatigue are
-// now real; block-week / readiness remain stubs until their phases land.
+// ---- Phase 7 (2.1b): reactive layer -- manual readiness + fatigue-triggered degradation ----
+function todayStr() {
+  var d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+  return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+}
+// state.readiness is {value: 0|1|2, date} written by the one-tap UI, date-scoped so
+// it naturally resets each day. 0 = rough, 1 = ok, 2 = great. No tap today -> null
+// (treated as normal, no override) -- silence, same principle as the debt/fatigue
+// readouts only appearing when there's something to say.
+function getReadinessToday(state) {
+  var r = state && state.readiness;
+  if (!r || r.date !== todayStr()) return null;
+  return r.value;
+}
+// Combines today's manual readiness with the fatigue sensing layer into one
+// decision: recovery (rung 3 of the Phase 6 fallback ladder -- offer a real
+// recovery session instead of forcing load), eased (drop a set + tighten the
+// fatigue budget), or normal. Either signal alone can trigger the stronger state;
+// readiness is the more direct signal so it takes precedence when both fire.
+function degradation(fatigue, readinessValue) {
+  if (readinessValue === 0 || (fatigue && fatigue.band === "red")) return "recovery";
+  if (readinessValue === 1 || (fatigue && fatigue.band === "amber")) return "eased";
+  return "normal";
+}
+// An active-recovery session: mobility-led with one easy movement piece. A valid,
+// intelligent output per the brief, not a failure -- falls through to the
+// absolute floor via guaranteeSession if even mobility/conditioning can't be filled.
+function recoverySession(allowed, seed) {
+  var used = {}, mobs = [];
+  for (var i = 0; i < 4; i++) {
+    var m = pickByType("mobility", allowed, used, seed + i * 3);
+    if (m) { used[m.id] = 1; mobs.push(buildEx(m, "general", false, {}, 30, 1, false, {})); }
+  }
+  var extra = [], con = pickConditioning("z2", allowed, used, seed + 20);
+  if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {})); }
+  return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) });
+}
+// Resolve: RequestObject + user state -> a Session Spec. Weekly debt, fatigue, and
+// readiness are now real; block-week remains a stub until Phase 9.
 function resolveSpec(request, state) {
+  var fatigue = computeFatigueState(state), readinessValue = getReadinessToday(state);
   return {
     request: request,
     debt: computeWeeklyDebt(state),
-    fatigue: computeFatigueState(state),
+    fatigue: fatigue,
     block: stubBlockWeek(),
-    readiness: stubReadiness()
+    readiness: { _stub: false, score: readinessValue },
+    degradation: degradation(fatigue, readinessValue)
   };
 }
   /*__COACH_END__*/
@@ -2131,7 +2184,7 @@ function resolveSpec(request, state) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
@@ -2145,7 +2198,8 @@ function resolveSpec(request, state) {
       });
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
-        log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null };
+        log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null,
+        readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -2912,7 +2966,7 @@ function resolveSpec(request, state) {
     $("buildPreview").classList.add("hidden");
     $("todayPreview").classList.add("hidden");
     syncBuild();
-    syncEquipChips("todayEquip"); syncTodayEquipHint();
+    syncEquipChips("todayEquip"); syncTodayEquipHint(); syncReadinessChips();
     $("reqText").value = buildRequest();
     // First build ever: surface equipment up front instead of leaving it collapsed,
     // so the very first program actually fits the kit you have. Every later open
@@ -3033,15 +3087,29 @@ function resolveSpec(request, state) {
       var parsed = requestToParsed(req);
       todaySeed++;
       var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
-      // Phase 4: the selection engine consumes weekly debt so a Just-Today session
-      // biases toward the patterns you're furthest behind on this week.
-      pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern);
+      var deg = spec.degradation, banner = "";
+      if (deg === "recovery") {
+        // Phase 7 (2.1b) / Phase 6 rung 3: rough readiness or a red fatigue reading
+        // gets a real recovery session instead of forcing today's requested load.
+        pendingToday = recoverySession(req.equipment, todaySeed);
+        var why = spec.readiness.score === 0 ? "You flagged today as rough" : "This week's fatigue reading is high";
+        banner = '<div class="preview__fatigue preview__fatigue--red">' + esc(why) + ' — recovery day instead of forcing load</div>';
+      } else {
+        // Phase 4: the selection engine consumes weekly debt so a Just-Today session
+        // biases toward the patterns you're furthest behind on this week. `deg ===
+        // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
+        // exercise and tightens the fatigue budget, same mechanism as the existing
+        // per-exercise RPE ease.
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased");
+        banner = debtHint(spec);
+        if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so — easing off</div>';
+      }
       var rows = pendingToday.exercises.map(function (e) {
         return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
       }).join("");
       pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
         '<div class="preview__meta">Understood: ' + esc(req.summary) + '</div>' +
-        debtHint(spec) +
+        banner +
         '<div class="todaylist">' + rows + '</div>' +
         '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
       pv.classList.remove("hidden");
@@ -3099,6 +3167,15 @@ function resolveSpec(request, state) {
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
   planSheet.addEventListener("close", cancelBuildThinking); // covers Escape, which bypasses closePlan()
+  // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
+  function setReadiness(v) { state.readiness = { value: v, date: todayStr() }; save(); syncReadinessChips(); }
+  function syncReadinessChips() {
+    var r = getReadinessToday(state);
+    document.querySelectorAll("#readinessChips button").forEach(function (b) {
+      b.setAttribute("aria-pressed", (parseInt(b.getAttribute("data-readiness"), 10) === r).toString());
+    });
+  }
+  $("readinessChips").addEventListener("click", function (ev) { var b = ev.target.closest("[data-readiness]"); if (!b) return; setReadiness(parseInt(b.getAttribute("data-readiness"), 10)); });
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
