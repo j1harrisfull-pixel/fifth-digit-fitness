@@ -1717,6 +1717,38 @@ function parseSession(text) {
   var summary = focusText + " · ~" + minutes + " min · " + goalText;
   return { role: role, patterns: patterns, areas: areas, minutes: minutes, goal: goal, includes: includes, equipment: equipment, summary: summary, focusText: focusText };
 }
+// ===================== Phase 6: fallback ladder — the 100% guarantee =====================
+// The generator must never return an empty plan. Rungs 1-2 & 5 (equipment / bodyweight
+// pattern substitution) are already covered by pickStrength's 4-level pool-widening
+// cascade; rung 0 (cold start) is the app's existing "start at 0, you set it" (never
+// guesses high). This is the absolute floor (rung 6): a hardcoded, zero-equipment
+// full-body circuit that is always valid and INDEPENDENT of the library, so even a
+// pathological request yields a real, coherent session. (Rung 3, all-fatigued ->
+// recovery day, arrives with the fatigue state in Phase 7.)
+function absoluteFloorExercises() {
+  function fx(name, sets, reps, cue) {
+    return { name: name, type: "strength", equipment: "bodyweight", group: "",
+      sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
+      notes: cue, curve: "straight", setPlan: [] };
+  }
+  return [
+    fx("Bodyweight Squat", 3, "12-15", "Setup: feet shoulder-width, chest tall. Key: sit between the hips to depth, drive up through the whole foot. Fault: knees caving or heels lifting."),
+    fx("Push-Up", 3, "8-15", "Setup: hands under shoulders, body in one line. Key: brace, lower the chest to the floor, press away. Fault: hips sagging or elbows flaring wide."),
+    fx("Reverse Lunge", 3, "8-10 each", "Setup: tall stance, hands on hips. Key: step back, drop the back knee under control, drive through the front heel. Fault: leaning forward or the front knee caving."),
+    fx("Glute Bridge", 3, "15-20", "Setup: on your back, knees bent, feet flat. Key: drive the hips up squeezing the glutes, ribs down. Fault: arching the low back instead of extending the hips."),
+    fx("Plank", 3, "30-45 sec", "Setup: forearms under shoulders, body in one line. Key: brace the abs and glutes, breathe. Fault: hips sagging or piking up.")
+  ];
+}
+// Never-empty guarantee: a session with at least one exercise passes through; an
+// empty one (pathological spec that filled no slots) falls through to the floor.
+function guaranteeSession(session) {
+  if (session && Array.isArray(session.exercises) && session.exercises.length > 0) return session;
+  return {
+    name: (session && session.name) || "Session",
+    focus: "Minimum effective dose · bodyweight, no equipment needed",
+    exercises: absoluteFloorExercises()
+  };
+}
 function generateSession(parsed, weightMap, seed, lastLogs, debt) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
@@ -1750,7 +1782,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt) {
   if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
   var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
-  return { name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) };
+  return guaranteeSession({ name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) });
 }
 // Real run-workout structures for the Endurance goal: easy / long / tempo / intervals,
 // polarized across the week, run as the day's focus. Emitted as conditioning so the
@@ -1881,11 +1913,11 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
         dayName = (ROLE_NAME[role] || "Day") + suffix;
         dayFocus = ROLE_FOCUS[role] || "";
       }
-      return {
+      return guaranteeSession({
         name: dayName,
         focus: dayFocus,
         exercises: leadEx.concat(strengthEx).concat(extraEx)
-      };
+      });
     });
 
     weeks.push({ week: wn, focus: phaseLabel(wn, isDeload), deload: isDeload, sessions: sessions });
@@ -2957,7 +2989,7 @@ function resolveSpec(request, state) {
     if (!week) return;
     var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
-      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes };
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
     }) };
     week.sessions.push(session);
     state.activeSession = week.sessions.length - 1;
