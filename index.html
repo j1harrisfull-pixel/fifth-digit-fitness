@@ -737,7 +737,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     return { id: id, name: str(e.name, "Exercise"), type: EX_TYPES.indexOf(e.type) >= 0 ? e.type : "strength",
       equipment: EQUIPMENTS.indexOf(e.equipment) >= 0 ? e.equipment : "", group: str(e.group, "").trim().slice(0, 6),
       sets: clampInt(e.sets, 1, 12, 3), reps: e.reps == null ? "" : String(e.reps), weight: Math.max(0, numOr(e.weight, 0)),
-      target: str(e.target, ""), rest: str(e.rest, ""), notes: str(e.notes, "") };
+      target: str(e.target, ""), rest: str(e.rest, ""), notes: str(e.notes, ""),
+      curve: ["ramp", "straight", "power", "none"].indexOf(e.curve) >= 0 ? e.curve : "straight",
+      setPlan: Array.isArray(e.setPlan) ? e.setPlan.map(function (s) {
+        s = s && typeof s === "object" ? s : {};
+        return {
+          wpct: (typeof s.wpct === "number" && s.wpct > 0) ? s.wpct : 1,
+          reps: s.reps == null ? null : clampInt(s.reps, 0, 100, 0),
+          rest: s.rest == null ? null : (typeof s.rest === "number" ? s.rest : str(s.rest, ""))
+        };
+      }) : [] };
   }
   function parseRestSeconds(v) {
     if (v == null) return 0;
@@ -1468,6 +1477,43 @@ function conditioningAlternatives(name, allowed) {
     return e.type === "conditioning" && e.intensity === cur.intensity && e.name !== name && equipOk(e, allowed);
   }).map(function (e) { return { name: e.name, equipment: e.equipment, cue: e.cue }; });
 }
+// ---- Phase 5: per-set prescription curves ----
+// Which curve an exercise follows. Ramp (weight climbs to a top set) only for
+// strength-goal main compounds per the decided default; power gets no load ramp;
+// non-strength has no curve. Everything else is straight sets -- which produce a
+// FLAT plan (wpct 1, no per-set rep/rest override), i.e. identical to pre-Phase-5.
+function curveFor(ex, goal, isAnchor) {
+  if (ex.type !== "strength") return "none";
+  if (ex.movement_pattern === "power" || ex.progression_policy === "velocity_or_load") return "power";
+  if (goal === "strength" && isAnchor && ex.compound) return "ramp";
+  return "straight";
+}
+// Per-set plan: [{wpct, reps, rest}] length = sets. wpct is a fraction of the top/
+// working weight (readLog multiplies the live weight by it). reps is an explicit
+// per-set target, or null to keep the existing prefill logic. rest is per-set
+// seconds, or null to use the exercise rest. Only "ramp" produces real variation;
+// straight/power/none return a flat plan so behaviour is preserved everywhere else.
+function buildSetPlan(curve, sets, repsStr, restStr) {
+  sets = Math.max(1, sets | 0);
+  var plan = [];
+  if (curve === "ramp" && sets >= 2) {
+    var top = topRepsOf(repsStr); var lowM = String(repsStr || "").match(/\d+/);
+    var low = lowM ? parseInt(lowM[0], 10) : top;
+    if (top == null) { top = 5; low = 3; }
+    var startPct = 0.85, restSec = parseRestSeconds(restStr) || 180;
+    for (var i = 0; i < sets; i++) {
+      var f = i / (sets - 1); // 0 (first, lightest) .. 1 (last, top set)
+      plan.push({
+        wpct: Math.round((startPct + (1 - startPct) * f) * 100) / 100,
+        reps: Math.round(top - (top - low) * f),
+        rest: Math.round((0.7 + 0.3 * f) * restSec) // heavier sets rest longer
+      });
+    }
+    return plan;
+  }
+  for (var j = 0; j < sets; j++) plan.push({ wpct: 1, reps: null, rest: null });
+  return plan;
+}
 function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[ex.name.toLowerCase()];
@@ -1479,11 +1525,14 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
     p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high RPE last time)", rest: p.rest };
   }
+  var curve = curveFor(ex, goal, isAnchor);
+  var setPlan = buildSetPlan(curve, p.sets, p.reps, p.rest);
   return {
     name: ex.name, type: ex.type, equipment: ex.equipment, group: "",
     sets: p.sets, reps: p.reps,
     weight: (w && w > 0) ? w : 0,
-    target: p.target, rest: p.rest, notes: ex.cue
+    target: p.target + (curve === "ramp" ? " · ramp to top set" : ""), rest: p.rest, notes: ex.cue,
+    curve: curve, setPlan: setPlan
   };
 }
 var ANTAGONIST_MAP = {
@@ -2092,9 +2141,18 @@ function resolveSpec(request, state) {
     var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
     var dfltWeight = el && el.weight != null ? el.weight : suggestedWeight(ex);
     var raw = (el && Array.isArray(el.sets)) ? el.sets : [];
+    var plan = Array.isArray(ex.setPlan) ? ex.setPlan : [];
     var sets = [];
     for (var i = 0; i < ex.sets; i++) {
       var rs = raw[i] || {};
+      var pe = plan[i] || {};
+      // Phase 5: each set's planned weight = the live top/working weight scaled by
+      // the curve (wpct 1 for straight sets == unchanged). A per-set override still
+      // wins. planReps is the ramp's explicit per-set target (null on straight sets,
+      // where the existing prefill logic is kept).
+      var wpct = (typeof pe.wpct === "number" && pe.wpct > 0) ? pe.wpct : 1;
+      var curveW = roundW(dfltWeight * wpct);
+      var planReps = pe.reps != null ? pe.reps : null;
       // `real` marks which reps came from an actual logged value vs. a prefill
       // guess -- a done set with no real value predates per-set rep tracking, so
       // its guessed number must not be treated as a genuine result (est-1RM/ready).
@@ -2103,17 +2161,18 @@ function resolveSpec(request, state) {
       // (e.g. navigate away and back before it's archived) -- its trailing sets
       // may be null, so the last-value fallback must skip a null, not render it.
       var rv = hasReal ? rs.actual_reps
+        : planReps != null ? planReps
         : (lr && lr.reps && lr.reps[i] != null) ? lr.reps[i]
         : (lr && lr.reps && lr.reps.length && lr.reps[lr.reps.length - 1] != null) ? lr.reps[lr.reps.length - 1]
         : (lo != null ? lo : 0);
       var overridden = rs.actual_weight != null;
       sets.push({
         completed: !!rs.completed,
-        weight: overridden ? rs.actual_weight : dfltWeight, overridden: overridden,
+        weight: overridden ? rs.actual_weight : curveW, overridden: overridden,
         reps: rv, real: hasReal,
         rpe: rs.actual_rpe != null ? rs.actual_rpe : null,
-        target_weight: rs.target_weight != null ? rs.target_weight : dfltWeight,
-        target_reps: rs.target_reps != null ? rs.target_reps : null,
+        target_weight: curveW,
+        target_reps: planReps != null ? planReps : (rs.target_reps != null ? rs.target_reps : null),
         target_rpe: rs.target_rpe != null ? rs.target_rpe : null
       });
     }
@@ -2126,11 +2185,14 @@ function resolveSpec(request, state) {
     if (!Array.isArray(el.sets)) el.sets = [];
     // Grown sets inherit the exercise default (null actual_weight) rather than a
     // guessed number, same principle as the old reps/rpe arrays growing with null.
-    var targetReps = repsTop(ex);
+    // Planned targets are seeded from the per-set curve (flat for straight sets).
+    var targetReps = repsTop(ex), plan = Array.isArray(ex.setPlan) ? ex.setPlan : [];
     while (el.sets.length < ex.sets) {
+      var pe = plan[el.sets.length] || {};
+      var wpct = (typeof pe.wpct === "number" && pe.wpct > 0) ? pe.wpct : 1;
       el.sets.push({
-        target_weight: el.weight, actual_weight: null,
-        target_reps: targetReps, actual_reps: null,
+        target_weight: roundW(el.weight * wpct), actual_weight: null,
+        target_reps: pe.reps != null ? pe.reps : targetReps, actual_reps: null,
         target_rpe: null, actual_rpe: null,
         set_type: "working", side: "bilateral",
         completed: false
@@ -2454,7 +2516,7 @@ function resolveSpec(request, state) {
       var card = btn.closest(".card"), dc = w.el.sets.filter(function (s) { return s.completed; }).length;
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
-      if (on) { unlockAudio(); startRest(e); }
+      if (on) { unlockAudio(); startRest(e, si); }
       applyGlance();
     } else if (act === "w-" || act === "w+") {
       var wl = writeLog(ses, e);
@@ -2536,7 +2598,7 @@ function resolveSpec(request, state) {
       dcard.querySelector(".setcount__done").textContent = ddc;
       dcard.classList.toggle("is-complete", e.sets > 0 && ddc === e.sets);
       refreshFoot(dcard, e, ses);
-      if (on2) { unlockAudio(); startRest(e); }
+      if (on2) { unlockAudio(); startRest(e, di); }
       applyGlance();
     } else if (act === "rep-" || act === "rep+") {
       var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e), rs = wr.el.sets[ri];
@@ -3060,8 +3122,14 @@ function resolveSpec(request, state) {
     box.hidden = false;
   }
   function hideFiller() { var box = $("restFiller"); if (box) box.hidden = true; currentFillerEx = null; }
-  function startRest(ex) {
-    var secs = parseRestSeconds(ex.rest);
+  function startRest(ex, setIdx) {
+    // Per-set adaptive rest: a heavier ramp set rests longer than its lighter
+    // earlier sets. Falls back to the exercise rest for straight/flat plans.
+    var secs = 0;
+    if (setIdx != null && Array.isArray(ex.setPlan) && ex.setPlan[setIdx] && ex.setPlan[setIdx].rest != null) {
+      secs = parseRestSeconds(ex.setPlan[setIdx].rest);
+    }
+    if (!secs) secs = parseRestSeconds(ex.rest);
     if (!secs) return;
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
     document.body.classList.add("has-rest");
