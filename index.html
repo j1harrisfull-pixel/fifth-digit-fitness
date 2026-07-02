@@ -1294,7 +1294,15 @@ var ALL_PATTERNS = ["squat", "hinge", "lunge", "hpush", "vpush", "hpull", "vpull
 // The hip-hinge barbell/db lifts a lifter calls "a deadlift" — capped hard so they
 // never stack across the week (high axial fatigue + the user's explicit gripe).
 var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning"];
-function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap) {
+// Low-level primitive: pick ONE exercise satisfying a slot, honouring equipment,
+// week-level dedup, pattern cap, and the deadlift-family cap, with a 4-level
+// pool-widening fallback so a slot is never left unfillable. opts (optional,
+// backward-compatible) lets the complementary engine steer WITHOUT touching the
+// pool/fallback logic: opts.avoidHigh softly prefers non-high-fatigue picks (yields
+// if that would empty the pool), opts.rank(e) overrides selection with a full
+// complementary ranking (lowest score wins). No opts == the original behaviour.
+function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
+  opts = opts || {};
   function ok(e, pats, comp, useGoal) {
     return e.type === "strength"
       && pats.indexOf(e.pattern) >= 0
@@ -1311,12 +1319,83 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap) {
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, null, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, ALL_PATTERNS, null, false); });
   if (!pool.length) return null;
+  // Fatigue budget: soft-prefer non-high-fatigue lifts, but never empty the slot.
+  if (opts.avoidHigh) { var lo = pool.filter(function (e) { return e.fatigue_cost !== "high"; }); if (lo.length) pool = lo; }
+  // Complementary ranking (debt / SFR / muscle-spread / weak-point / variety) wins
+  // over the legacy seeded pick when provided.
+  if (typeof opts.rank === "function") {
+    return pool.slice().sort(function (a, b) { return opts.rank(a) - opts.rank(b); })[0];
+  }
   if (selGoal === "hypertrophy" || selGoal === "general") {
     pool = pool.slice().sort(function (a, b) {
       return (b.lengthened ? 1 : 0) - (a.lengthened ? 1 : 0);
     });
   }
   return pool[Math.abs(seed) % pool.length];
+}
+// Deterministic per-exercise jitter in [0,1) from id+seed, so "Try again" varies
+// picks within a ranking tier without breaking determinism.
+function seededJitter(id, seed) {
+  var h = seed | 0;
+  for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 1000) / 1000;
+}
+// ===================== Phase 4: complementary selection engine =====================
+// Orchestrates pickStrength into an ordered, complementary strength list for ONE
+// session (Section C of the brief). The split-ordered baseSlots lead (anchors first,
+// accessories after -- the decided "split leads" behaviour); weekly debt, SFR, and
+// muscle-spread fill via the ranker ("debt fills"). Fatigue budget caps high-axial
+// lifts. Antagonist balance on broad days comes from the split itself; explicit
+// cross-session forcing is deferred (would fight the PPL structure on narrow days).
+// Weak-point bias is a light hook now (single-session "not ready" proxy) -- true
+// multi-session plateau detection arrives with the fatigue system in Phase 7.
+function weakPointMuscles(baseSlots, lastLogs) {
+  // If a likely anchor lift missed the top of its rep range last time (not "ready"),
+  // nudge accessories toward its primary muscle (sticking-point proxy).
+  return []; // placeholder body; wired through opts.biasMuscles, filled in Phase 7
+}
+function selectComplementary(o) {
+  var ctx = o.ctx, debt = o.debt || null, selGoal = o.selGoal;
+  var biasMuscles = o.biasMuscles || [], fatigueBudget = o.fatigueBudget != null ? o.fatigueBudget : 2;
+  // high-axial count and muscle-spread are PER SESSION; used/pat/dl on ctx stay
+  // week-level (shared across a week's sessions by generateProgram) so dedup and
+  // pattern/deadlift caps span the week while the fatigue budget resets each day.
+  var high = 0, mus = {};
+  var slots = [];
+  for (var i = 0; i < o.count; i++) slots.push(o.baseSlots[i % o.baseSlots.length]);
+  function ranker(slotCompound, seedForSlot) {
+    return function (e) {
+      var mp = e.movement_pattern || e.pattern, s = 0;
+      if (debt && debt[mp]) s -= Math.min(debt[mp].debt, 12) * 2;          // debt leads (0 on fresh week)
+      if (!slotCompound) s += (e.joint_stress ? e.joint_stress.length : 2); // SFR: spare joints on accessories only
+      var pm = (e.primary_muscles && e.primary_muscles[0]) || (e.muscles && e.muscles[0]);
+      s += (mus[pm] || 0) * 3;                                             // non-competing: spread muscles
+      if ((selGoal === "hypertrophy" || selGoal === "general") && e.lengthened) s -= 3; // preserve lengthened bias
+      if (pm && biasMuscles.indexOf(pm) >= 0) s -= 4;                       // weak-point hook
+      s += seededJitter(e.id, seedForSlot) * 5;                            // variety within ties
+      return s;
+    };
+  }
+  var placed = [];
+  for (var k = 0; k < slots.length; k++) {
+    var slot = slots[k], seedK = o.seed + k * 13 + 7;
+    var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, o.patCap, o.dlCap,
+      { avoidHigh: high >= fatigueBudget, rank: ranker(slot.compound, seedK) });
+    if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
+    // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
+    // only candidates are high-axial; this drops such a slot once the budget is
+    // spent, so no session ever exceeds it (never 3 heavy squat/hinge lifts).
+    if (ex && ex.fatigue_cost === "high" && high >= fatigueBudget) ex = null;
+    if (!ex) continue;
+    ctx.used[ex.id] = 1;
+    ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1;
+    if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++;
+    if (ex.fatigue_cost === "high") high++;
+    var pm2 = (ex.primary_muscles && ex.primary_muscles[0]) || (ex.muscles && ex.muscles[0]);
+    if (pm2) mus[pm2] = (mus[pm2] || 0) + 1;
+    placed.push(ex);
+  }
+  return placed; // order follows the split-ordered slots: anchors first, isolation last
 }
 function pickByType(type, allowed, used, seed) {
   var pool = LIBRARY.filter(function (e) { return e.type === type && equipOk(e, allowed) && !used[e.id]; });
@@ -1589,7 +1668,7 @@ function parseSession(text) {
   var summary = focusText + " · ~" + minutes + " min · " + goalText;
   return { role: role, patterns: patterns, areas: areas, minutes: minutes, goal: goal, includes: includes, equipment: equipment, summary: summary, focusText: focusText };
 }
-function generateSession(parsed, weightMap, seed, lastLogs) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
@@ -1600,24 +1679,24 @@ function generateSession(parsed, weightMap, seed, lastLogs) {
   var allowPats = parsed.role ? rolePatterns(parsed.role) : ((parsed.patterns && parsed.patterns.length) ? parsed.patterns.slice() : null);
   var slotsTotal = Math.max(3, Math.min(8, Math.round(minutes / 8)));
   var strengthSlots = Math.max(2, Math.min(7, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
-  var slots, patCap;
+  var baseSlots, patCap;
   if (parsed.role && ROLES[parsed.role]) {
-    var base = ROLES[parsed.role]; slots = [];
-    for (var i = 0; i < strengthSlots; i++) slots.push(base[i % base.length]);
+    baseSlots = ROLES[parsed.role];
     patCap = 2;
   } else {
     var pats = (parsed.patterns && parsed.patterns.length) ? parsed.patterns : ALL_PATTERNS;
-    slots = [];
-    for (var j = 0; j < strengthSlots; j++) slots.push({ patterns: pats, compound: j < Math.ceil(strengthSlots / 2) });
+    baseSlots = [];
+    for (var j = 0; j < strengthSlots; j++) baseSlots.push({ patterns: pats, compound: j < Math.ceil(strengthSlots / 2) });
     patCap = strengthSlots; // let the requested focus dominate; id-dedup keeps variety
   }
   var ctx = { used: {}, pat: {}, dl: 0 };
   var strengthEx = [], extraEx = [];
-  for (var k = 0; k < slots.length; k++) {
-    var ex = pickStrength(slots[k], selGoal, allowed, ctx, seed + k * 13 + 7, patCap, 1);
-    if (ex && allowPats && allowPats.indexOf(ex.pattern) < 0) ex = null; // stay on-target for a focused session
-    if (ex) { ctx.used[ex.id] = 1; ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1; if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++; strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs)); }
-  }
+  var picks = selectComplementary({
+    baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
+    seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
+    debt: debt || null, lastLogs: lastLogs, fatigueBudget: 2
+  });
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs)); });
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
   if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
@@ -1714,16 +1793,14 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
       var slots = baseSlots.slice(rot).concat(baseSlots.slice(0, rot));
       var strengthEx = [], extraEx = [], leadEx = [];
 
-      for (var k = 0; k < strengthSlots; k++) {
-        var slot = slots[k % slots.length];
-        var ex = pickStrength(slot, selGoal, allowed, ctx, seed + si * 7 + k * 13 + wn * 31, patCap, 1);
-        if (ex) {
-          ctx.used[ex.id] = 1;
-          ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1;
-          if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++;
-          strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs));
-        }
-      }
+      // Fresh-week build -> no debt term (nothing done yet); the split leads and the
+      // ranker adds SFR / muscle-spread / variety + the fatigue-budget cap.
+      var picks = selectComplementary({
+        baseSlots: slots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
+        seed: seed + si * 7 + wn * 31, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
+        debt: null, lastLogs: lastLogs, fatigueBudget: 2
+      });
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs)); });
 
       if (includeCon) {
         if (isEnd) {
@@ -2795,8 +2872,10 @@ function resolveSpec(request, state) {
       if (!req.equipment) req.equipment = buildPrefs().equipment;
       var parsed = requestToParsed(req);
       todaySeed++;
-      pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state));
       var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
+      // Phase 4: the selection engine consumes weekly debt so a Just-Today session
+      // biases toward the patterns you're furthest behind on this week.
+      pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern);
       var rows = pendingToday.exercises.map(function (e) {
         return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
       }).join("");
