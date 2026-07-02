@@ -329,7 +329,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .sect__hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 10px; line-height: 1.5; }
 .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
 .seg button { border: 0; background: none; padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, color .15s ease; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn { flex: 1 1 auto; min-height: var(--tap); display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 0 16px; font-weight: 600; font-size: 14px; transition: transform .1s ease, border-color .12s ease; }
 .btn:hover { border-color: var(--accent-ink); }
@@ -341,7 +341,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .codebox { width: 100%; min-height: 120px; max-height: 200px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-family: "Spline Sans Mono", monospace; font-size: 12px; line-height: 1.5; resize: vertical; color: var(--ink); white-space: pre; overflow: auto; }
 .pastebox { width: 100%; min-height: 96px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-family: "Spline Sans Mono", monospace; font-size: 12px; line-height: 1.5; resize: vertical; color: var(--ink); }
 .pastebox:focus, .codebox:focus { border-color: var(--accent-ink); outline: none; }
-.preview { margin-top: 12px; padding: 14px; border: 1px solid var(--accent-ink); border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
+.preview { margin-top: 12px; padding: 16px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface-2); }
 .preview__title { font-weight: 700; font-size: 15px; }
 .preview__meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 12px; }
 .preview__debt { font-size: 12px; color: var(--accent-ink); margin: -6px 0 12px; font-weight: 600; }
@@ -384,7 +384,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .seg--full button { flex: 1 1 0; padding: 11px 6px; text-align: center; min-height: 44px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 18px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink); transition: background .15s ease, border-color .15s ease, color .15s ease; }
-.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .chip.is-locked { cursor: default; opacity: .92; }
 .chip.is-locked::after { content: "🔒"; font-size: 10px; margin-left: 6px; opacity: .85; }
 
@@ -438,10 +438,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
 .preview__error { color: var(--danger); font-size: 13px; line-height: 1.45; padding: 12px 14px; border: 1px solid var(--danger); border-radius: 11px; background: var(--surface-2); }
 .todaylist { margin-top: 12px; display: flex; flex-direction: column; }
-.todayrow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.todayrow { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .todayrow:last-child { border-bottom: 0; }
-.todayrow__name { color: var(--ink); }
+.todayrow__head { display: flex; justify-content: space-between; gap: 12px; }
+.todayrow__name { color: var(--ink); font-weight: 600; }
 .todayrow__scheme { color: var(--ink-dim); flex: none; }
+.todayrow__why { font-size: 12px; color: var(--ink-dim); margin: 4px 0 0; }
+.todayrow__cue { margin-top: 8px; }
+.todayrow .cuebox { background: var(--surface); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .lasttime { font-size: 11px; color: var(--ink-dim); }
 .plates { font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--ink-dim); letter-spacing: .01em; }
@@ -3374,6 +3378,16 @@ function resolveSpec(request, state) {
     }
     return out;
   }
+  // Shared row markup for the Just-Today preview list: name + sets×reps (as
+  // before), plus the exercise's own real why-line (Task 3.1) and form note
+  // (same formatCue() the day-view card uses) -- both fields already exist on
+  // every generated exercise, so this surfaces real data, nothing invented.
+  function todayRowHtml(e) {
+    var whyHtml = e.why ? '<p class="todayrow__why">' + esc(e.why) + '</p>' : "";
+    var cueHtml = (e.notes && e.notes.trim()) ? '<div class="todayrow__cue cuebox">' + formatCue(e.notes) + '</div>' : "";
+    return '<div class="todayrow"><div class="todayrow__head"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>' + whyHtml + cueHtml + '</div>';
+  }
+  function todayRowsHtml(exercises) { return exercises.map(todayRowHtml).join(""); }
   function onBuildToday() {
     var text = $("todayText").value, pv = $("todayPreview");
     if (!text.trim()) { pv.innerHTML = '<div class="preview__error" role="alert">Type what you want to train, for example ‘chest and triceps, 40 min’.</div>'; pv.classList.remove("hidden"); return; }
@@ -3413,9 +3427,7 @@ function resolveSpec(request, state) {
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so — easing off</div>';
       }
-      var rows = pendingToday.exercises.map(function (e) {
-        return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
-      }).join("");
+      var rows = todayRowsHtml(pendingToday.exercises);
       pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
         '<div class="preview__meta">Understood: ' + esc(req.summary) + '</div>' +
         banner +
@@ -3437,9 +3449,7 @@ function resolveSpec(request, state) {
     if (!pendingTodayAnyway) return;
     pendingToday = pendingTodayAnyway;
     var pv = $("todayPreview");
-    var rows = pendingToday.exercises.map(function (e) {
-      return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
-    }).join("");
+    var rows = todayRowsHtml(pendingToday.exercises);
     pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
       '<div class="preview__meta">Building as requested, overriding the recovery suggestion for today only</div>' +
       '<div class="todaylist">' + rows + '</div>' +
@@ -3453,7 +3463,7 @@ function resolveSpec(request, state) {
     if (!week) return;
     var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
-      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
     }) };
     week.sessions.push(session);
     state.activeSession = week.sessions.length - 1;
