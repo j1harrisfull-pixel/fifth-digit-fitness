@@ -284,6 +284,9 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .preview__title { font-weight: 700; font-size: 15px; }
 .preview__meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 12px; }
 .preview__debt { font-size: 12px; color: var(--accent-ink); margin: -6px 0 12px; font-weight: 600; }
+.preview__fatigue { font-size: 12px; margin: -6px 0 12px; font-weight: 600; }
+.preview__fatigue--amber { color: #b7791f; }
+.preview__fatigue--red { color: var(--danger); }
 .status { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-dim); }
 .status__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-dim); flex: none; }
 .status__dot.ok { background: var(--mob); }
@@ -2051,18 +2054,71 @@ function computeWeeklyDebt(state) {
   return { byPattern: byPattern, byMuscle: doneMus, ranked: ranked };
 }
 
-// Resolve-stage stubs: neutral defaults with stable shapes, so Phase 7/9 swap the
-// body for real logic without changing any caller. Each is flagged _stub:true.
-function stubFatigueState() { return { _stub: true, band: "green", byPattern: {}, note: "fatigue % model lands in Phase 7 (2.1)" }; }
+// ---- Phase 7 (2.1): fatigue sensing layer ----
+// Real per-muscle/pattern fatigue signal from logged history: for each exercise,
+// a drop in est-1RM (Epley, best real set) below its prior best, and/or rising
+// average RPE vs its prior sessions, is accumulated fatigue. Rolled up over the
+// Phase-2 movement_pattern/primary_muscles tags into a 0-100% and a green/amber/red
+// band. Sparse history simply reads green (like weekly debt did) -- the machinery
+// activates as sessions accumulate. This is the SENSING layer the brief says to
+// build before anything that responds to it (the reactive deload/readiness is 2.1b).
+function computeFatigueState(state) {
+  var byName = {}; for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
+  function epley(w, reps) { return (w > 0 && reps > 0) ? w * (1 + reps / 30) : 0; }
+  var hist = {};
+  function ingest(program, log) {
+    if (!program || !Array.isArray(program.weeks)) return;
+    program.weeks.forEach(function (wk) {
+      wk.sessions.forEach(function (ses) {
+        var sl = log && log[ses.id];
+        ses.exercises.forEach(function (ex) {
+          var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
+          var best = 0, rpes = [];
+          el.sets.forEach(function (s) {
+            if (s.completed && s.actual_reps != null) {
+              var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
+              var o = epley(w, s.actual_reps); if (o > best) best = o;
+            }
+            if (s.actual_rpe != null) rpes.push(s.actual_rpe);
+          });
+          if (best <= 0 && !rpes.length) return;
+          var key = String(ex.name).toLowerCase();
+          (hist[key] = hist[key] || []).push({ orm: best, rpe: rpes.length ? rpes.reduce(function (a, b) { return a + b; }, 0) / rpes.length : null });
+        });
+      });
+    });
+  }
+  if (state && Array.isArray(state.archive)) state.archive.forEach(function (a) { ingest(a.program, a.log); });
+  if (state) ingest(state.program, state.log);
+  var patAgg = {}, musAgg = {};
+  Object.keys(hist).forEach(function (name) {
+    var h = hist[name]; if (h.length < 2) return; // need a baseline + a recent point
+    var recent = h[h.length - 1], priorBest = 0, priorRpe = [];
+    for (var i = 0; i < h.length - 1; i++) { if (h[i].orm > priorBest) priorBest = h[i].orm; if (h[i].rpe != null) priorRpe.push(h[i].rpe); }
+    var sig = 0;
+    if (priorBest > 0 && recent.orm > 0) { var decl = (priorBest - recent.orm) / priorBest; if (decl > 0) sig = Math.max(sig, Math.min(decl, 0.4)); }
+    if (recent.rpe != null && priorRpe.length) { var pr = priorRpe.reduce(function (a, b) { return a + b; }, 0) / priorRpe.length; if (recent.rpe > pr) sig = Math.max(sig, Math.min((recent.rpe - pr) / 10, 0.4)); }
+    var lib = byName[name]; if (!lib) return;
+    if (lib.movement_pattern) (patAgg[lib.movement_pattern] = patAgg[lib.movement_pattern] || []).push(sig);
+    var pm = lib.primary_muscles && lib.primary_muscles[0];
+    if (pm) (musAgg[pm] = musAgg[pm] || []).push(sig);
+  });
+  function avgPct(agg) { var out = {}; Object.keys(agg).forEach(function (k) { var a = agg[k]; out[k] = Math.round(100 * a.reduce(function (x, y) { return x + y; }, 0) / a.length); }); return out; }
+  var byPattern = avgPct(patAgg), byMuscle = avgPct(musAgg), overall = 0;
+  Object.keys(byPattern).forEach(function (k) { if (byPattern[k] > overall) overall = byPattern[k]; });
+  var band = overall >= 20 ? "red" : overall >= 10 ? "amber" : "green";
+  return { percent: overall, band: band, byPattern: byPattern, byMuscle: byMuscle };
+}
+// Resolve-stage stubs (block-week / readiness land in Phases 9 / 2.1b).
 function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
-function stubReadiness() { return { _stub: true, score: null, note: "optional wearable readiness; may stay null" }; }
-// Resolve: RequestObject + user state -> a Session Spec. Weekly debt is real;
-// fatigue / block-week / readiness are stubs until their phases land.
+function stubReadiness() { return { _stub: true, score: null, note: "manual readiness input lands in Phase 7 (2.1b)" }; }
+// Resolve: RequestObject + user state -> a Session Spec. Weekly debt + fatigue are
+// now real; block-week / readiness remain stubs until their phases land.
 function resolveSpec(request, state) {
   return {
     request: request,
     debt: computeWeeklyDebt(state),
-    fatigue: stubFatigueState(),
+    fatigue: computeFatigueState(state),
     block: stubBlockWeek(),
     readiness: stubReadiness()
   };
@@ -2948,8 +3004,18 @@ function resolveSpec(request, state) {
   // Top-2 most-behind patterns this week, for an honest one-line Resolve readout.
   function debtHint(spec) {
     if (!hasProgram()) return "";
+    var out = "";
     var behind = (spec.debt.ranked || []).filter(function (r) { return r.debt > 0; }).slice(0, 2).map(function (r) { return r.label; });
-    return behind.length ? '<div class="preview__debt">Behind this week: ' + esc(behind.join(", ")) + '</div>' : "";
+    if (behind.length) out += '<div class="preview__debt">Behind this week: ' + esc(behind.join(", ")) + '</div>';
+    // Fatigue sensing (Phase 7): flag only amber/red, so a rested lifter sees nothing.
+    var f = spec.fatigue;
+    if (f && !f._stub && (f.band === "amber" || f.band === "red")) {
+      var hot = Object.keys(f.byPattern || {}).filter(function (k) { return f.byPattern[k] >= 10; })
+        .sort(function (a, b) { return f.byPattern[b] - f.byPattern[a]; }).slice(0, 2)
+        .map(function (k) { return MP_LABEL[k] || k; });
+      out += '<div class="preview__fatigue preview__fatigue--' + f.band + '">Fatigue ' + f.band + ' (' + f.percent + '%)' + (hot.length ? ' · ' + esc(hot.join(", ")) : "") + '</div>';
+    }
+    return out;
   }
   function onBuildToday() {
     var text = $("todayText").value, pv = $("todayPreview");
