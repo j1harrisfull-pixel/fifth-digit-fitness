@@ -16,7 +16,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
 
 <style>
 /* ============================================================
@@ -24,31 +24,53 @@
    Light + dark via prefers-color-scheme, manual override on <html>.
    WCAG AA for text + interactive colour pairs in both themes.
    ============================================================ */
+/* Reskin (2026-07-02): new light visual direction. Same variable names so every
+   existing rule re-colors automatically; --line/--line-strong keep their old
+   subtle/visible roles but now carry the new palette's line/line-soft values
+   (the new spec's "line" is the more visible of the two, "line-soft" the subtler
+   one -- the reverse of how loud the two hex values look, so the mapping is
+   intentionally swapped here, not a typo). --mob/--danger are recolored to the
+   new semantic ready/rough tones since they already mean "done"/"destructive"
+   everywhere they're used. Dark theme is UNCHANGED (still cobalt) -- this pass
+   is light-only, per instruction; new token names are added to dark too so nothing
+   resolves to an unset value once later steps start reading them there. */
 :root {
-  --bg: #EDECE4; --grid: rgba(20,22,30,.045); --surface: #FBFAF6; --surface-2: #FFFFFF;
-  --ink: #14161D; --ink-dim: #565C6C; --line: rgba(20,22,30,.13); --line-strong: rgba(20,22,30,.24);
-  --accent: #2638E0; --accent-ink: #2032C2; --on-accent: #FFFFFF; --mob: #0C6E5A; --danger: #B42318;
-  --shadow: 0 1px 0 rgba(20,22,30,.03), 0 14px 30px -22px rgba(20,22,30,.45);
-  --radius: 16px; --tap: 48px; color-scheme: light;
+  --bg: #F3F4F6; --grid: transparent; --surface: #FFFFFF; --surface-2: #F1F2F5;
+  --ink: #16181C; --ink-dim: #666B73; --line: #EDEEF1; --line-strong: #E4E6EA; --line-soft: #EDEEF1;
+  --accent: #FF4A1C; --accent-ink: #E0421A; --on-accent: #FFFFFF; --accent-tint: #FFEDE7;
+  --mob: #12945F; --danger: #E24427;
+  --ready: #12945F; --ready-tint: #E4F4EC; --manage: #D98A1E; --rough: #E24427;
+  --muted: #666B73; --faint: #9BA1A9;
+  --shadow: 0 1px 2px rgba(17,18,22,.04), 0 10px 26px -14px rgba(17,18,22,.16);
+  --radius: 20px; --tap: 48px; color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0B0D12; --grid: rgba(255,255,255,.04); --surface: #14171F; --surface-2: #1B1F2A;
-    --ink: #ECEEF4; --ink-dim: #9CA4B6; --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.20);
-    --accent: #2638E0; --accent-ink: #A6B2FF; --on-accent: #FFFFFF; --mob: #4FD6B6; --danger: #FF8A7A;
+    --ink: #ECEEF4; --ink-dim: #9CA4B6; --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.20); --line-soft: rgba(255,255,255,.06);
+    --accent: #2638E0; --accent-ink: #A6B2FF; --on-accent: #FFFFFF; --accent-tint: rgba(38,56,224,.16);
+    --mob: #4FD6B6; --danger: #FF8A7A;
+    --ready: #4FD6B6; --ready-tint: rgba(79,214,182,.14); --manage: #F5A742; --rough: #FF8A7A;
+    --muted: #9CA4B6; --faint: #6B7280;
     --shadow: 0 1px 0 rgba(0,0,0,.5), 0 18px 36px -22px rgba(0,0,0,.8); color-scheme: dark;
   }
 }
 :root[data-theme="light"] {
-  --bg: #EDECE4; --grid: rgba(20,22,30,.045); --surface: #FBFAF6; --surface-2: #FFFFFF;
-  --ink: #14161D; --ink-dim: #565C6C; --line: rgba(20,22,30,.13); --line-strong: rgba(20,22,30,.24);
-  --accent: #2638E0; --accent-ink: #2032C2; --on-accent: #FFFFFF; --mob: #0C6E5A; --danger: #B42318;
-  --shadow: 0 1px 0 rgba(20,22,30,.03), 0 14px 30px -22px rgba(20,22,30,.45); color-scheme: light;
+  --bg: #F3F4F6; --grid: transparent; --surface: #FFFFFF; --surface-2: #F1F2F5;
+  --ink: #16181C; --ink-dim: #666B73; --line: #EDEEF1; --line-strong: #E4E6EA; --line-soft: #EDEEF1;
+  --accent: #FF4A1C; --accent-ink: #E0421A; --on-accent: #FFFFFF; --accent-tint: #FFEDE7;
+  --mob: #12945F; --danger: #E24427;
+  --ready: #12945F; --ready-tint: #E4F4EC; --manage: #D98A1E; --rough: #E24427;
+  --muted: #666B73; --faint: #9BA1A9;
+  --shadow: 0 1px 2px rgba(17,18,22,.04), 0 10px 26px -14px rgba(17,18,22,.16); color-scheme: light;
 }
 :root[data-theme="dark"] {
   --bg: #0B0D12; --grid: rgba(255,255,255,.04); --surface: #14171F; --surface-2: #1B1F2A;
-  --ink: #ECEEF4; --ink-dim: #9CA4B6; --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.20);
-  --accent: #2638E0; --accent-ink: #A6B2FF; --on-accent: #FFFFFF; --mob: #4FD6B6; --danger: #FF8A7A;
+  --ink: #ECEEF4; --ink-dim: #9CA4B6; --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.20); --line-soft: rgba(255,255,255,.06);
+  --accent: #2638E0; --accent-ink: #A6B2FF; --on-accent: #FFFFFF; --accent-tint: rgba(38,56,224,.16);
+  --mob: #4FD6B6; --danger: #FF8A7A;
+  --ready: #4FD6B6; --ready-tint: rgba(79,214,182,.14); --manage: #F5A742; --rough: #FF8A7A;
+  --muted: #9CA4B6; --faint: #6B7280;
   --shadow: 0 1px 0 rgba(0,0,0,.5), 0 18px 36px -22px rgba(0,0,0,.8); color-scheme: dark;
 }
 
