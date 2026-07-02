@@ -335,6 +335,8 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .btn:hover { border-color: var(--accent-ink); }
 .btn:active { transform: scale(.97); }
 .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line-strong)); }
 .codebox { width: 100%; min-height: 120px; max-height: 200px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-family: "Spline Sans Mono", monospace; font-size: 12px; line-height: 1.5; resize: vertical; color: var(--ink); white-space: pre; overflow: auto; }
 .pastebox { width: 100%; min-height: 96px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-family: "Spline Sans Mono", monospace; font-size: 12px; line-height: 1.5; resize: vertical; color: var(--ink); }
@@ -3113,7 +3115,7 @@ function resolveSpec(request, state) {
   function cancelBuildThinking() {
     clearInterval(buildThinkInterval); buildThinkInterval = null;
     clearTimeout(buildThinkTimer); buildThinkTimer = null;
-    var bb = $("buildBtn"); if (bb) bb.disabled = false;
+    var bb = $("buildBtn"); if (bb) { delete bb.dataset.thinking; bb.disabled = equipGateEmpty(); }
   }
   function buildRequest() {
     var unit = state.program.unit;
@@ -3154,11 +3156,40 @@ function resolveSpec(request, state) {
   // of maintaining two copies of the same 9 chips.
   function equipChipsHtml() { return EQUIP_ALL.map(function (id) { return '<button class="chip" data-eq="' + id + '" type="button">' + esc(EQUIP_LABELS[id]) + '</button>'; }).join(""); }
   function syncEquipChips(id) { var eq = buildPrefs().equipment; document.querySelectorAll("#" + id + " button").forEach(function (b) { b.setAttribute("aria-pressed", eq.indexOf(b.getAttribute("data-eq")) >= 0); }); }
-  function syncAllEquipChips() { syncEquipChips("bEquip"); syncEquipChips("myEquip"); syncEquipChips("todayEquip"); syncTodayEquipHint(); }
+  // Single source for the equipment summary label, shared by the Just-Today
+  // hint, the Adjust-panel hint, and the week-build preview meta line -- all
+  // three used to independently collapse an empty selection to "bodyweight",
+  // which reads as a deliberate choice ("no equipment needed") rather than
+  // what it actually is: nothing picked yet. Zero is its own state, gated
+  // below, never silently treated as a valid kit.
+  function equipSummaryLabel(equip) {
+    var n = equip.length;
+    if (n === 0) return "Pick your kit";
+    if (n >= 8) return "full gym";
+    return n + " kit";
+  }
+  function equipGateEmpty() { return buildPrefs().equipment.length === 0; }
+  // Canonical resync for every equipment-derived display: all three chip
+  // pickers, both hint lines (Just-Today's + the week-build Adjust panel's),
+  // and both Build buttons' gate. Called from any picker's click handler and
+  // from syncBuild() on sheet-open, so there's exactly one place that can
+  // drift out of sync with the real selection, not three.
+  function syncAllEquipChips() {
+    syncEquipChips("bEquip"); syncEquipChips("myEquip"); syncEquipChips("todayEquip"); syncTodayEquipHint();
+    var equip = buildPrefs().equipment;
+    var adjustHintEl = $("adjustHint");
+    if (adjustHintEl) {
+      var p = buildPrefs();
+      var lenLbl = p.weeks === 4 ? "4-week block" : "single week";
+      adjustHintEl.textContent = p.minutes + " min · " + lenLbl + " · " + equipSummaryLabel(equip);
+    }
+    var gated = equipGateEmpty();
+    var bb = $("buildBtn"); if (bb && !bb.dataset.thinking) bb.disabled = gated;
+    var tb = $("todayBtn"); if (tb) tb.disabled = gated;
+  }
   function syncTodayEquipHint() {
     var hintEl = $("todayEquipHint"); if (!hintEl) return;
-    var n = buildPrefs().equipment.length;
-    hintEl.textContent = n >= 8 ? "full gym" : (n ? n + " kit" : "bodyweight");
+    hintEl.textContent = equipSummaryLabel(buildPrefs().equipment);
   }
   function wireEquipChips(id) {
     var el = $(id); if (!el) return;
@@ -3227,16 +3258,10 @@ function resolveSpec(request, state) {
       b.setAttribute("aria-disabled", locked ? "true" : "false");
       if (locked) b.title = "Cardio is core to Endurance (always on)"; else b.removeAttribute("title");
     });
-    syncEquipChips("bEquip");
     document.querySelectorAll("#bWeeks button").forEach(function (b) {
       b.setAttribute("aria-pressed", parseInt(b.getAttribute("data-weeks"), 10) === p.weeks);
     });
-    var hintEl = document.getElementById("adjustHint");
-    if (hintEl) {
-      var lenLbl = p.weeks === 4 ? "4-week block" : "single week";
-      var eqLbl = p.equipment.length >= 8 ? "full gym" : (p.equipment.length ? p.equipment.length + " kit" : "bodyweight");
-      hintEl.textContent = p.minutes + " min · " + lenLbl + " · " + eqLbl;
-    }
+    syncAllEquipChips();
   }
   function openPlan() {
     pending = null; pendingBuild = null; pendingToday = null;
@@ -3266,7 +3291,7 @@ function resolveSpec(request, state) {
       pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap());
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
-        '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · full gym assumed</div>' +
+        '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · ' + equipSummaryLabel(p.equipment) + '</div>' +
         '<div class="btn-row"><button class="btn btn--primary" id="confirmBuild" type="button">Use this week</button><button class="btn" id="rebuildBtn" type="button">Try again</button></div>';
       pv.classList.remove("hidden");
       $("confirmBuild").addEventListener("click", confirmBuild);
@@ -3276,7 +3301,7 @@ function resolveSpec(request, state) {
     // Skipped on Try again and under reduced-motion. buildBtn is disabled for the
     // duration so a double-tap can't start a second, overlapping timer chain.
     if (showThinking === true && !reduceMotion) {
-      var bb = $("buildBtn"); if (bb) bb.disabled = true;
+      var bb = $("buildBtn"); if (bb) { bb.dataset.thinking = "1"; bb.disabled = true; }
       pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt" id="buildingTxt">Building your week…</span></div>';
       pv.classList.remove("hidden");
       var lines = ["Selecting your lifts…", "Balancing the week…", "Setting the progression…"], li = 0;
