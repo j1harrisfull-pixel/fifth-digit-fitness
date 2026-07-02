@@ -2888,7 +2888,7 @@ function resolveSpec(request, state) {
   }
 
   /* ===================== Plan sheet (Claude loop) ===================== */
-  var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null;
+  var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null, pendingTodayAnyway = null;
   var buildThinkTimer = null, buildThinkInterval = null;
   function cancelBuildThinking() {
     clearInterval(buildThinkInterval); buildThinkInterval = null;
@@ -3117,13 +3117,19 @@ function resolveSpec(request, state) {
       var parsed = requestToParsed(req);
       todaySeed++;
       var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
-      var deg = spec.degradation, banner = "";
+      var deg = spec.degradation, banner = "", anywayBtn = "";
+      pendingTodayAnyway = null;
       if (deg === "recovery") {
         // Phase 7 (2.1b) / Phase 6 rung 3: rough readiness or a red fatigue reading
         // gets a real recovery session instead of forcing today's requested load.
         pendingToday = recoverySession(req.equipment, todaySeed);
         var why = spec.readiness.score === 0 ? "You flagged today as rough" : "This week's fatigue reading is high";
         banner = '<div class="preview__fatigue preview__fatigue--red">' + esc(why) + ' — recovery day instead of forcing load</div>';
+        // "Propose, never force": pre-build exactly what was requested (ease=false,
+        // ignoring the degradation entirely) so a single explicit tap can have it --
+        // never by silently reinterpreting the text, only this named escape hatch.
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false);
+        anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
         // biases toward the patterns you're furthest behind on this week. `deg ===
@@ -3141,11 +3147,32 @@ function resolveSpec(request, state) {
         '<div class="preview__meta">Understood: ' + esc(req.summary) + '</div>' +
         banner +
         '<div class="todaylist">' + rows + '</div>' +
-        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
+        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
       pv.classList.remove("hidden");
       $("confirmToday").addEventListener("click", addTodaySession);
       $("retryToday").addEventListener("click", onBuildToday);
+      if (pendingTodayAnyway) $("buildAnywayToday").addEventListener("click", buildTodayAnyway);
     });
+  }
+  // The escape hatch: swaps the pending recovery suggestion for the session that
+  // was actually requested. Deliberately does NOT touch state.readiness or write
+  // anything persistent -- this is a one-shot override for THIS build only, so
+  // the next build (even later the same day) still re-applies the same readiness/
+  // fatigue check. Going harder is unlocked only by this explicit tap, never by
+  // silence or by the absence of a soreness report.
+  function buildTodayAnyway() {
+    if (!pendingTodayAnyway) return;
+    pendingToday = pendingTodayAnyway;
+    var pv = $("todayPreview");
+    var rows = pendingToday.exercises.map(function (e) {
+      return '<div class="todayrow"><span class="todayrow__name">' + esc(e.name) + '</span><span class="todayrow__scheme mono">' + esc(e.sets + " × " + e.reps) + '</span></div>';
+    }).join("");
+    pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
+      '<div class="preview__meta">Building as requested, overriding the recovery suggestion for today only</div>' +
+      '<div class="todaylist">' + rows + '</div>' +
+      '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
+    $("confirmToday").addEventListener("click", addTodaySession);
+    $("retryToday").addEventListener("click", onBuildToday);
   }
   function addTodaySession() {
     if (!pendingToday) return;
