@@ -122,6 +122,27 @@ input, textarea { font: inherit; color: inherit; }
 .daybar__back:hover { color: var(--ink); }
 .daybar__title { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
+/* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
+.home-hero { padding: 8px 14px 4px; }
+.home-hero__top { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.recovery-ring { position: relative; width: 72px; height: 72px; flex: none; border-radius: 50%; --ring-color: var(--ready); background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), var(--line-strong) 0); }
+.recovery-ring.is-manage { --ring-color: var(--manage); }
+.recovery-ring.is-rough { --ring-color: var(--rough); }
+.recovery-ring__hole { position: absolute; inset: 6px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
+.recovery-ring__pct { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 17px; color: var(--ink); }
+.home-hero__readiness { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.home-hero__readiness-label { font-size: 15px; font-weight: 700; color: var(--ink); }
+.home-hero__readiness-sub { font-size: 13px; color: var(--muted); }
+.today-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.today-card__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin-bottom: 6px; }
+.today-card__name { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
+.today-card__focus { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
+.today-card__cta { display: block; width: 100%; margin-top: 16px; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 13px; padding: 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; }
+.week-strip { display: flex; gap: 9px; margin: 18px 2px 0; }
+.week-strip__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.week-strip__dot.is-done { background: var(--ready); }
+.week-strip__dot.is-current { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
 .weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
 .weekrow { display: flex; align-items: center; width: 100%; border-top: 1px solid var(--line); }
 .weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
@@ -471,6 +492,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 
   <main>
+    <div class="home-hero view-week" id="homeHero"></div>
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
     <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
@@ -2506,6 +2528,52 @@ function resolveSpec(request, state) {
     $("weekPrev").disabled = state.activeWeek <= 0;
     $("weekNext").disabled = state.activeWeek >= p.weeks.length - 1;
   }
+  // Home hero: recovery ring + the currently-open session as a "today" card +
+  // a week strip. Every number here is real, not invented: the ring reads the
+  // same computeFatigueState() the day view's fatigue tag already uses (just
+  // inverted to a recovery% and shown always, not only when amber/red); the
+  // "today" session is state.activeSession (the app's one existing notion of
+  // "the current day" -- there's no calendar/scheduling model to derive a true
+  // "today" from); the why-line reuses the session's own anchor exercise's
+  // real .why string (Task 3.1) rather than inventing session-level reasoning;
+  // the week strip reuses the exact sessionProgress()/sessionItemsFor() each
+  // week row already computes. Deliberately NO duration figure -- the program
+  // stores a build-time target per WEEK, not a stored estimate per session, and
+  // fabricating one here would be exactly the kind of invented precision this
+  // app has always avoided.
+  function renderHomeHero() {
+    var el = $("homeHero"); if (!el) return;
+    if (!hasProgram()) { el.innerHTML = ""; return; }
+    var wk = curWeek(), ses = curSession();
+    var fs = (typeof computeFatigueState === "function") ? computeFatigueState(state) : null;
+    var band = fs ? fs.band : "green";
+    var recoveryPct = fs ? Math.max(0, Math.min(100, 100 - fs.percent)) : 100;
+    var ringClass = band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "";
+    var label = band === "red" ? "High fatigue" : band === "amber" ? "Managing fatigue" : "Fully recovered";
+    var sub = band === "red" ? "Consider an easier session today" : band === "amber" ? "Take it a bit easier today" : "You're ready to train";
+    var focusHtml = ses.focus && ses.focus !== ses.name ? '<p class="today-card__focus">' + esc(ses.focus) + '</p>' : "";
+    var whyText = "";
+    for (var i = 0; i < ses.exercises.length; i++) { var e = ses.exercises[i]; if (e.type === "strength" && e.why) { whyText = e.why; break; } }
+    var whyHtml = whyText ? '<p class="today-card__why">' + esc(whyText) + '</p>' : "";
+    var dots = wk.sessions.map(function (s, i) {
+      var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
+      var cls = i === state.activeSession ? "is-current" : (done ? "is-done" : "");
+      return '<span class="week-strip__dot ' + cls + '"></span>';
+    }).join("");
+    el.innerHTML =
+      '<div class="home-hero__top">' +
+        '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + recoveryPct + '%</span></div></div>' +
+        '<div class="home-hero__readiness"><span class="home-hero__readiness-label">' + esc(label) + '</span><span class="home-hero__readiness-sub">' + esc(sub) + '</span></div>' +
+      '</div>' +
+      '<div class="today-card">' +
+        '<div class="today-card__label">Up next</div>' +
+        '<h2 class="today-card__name">' + esc(ses.name) + '</h2>' +
+        focusHtml + whyHtml +
+        '<button type="button" class="today-card__cta" id="homeHeroCta">Build today’s session</button>' +
+      '</div>' +
+      '<div class="week-strip" role="img" aria-label="This week: ' + wk.sessions.length + ' sessions">' + dots + '</div>';
+    var cta = $("homeHeroCta"); if (cta) cta.addEventListener("click", openPlan);
+  }
   var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
   var trashIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
   function renderWeekList() {
@@ -2789,7 +2857,7 @@ function resolveSpec(request, state) {
     appEl.setAttribute("data-view", state.view === "day" ? "day" : "week");
     renderWeekBar();
     if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); if (animate) scrollToCurrent(); }
-    else { renderWeekList(); }
+    else { renderHomeHero(); renderWeekList(); }
   }
 
   /* ===================== Interactions ===================== */
