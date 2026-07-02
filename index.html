@@ -1305,6 +1305,25 @@ function splitForDays(days, goal) {
   }
 }
 
+function isHeavyLowerRole(role) { return role === "lower" || role === "legs"; }
+// ---- Phase 7 (2.2): concurrent-training interference ----
+// The week's one hard/glycolytic conditioning finisher must not land on, or
+// immediately adjacent to, a heavy lower-body strength day (squat/hinge-loaded) --
+// hard conditioning close to a heavy lower day blunts recovery from it or
+// performance on it. Prefers a day fully separated from any lower/legs day;
+// falls back to combining with the lower/legs day itself only when every day is
+// unavoidably adjacent to one (e.g. a 2- or 4-day split alternating upper/lower) --
+// same-day combination is the brief's explicitly sanctioned compromise, protected
+// by the exercise ordering (strength always built before conditioning in a day).
+function pickHardConditioningDay(roleList) {
+  var n = roleList.length;
+  function adjacentToHeavy(i) {
+    return (i > 0 && isHeavyLowerRole(roleList[i - 1])) || (i < n - 1 && isHeavyLowerRole(roleList[i + 1]));
+  }
+  for (var i = 0; i < n; i++) if (!isHeavyLowerRole(roleList[i]) && !adjacentToHeavy(i)) return i;
+  for (var j = n - 1; j >= 0; j--) if (isHeavyLowerRole(roleList[j])) return j;
+  return Math.min(n - 1, 2);
+}
 function equipOk(e, allowed) {
   if (!e) return false;
   if (e.equipment === "bodyweight") return true;
@@ -1882,7 +1901,8 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
     var occOf  = {}, nameSeen = {};
     // Hybrid conditioning stays polarized too: exactly one hard finisher a week
     // (index picked once per week, not every-other-session), everything else z2.
-    var hardConIdx = Math.min(days - 1, 2);
+    // Phase 7 (2.2): the day it lands on is chosen to avoid heavy-lower interference.
+    var hardConIdx = pickHardConditioningDay(roleList);
 
     var sessions = roleList.map(function (role, si) {
       var occ = (occOf[role] = (occOf[role] || 0));
