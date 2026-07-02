@@ -2126,13 +2126,23 @@ function computeFatigueState(state) {
   if (state && Array.isArray(state.archive)) state.archive.forEach(function (a) { ingest(a.program, a.log); });
   if (state) ingest(state.program, state.log);
   var patAgg = {}, musAgg = {};
+  // Baseline window: compare the most recent session to a RECENT baseline (the
+  // up-to-3 sessions immediately before it), not the all-time best/average. Using
+  // a lifetime max/average was the bug -- a single outlier PR, or an early
+  // learning-the-lift session at a deliberately low RPE, would permanently poison
+  // every future comparison, so stable, non-fatigued training (nobody re-PRs
+  // every session) read as chronic fatigue forever. A sliding recent baseline
+  // reads a genuinely stable run of sessions as 0% every time.
+  var BASELINE_WINDOW = 3;
   Object.keys(hist).forEach(function (name) {
     var h = hist[name]; if (h.length < 2) return; // need a baseline + a recent point
-    var recent = h[h.length - 1], priorBest = 0, priorRpe = [];
-    for (var i = 0; i < h.length - 1; i++) { if (h[i].orm > priorBest) priorBest = h[i].orm; if (h[i].rpe != null) priorRpe.push(h[i].rpe); }
+    var recent = h[h.length - 1];
+    var baseline = h.slice(Math.max(0, h.length - 1 - BASELINE_WINDOW), h.length - 1);
+    var baseBest = 0, baseRpe = [];
+    baseline.forEach(function (b) { if (b.orm > baseBest) baseBest = b.orm; if (b.rpe != null) baseRpe.push(b.rpe); });
     var sig = 0;
-    if (priorBest > 0 && recent.orm > 0) { var decl = (priorBest - recent.orm) / priorBest; if (decl > 0) sig = Math.max(sig, Math.min(decl, 0.4)); }
-    if (recent.rpe != null && priorRpe.length) { var pr = priorRpe.reduce(function (a, b) { return a + b; }, 0) / priorRpe.length; if (recent.rpe > pr) sig = Math.max(sig, Math.min((recent.rpe - pr) / 10, 0.4)); }
+    if (baseBest > 0 && recent.orm > 0) { var decl = (baseBest - recent.orm) / baseBest; if (decl > 0) sig = Math.max(sig, Math.min(decl, 0.4)); }
+    if (recent.rpe != null && baseRpe.length) { var pr = baseRpe.reduce(function (a, b) { return a + b; }, 0) / baseRpe.length; if (recent.rpe > pr) sig = Math.max(sig, Math.min((recent.rpe - pr) / 10, 0.4)); }
     var lib = byName[name]; if (!lib) return;
     if (lib.movement_pattern) (patAgg[lib.movement_pattern] = patAgg[lib.movement_pattern] || []).push(sig);
     var pm = lib.primary_muscles && lib.primary_muscles[0];
