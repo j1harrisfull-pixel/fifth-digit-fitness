@@ -615,6 +615,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <p class="sect__hint" style="margin-top:8px">Saved for every workout you build. Bodyweight is always included. Only changes when you change it, or when you erase all data.</p>
     </div>
     <div class="sect">
+      <div class="sect__label">Advanced moves I can do</div>
+      <div class="chips" id="skillChips" role="group" aria-label="Advanced skill moves you can already do"></div>
+      <p class="sect__hint" style="margin-top:8px">These are skill moves, not just heavy lifts. We leave them out of your workouts until you tick the ones you can already do. Until then you get an easier version in their place.</p>
+    </div>
+    <div class="sect">
       <div class="sect__label">Backup (everything)</div>
       <div class="btn-row">
         <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
@@ -993,7 +998,7 @@ const LIBRARY = [
   { id: "incline-dumbbell-press", name: "Incline Dumbbell Press", type: "strength", equipment: "dumbbell", pattern: "hpush", muscles: ["chest", "shoulders"], compound: true, lengthened: true, goals: I, unit: "reps", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: ["shoulders"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["machine-chest-press", "pec-deck", "band-chest-press", "dumbbell-bench-press"], progression_policy: "linear_double_progression_load", cue: "Setup: 30 degree bench, blades retracted. Key: press up and slightly together, control the lower. Fault: flaring elbows or bouncing." },
   { id: "machine-chest-press", name: "Machine Chest Press", type: "strength", equipment: "machine", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", setup: "Seat height set so the handles sit at mid chest level, back flat against the pad, feet planted for a stable base.", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "machine", variations: ["pec-deck", "band-chest-press", "dumbbell-bench-press", "incline-dumbbell-press"], progression_policy: "linear_double_progression_load", cue: "Setup: handles at mid-chest height, blades set. Key: press to a near-lockout, control back to a stretch. Fault: shrugging the shoulders up to press." },
   { id: "push-up", name: "Push-Up", type: "strength", equipment: "bodyweight", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["machine-chest-press", "pec-deck", "band-chest-press", "dumbbell-bench-press"], progression_policy: "linear_double_progression_load", cue: "Setup: hands under shoulders, body in one line, glutes tight. Key: lower the chest to the floor, elbows ~45 degrees, press away. Fault: sagging hips or flaring elbows." },
-  { id: "handstand-pushup", name: "Handstand Push-Up", type: "strength", equipment: "bodyweight", pattern: "vpush", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_push", primary_muscles: ["shoulders"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow", "spine"], is_unilateral: false, stability_demand: "free", variations: ["machine-shoulder-press", "smith-shoulder-press", "band-overhead-press", "dumbbell-shoulder-press"], progression_policy: "linear_double_progression_load", cue: "Setup: kick up to a handstand against a wall, hands shoulder-width, body braced in one line. Key: lower the head toward the floor under control, then press back to full lockout without flaring the elbows wide. Fault: arching the lower back to shorten the range, or losing the brace so the hips pike out." },
+  { id: "handstand-pushup", name: "Handstand Push-Up", type: "strength", equipment: "bodyweight", pattern: "vpush", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_push", primary_muscles: ["shoulders"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow", "spine"], is_unilateral: false, stability_demand: "free", skill_tier: "advanced", variations: ["machine-shoulder-press", "smith-shoulder-press", "band-overhead-press", "dumbbell-shoulder-press"], progression_policy: "linear_double_progression_load", cue: "Setup: kick up to a handstand against a wall, hands shoulder-width, body braced in one line. Key: lower the head toward the floor under control, then press back to full lockout without flaring the elbows wide. Fault: arching the lower back to shorten the range, or losing the brace so the hips pike out." },
   { id: "cable-fly", name: "Cable Fly", type: "strength", equipment: "cable", pattern: "hpush", muscles: ["chest"], compound: false, goals: I, unit: "reps", setup: "Both pulleys set high or at shoulder height, a single handle on each side, stand mid stance with a slight forward lean.", movement_pattern: "isolation_chest", primary_muscles: ["chest"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["shoulder"], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "add_reps_then_load", cue: "Setup: slight forward lean, soft elbows. Key: hug the arms together, squeeze the chest, control the stretch. Fault: turning it into a press by bending the elbows." },
   { id: "pec-deck", name: "Pec Deck", type: "strength", equipment: "machine", pattern: "hpush", muscles: ["chest"], compound: false, goals: I, unit: "reps", setup: "Seat raised so the handles line up with mid chest, forearms or pads against the wings, back pressed flat to the seat.", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "machine", variations: ["machine-chest-press", "band-chest-press", "dumbbell-bench-press", "incline-dumbbell-press"], progression_policy: "add_reps_then_load", cue: "Setup: forearms on the pads, chest up. Key: bring the pads together, squeeze, slow return. Fault: using the shoulders or going too heavy." },
   { id: "chest-dip", name: "Chest Dip", type: "strength", equipment: "pullup-bar", pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: I, unit: "reps", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["machine-chest-press", "pec-deck", "band-chest-press", "dumbbell-bench-press"], progression_policy: "linear_double_progression_load", cue: "Setup: slight forward lean on the bars. Key: lower to a chest stretch, press to lockout. Fault: shrugging into the shoulders or too shallow." },
@@ -1019,8 +1024,8 @@ const LIBRARY = [
   // ---------- VERTICAL PULL / lats ----------
   { id: "pull-up", name: "Pull-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["biceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["lat-pulldown", "neutral-grip-pulldown", "chin-up", "muscle-up"], progression_policy: "linear_double_progression_load", cue: "Setup: full hang, shoulders active. Key: drive the elbows down, chin over the bar, control the lower. Fault: kipping or half reps. Add load when reps come easy." },
   { id: "chin-up", name: "Chin-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["biceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["lat-pulldown", "neutral-grip-pulldown", "pull-up", "muscle-up"], progression_policy: "linear_double_progression_load", cue: "Setup: underhand grip, full hang. Key: pull the chest to the bar, squeeze, lower under control. Fault: swinging or not reaching full extension." },
-  { id: "muscle-up", name: "Muscle-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "chest", "triceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["chest", "triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["lat-pulldown", "neutral-grip-pulldown", "pull-up", "chin-up"], progression_policy: "linear_double_progression_load", cue: "Setup: full hang, false grip over the top of the bar if you have it. Key: pull explosively and lean forward over the bar as you transition, then press out to lockout without pausing at the top of the pull. Fault: kipping the hips to fake the transition, or catching low with straight arms and muscling through instead of transitioning cleanly." },
-  { id: "tuck-front-lever", name: "Tuck Front Lever", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "core"], compound: true, goals: C, unit: "sec", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["core"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["lat-pulldown", "neutral-grip-pulldown", "pull-up", "chin-up"], progression_policy: "linear_double_progression_load", cue: "Setup: hang from the bar, pull the knees to the chest, and lean the torso back toward horizontal. Key: press the bar down hard and brace the whole body so the tucked shape holds still and level. Fault: letting the hips sag below the shoulder line, or the shoulders creeping up toward the bar instead of staying pressed down." },
+  { id: "muscle-up", name: "Muscle-Up", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "chest", "triceps"], compound: true, goals: C, unit: "reps", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["chest", "triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", skill_tier: "advanced", variations: ["lat-pulldown", "neutral-grip-pulldown", "pull-up", "chin-up"], progression_policy: "linear_double_progression_load", cue: "Setup: full hang, false grip over the top of the bar if you have it. Key: pull explosively and lean forward over the bar as you transition, then press out to lockout without pausing at the top of the pull. Fault: kipping the hips to fake the transition, or catching low with straight arms and muscling through instead of transitioning cleanly." },
+  { id: "tuck-front-lever", name: "Tuck Front Lever", type: "strength", equipment: "pullup-bar", pattern: "vpull", muscles: ["back", "core"], compound: true, goals: C, unit: "sec", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["core"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", skill_tier: "advanced", variations: ["lat-pulldown", "neutral-grip-pulldown", "pull-up", "chin-up"], progression_policy: "linear_double_progression_load", cue: "Setup: hang from the bar, pull the knees to the chest, and lean the torso back toward horizontal. Key: press the bar down hard and brace the whole body so the tucked shape holds still and level. Fault: letting the hips sag below the shoulder line, or the shoulders creeping up toward the bar instead of staying pressed down." },
   { id: "lat-pulldown", name: "Lat Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: I, unit: "reps", setup: "Wide bar on the high pulley, knee pad snug against your thighs, grip just outside shoulder width overhand.", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["biceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["neutral-grip-pulldown", "pull-up", "chin-up", "muscle-up"], progression_policy: "linear_double_progression_load", cue: "Setup: thighs pinned, slight lean back. Key: drive the elbows to the ribs, bar to the upper chest, control up. Fault: leaning way back and heaving with the body." },
   { id: "neutral-grip-pulldown", name: "Neutral-Grip Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back", "biceps"], compound: true, goals: I, unit: "reps", setup: "Close V-handle or neutral-grip bar on the high pulley, thigh pad locked down tight, palms facing each other.", movement_pattern: "vert_pull", primary_muscles: ["back"], secondary_muscles: ["biceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["lat-pulldown", "pull-up", "chin-up", "muscle-up"], progression_policy: "linear_double_progression_load", cue: "Setup: neutral handle, tall chest. Key: pull to the upper chest, elbows down and in, squeeze. Fault: rounding forward or using momentum." },
   { id: "straight-arm-pulldown", name: "Straight-Arm Pulldown", type: "strength", equipment: "cable", pattern: "vpull", muscles: ["back"], compound: false, goals: I, unit: "reps", setup: "Straight bar on the high pulley, stand a step back with arms extended, set a light to moderate weight.", movement_pattern: "isolation_back", primary_muscles: ["back"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["shoulder"], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "add_reps_then_load", cue: "Setup: bar high, soft elbows, hinge slightly. Key: drive the bar to the thighs with the lats, squeeze. Fault: bending the elbows into a pushdown." },
@@ -1053,7 +1058,7 @@ const LIBRARY = [
   { id: "pallof-press", name: "Pallof Press", type: "strength", equipment: "cable", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "reps", setup: "Single handle on a pulley set at chest height, stand side-on a step away, pick a light weight for steady tension.", movement_pattern: "anti_rotation", primary_muscles: ["core"], secondary_muscles: [], plane: "transverse", fatigue_cost: "low", joint_stress: ["spine", "hip"], is_unilateral: true, stability_demand: "stability", variations: ["bird-dog"], progression_policy: "add_reps_then_load", cue: "Setup: side-on to a cable at chest height. Key: press straight out and resist the rotation, brace. Fault: letting the torso twist toward the cable." },
   { id: "dead-bug", name: "Dead Bug", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "reps", movement_pattern: "anti_extension", primary_muscles: ["core"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", variations: ["plank", "ab-wheel", "hollow-hold"], progression_policy: "add_reps_then_load", cue: "Setup: on your back, arms and knees up. Key: lower opposite arm and leg slowly, lower back glued down. Fault: the lower back arching off the floor." },
   { id: "hollow-hold", name: "Hollow Hold", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core"], compound: false, goals: I, unit: "sec", movement_pattern: "anti_extension", primary_muscles: ["core"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", variations: ["plank", "ab-wheel", "dead-bug"], progression_policy: "add_reps_then_load", cue: "Setup: on your back, arms overhead. Key: press the lower back into the floor, lift the shoulders and legs, brace. Fault: the lower back lifting and losing tension." },
-  { id: "l-sit", name: "L-Sit", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core", "hip flexors"], compound: false, goals: I, unit: "sec", movement_pattern: "flexion", primary_muscles: ["core"], secondary_muscles: ["hip flexors"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", variations: ["cable-crunch", "hanging-leg-raise"], progression_policy: "add_reps_then_load", cue: "Setup: hands on parallettes or the floor beside the hips, arms straight. Key: press down to lift the hips, legs out straight and level with the hips, shoulders pressed down away from the ears. Fault: bending the knees to fake the height, or shrugging the shoulders up instead of pressing them down." },
+  { id: "l-sit", name: "L-Sit", type: "strength", equipment: "bodyweight", pattern: "core", muscles: ["core", "hip flexors"], compound: false, goals: I, unit: "sec", movement_pattern: "flexion", primary_muscles: ["core"], secondary_muscles: ["hip flexors"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", skill_tier: "advanced", variations: ["cable-crunch", "hanging-leg-raise"], progression_policy: "add_reps_then_load", cue: "Setup: hands on parallettes or the floor beside the hips, arms straight. Key: press down to lift the hips, legs out straight and level with the hips, shoulders pressed down away from the ears. Fault: bending the knees to fake the height, or shrugging the shoulders up instead of pressing them down." },
 
   // ---------- CARRY ----------
   { id: "farmer-carry", name: "Farmer Carry", type: "strength", equipment: "dumbbell", pattern: "carry", muscles: ["core", "forearms"], compound: true, goals: I, unit: "sec", movement_pattern: "carry", primary_muscles: ["core"], secondary_muscles: ["forearms"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["spine", "shoulder", "hip"], is_unilateral: false, stability_demand: "free", variations: ["kb-front-rack-carry", "front-rack-carry", "kb-suitcase-carry", "suitcase-carry"], progression_policy: "add_reps_then_load", cue: "Setup: heavy dumbbells at the sides, tall posture. Key: brace, walk with controlled steps, shoulders back. Fault: leaning or letting the shoulders round forward." },
@@ -1121,7 +1126,7 @@ const LIBRARY = [
   { id: "deficit-reverse-lunge", name: "Deficit Reverse Lunge", type: "strength", equipment: "dumbbell", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", movement_pattern: "lunge", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["knee", "hip", "ankle"], is_unilateral: true, stability_demand: "stability", variations: ["smith-split-squat", "bulgarian-split-squat", "walking-lunge", "reverse-lunge"], progression_policy: "linear_double_progression_load", cue: "Setup: Stand on a 3 to 4 inch platform, dumbbells at sides, step the trail leg back and down off the edge. Key: Let the front hip travel deep into the added range so the glute stretches under load, then drive the platform foot to stand. Fault: Cutting the descent short or pushing off the rear toe, which steals the deficit's extra stretch." },
   { id: "curtsy-lunge", name: "Curtsy Lunge", type: "strength", equipment: "dumbbell", pattern: "lunge", muscles: ["glutes", "quads"], compound: true, goals: C, unit: "reps", movement_pattern: "lunge", primary_muscles: ["glutes"], secondary_muscles: ["quads"], plane: "transverse", fatigue_cost: "med", joint_stress: ["knee", "hip", "ankle"], is_unilateral: true, stability_demand: "stability", variations: [], progression_policy: "linear_double_progression_load", cue: "Setup: Dumbbells at sides, hips square, step the trail leg diagonally behind and across the midline. Key: Keep the front knee tracking over the toes as you sink, loading the glute medius on the crossover side. Fault: Letting the front knee collapse inward or twisting the pelvis open, which kills the gluteal tension." },
   { id: "lateral-lunge", name: "Lateral Lunge", type: "strength", equipment: "dumbbell", pattern: "lunge", muscles: ["quads", "glutes", "adductors"], compound: true, goals: C, unit: "reps", movement_pattern: "lunge", primary_muscles: ["quads"], secondary_muscles: ["glutes", "adductors"], plane: "frontal", fatigue_cost: "med", joint_stress: ["knee", "hip", "ankle"], is_unilateral: true, stability_demand: "stability", variations: ["smith-split-squat", "bulgarian-split-squat", "walking-lunge", "reverse-lunge"], progression_policy: "linear_double_progression_load", cue: "Setup: Wide stance, dumbbells held at sides or goblet, shift weight toward one foot. Key: Push the hips back and bend that knee while keeping the trailing leg straight to stretch the adductor, then drive back to center. Fault: Keeping both knees soft so you squat down the middle instead of truly loading one side." },
-  { id: "pistol-squat", name: "Pistol Squat", type: "strength", equipment: "bodyweight", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: true, stability_demand: "stability", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: Stand on one leg, other leg extended forward, arms out for counterbalance. Key: Sit back and down under control keeping the heel planted and the working knee tracking the toes to the bottom. Fault: Letting the heel lift or crashing into the bottom, which dumps load off the quad and onto the knee." },
+  { id: "pistol-squat", name: "Pistol Squat", type: "strength", equipment: "bodyweight", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: true, stability_demand: "stability", skill_tier: "advanced", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: Stand on one leg, other leg extended forward, arms out for counterbalance. Key: Sit back and down under control keeping the heel planted and the working knee tracking the toes to the bottom. Fault: Letting the heel lift or crashing into the bottom, which dumps load off the quad and onto the knee." },
   { id: "single-leg-rdl", name: "Single-Leg RDL", type: "strength", equipment: "dumbbell", pattern: "hinge", muscles: ["hamstrings", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", movement_pattern: "hinge", primary_muscles: ["hamstrings"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["hip", "spine", "knee", "ankle"], is_unilateral: true, stability_demand: "stability", variations: ["smith-rdl", "band-good-morning", "dumbbell-rdl", "kb-romanian-deadlift"], progression_policy: "linear_double_progression_load", cue: "Setup: Dumbbell in the opposite hand to the stance leg, soft knee, hips square. Key: Hinge at the hip driving the free leg straight back so the load lowers along the shin and the hamstring lengthens under tension. Fault: Rounding the back or opening the hip to the side, which trades the hamstring stretch for lumbar flexion." },
   { id: "sissy-squat", name: "Sissy Squat", type: "strength", equipment: "bodyweight", pattern: "squat", muscles: ["quads"], compound: false, lengthened: true, goals: I, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "add_reps_then_load", cue: "Setup: Hold a support, rise onto the balls of the feet, knees together. Key: Drive the knees forward and lean the torso back in a straight line so the quads stretch hard over the knee, then pull back up. Fault: Bending at the hips instead of the knees, which shortens the quad range and removes the lengthened load." },
   { id: "belt-squat", name: "Belt Squat", type: "strength", equipment: "cable", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", setup: "Strap the belt low on your hips to the lever or cable, stand on the platform with feet shoulder-width, load pin set.", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "goblet-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: Belt around the hips loading through a cable or machine, feet shoulder-width on the platform. Key: Sit straight down with a tall spine letting the load pull the hips, driving through mid-foot to stand. Fault: Leaning back against the load or cutting depth, which lets the hips dominate and offloads the quads." },
@@ -1343,6 +1348,16 @@ var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "rom
 // pool/fallback logic: opts.avoidHigh softly prefers non-high-fatigue picks (yields
 // if that would empty the pool), opts.rank(e) overrides selection with a full
 // complementary ranking (lowest score wins). No opts == the original behaviour.
+// A move whose difficulty is a learned SKILL, not just load (handstand push-up,
+// muscle-up, pistol squat, front lever, L-sit). Advanced skills are hidden from
+// auto-selection until the user confirms they can do them (Settings checklist);
+// `unlocked` is a {id:1} map of confirmed ids. When an advanced move is excluded
+// its slot is simply filled by the next-best move for the same pattern -- which,
+// because the Phase-2 variations ladder is same-pattern/same-muscle, is exactly
+// its next-easier rung -- so the slot is never left empty.
+function skillAllowed(e, unlocked) {
+  return e.skill_tier !== "advanced" || !!(unlocked && unlocked[e.id]);
+}
 function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
   opts = opts || {};
   function ok(e, pats, comp, useGoal) {
@@ -1350,6 +1365,7 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
       && pats.indexOf(e.pattern) >= 0
       && (useGoal ? e.goals.indexOf(selGoal) >= 0 : true)
       && equipOk(e, allowed)
+      && skillAllowed(e, opts.unlocked)
       && !ctx.used[e.id]
       && (ctx.pat[e.pattern] || 0) < patCap
       && !(DEADLIFT_FAMILY.indexOf(e.id) >= 0 && ctx.dl >= dlCap)
@@ -1422,7 +1438,7 @@ function selectComplementary(o) {
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
     var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, o.patCap, o.dlCap,
-      { avoidHigh: high >= fatigueBudget, rank: ranker(slot.compound, seedK) });
+      { avoidHigh: high >= fatigueBudget, rank: ranker(slot.compound, seedK), unlocked: o.unlocked });
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
     // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
     // only candidates are high-axial; this drops such a slot once the budget is
@@ -1822,7 +1838,7 @@ function guaranteeSession(session) {
     exercises: absoluteFloorExercises()
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
@@ -1848,7 +1864,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease) {
   var picks = selectComplementary({
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
-    debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2
+    debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null
   });
   picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease, picks.why && picks.why[k])); });
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
@@ -1893,7 +1909,7 @@ function runWorkout(si, days, minutes, wn) {
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed, lastLogs) {
+function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
@@ -1953,7 +1969,7 @@ function generateProgram(intake, weightMap, seed, lastLogs) {
       var picks = selectComplementary({
         baseSlots: slots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
         seed: seed + si * 7 + wn * 31, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
-        debt: null, lastLogs: lastLogs, fatigueBudget: 2
+        debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null
       });
       picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs, false, picks.why && picks.why[k])); });
 
@@ -2250,7 +2266,7 @@ function resolveSpec(request, state) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [] };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
@@ -2265,7 +2281,8 @@ function resolveSpec(request, state) {
       return { version: 2, unit: program.unit, theme: ["light", "dark", "system"].indexOf(parsed.theme) >= 0 ? parsed.theme : "system",
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
         log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null,
-        readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null };
+        readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null,
+        unlockedSkills: Array.isArray(parsed.unlockedSkills) ? parsed.unlockedSkills.filter(function (x) { return typeof x === "string"; }) : [] };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -3005,6 +3022,34 @@ function resolveSpec(request, state) {
       save(); syncAllEquipChips();
     });
   }
+  // Map of advanced skill ids the user has confirmed they can do (Settings
+  // checklist). Empty/absent => nothing confirmed => every advanced skill stays
+  // hidden from generated sessions. Passed into both generators at build time.
+  function unlockedSkillMap() {
+    var out = {}, arr = (state && Array.isArray(state.unlockedSkills)) ? state.unlockedSkills : [];
+    arr.forEach(function (id) { out[id] = 1; });
+    return out;
+  }
+  // Settings checklist for the advanced skill moves. The list is derived straight
+  // from the library's skill_tier tag (single source of truth, no second copy).
+  function skillMovesList() { return LIBRARY.filter(function (e) { return e.skill_tier === "advanced"; }); }
+  function skillChipsHtml() { return skillMovesList().map(function (e) { return '<button class="chip" data-skill="' + e.id + '" type="button">' + esc(e.name) + '</button>'; }).join(""); }
+  function syncSkillChips() {
+    var arr = (state && Array.isArray(state.unlockedSkills)) ? state.unlockedSkills : [];
+    document.querySelectorAll("#skillChips button").forEach(function (b) { b.setAttribute("aria-pressed", arr.indexOf(b.getAttribute("data-skill")) >= 0); });
+  }
+  function wireSkillChips() {
+    var el = $("skillChips"); if (!el) return;
+    el.innerHTML = skillChipsHtml();
+    el.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-skill]"); if (!b) return;
+      var id = b.getAttribute("data-skill");
+      if (!Array.isArray(state.unlockedSkills)) state.unlockedSkills = [];
+      var i = state.unlockedSkills.indexOf(id);
+      if (i >= 0) state.unlockedSkills.splice(i, 1); else state.unlockedSkills.push(id);
+      save(); syncSkillChips();
+    });
+  }
   function buildPrefs() {
     var p = (state.buildPrefs && typeof state.buildPrefs === "object") ? state.buildPrefs : {};
     var goal = ["hybrid", "strength", "endurance"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
@@ -3070,7 +3115,7 @@ function resolveSpec(request, state) {
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
-      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state));
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap());
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
         '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · full gym assumed</div>' +
@@ -3183,7 +3228,7 @@ function resolveSpec(request, state) {
         // "Propose, never force": pre-build exactly what was requested (ease=false,
         // ignoring the degradation entirely) so a single explicit tap can have it --
         // never by silently reinterpreting the text, only this named escape hatch.
-        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false);
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap());
         anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
@@ -3191,7 +3236,7 @@ function resolveSpec(request, state) {
         // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
         // exercise and tightens the fatigue budget, same mechanism as the existing
         // per-exercise RPE ease.
-        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased");
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap());
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so — easing off</div>';
       }
@@ -3317,6 +3362,7 @@ function resolveSpec(request, state) {
     document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
     document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
     syncEquipChips("myEquip");
+    syncSkillChips();
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
@@ -3328,6 +3374,7 @@ function resolveSpec(request, state) {
   $("fillerSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-filler-val]"); if (!b) return; state.fillers = b.getAttribute("data-filler-val") === "on"; save(); syncSegs(); if (state.fillers === false) hideFiller(); });
   wireEquipChips("myEquip");
   wireEquipChips("todayEquip");
+  wireSkillChips();
 
   /* ===================== Backup ===================== */
   function exportBackup() {
@@ -3390,7 +3437,8 @@ function resolveSpec(request, state) {
     var lib = (typeof libByName === "function") ? libByName(ex.name) : null;
     var mainPat = lib ? lib.pattern : null;
     var allowedEq = (state.buildPrefs && Array.isArray(state.buildPrefs.equipment)) ? state.buildPrefs.equipment : null;
-    function elig(e) { return ((e.type === "mobility") || (e.pattern === "core") || (e.pattern === "calf") || (e.equipment === "band" && !e.compound)) && e.pattern !== mainPat && equipOk(e, allowedEq); }
+    var unlocked = unlockedSkillMap();
+    function elig(e) { return ((e.type === "mobility") || (e.pattern === "core") || (e.pattern === "calf") || (e.equipment === "band" && !e.compound)) && e.pattern !== mainPat && equipOk(e, allowedEq) && skillAllowed(e, unlocked); }
     var pool = LIBRARY.filter(function (e) { return elig(e) && e.id !== lastFillerId; });
     if (!pool.length) pool = LIBRARY.filter(elig);
     if (!pool.length) return null;
