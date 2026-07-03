@@ -2491,6 +2491,13 @@ function resolveSpec(request, state) {
       var wpct = (typeof pe.wpct === "number" && pe.wpct > 0) ? pe.wpct : 1;
       var curveW = roundW(dfltWeight * wpct);
       var planReps = pe.reps != null ? pe.reps : null;
+      // The set's planned reps: the ramp's explicit per-set target when there is
+      // one, else whatever was persisted at write time (repsTop(ex) -- see
+      // writeLog). Resolved once and reused below for BOTH target_reps and rv's
+      // final fallback, so the row's displayed reps and the plan reps a card
+      // states elsewhere (the Target line, the progression hint) can never
+      // read two different ends of the same rep range again.
+      var planTarget = planReps != null ? planReps : (rs.target_reps != null ? rs.target_reps : null);
       // `real` marks which reps came from an actual logged value vs. a prefill
       // guess -- a done set with no real value predates per-set rep tracking, so
       // its guessed number must not be treated as a genuine result (est-1RM/ready).
@@ -2502,6 +2509,7 @@ function resolveSpec(request, state) {
         : planReps != null ? planReps
         : (lr && lr.reps && lr.reps[i] != null) ? lr.reps[i]
         : (lr && lr.reps && lr.reps.length && lr.reps[lr.reps.length - 1] != null) ? lr.reps[lr.reps.length - 1]
+        : planTarget != null ? planTarget
         : (lo != null ? lo : 0);
       var overridden = rs.actual_weight != null;
       sets.push({
@@ -2510,7 +2518,7 @@ function resolveSpec(request, state) {
         reps: rv, real: hasReal,
         rpe: rs.actual_rpe != null ? rs.actual_rpe : null,
         target_weight: curveW,
-        target_reps: planReps != null ? planReps : (rs.target_reps != null ? rs.target_reps : null),
+        target_reps: planTarget,
         target_rpe: rs.target_rpe != null ? rs.target_rpe : null
       });
     }
