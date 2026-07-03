@@ -214,25 +214,27 @@ input, textarea { font: inherit; color: inherit; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-right: 44px; }
 .card__name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-.now-chip { flex: none; display: none; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 7px; background: var(--accent); color: var(--on-accent); }
+.now-chip { flex: none; display: none; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 7px; background: var(--accent-tint); color: var(--accent-ink); }
 .card.is-current .now-chip { display: inline-flex; }
 .card { cursor: pointer; }
-.card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent), var(--shadow); }
 .card.is-complete:not(.is-current) { opacity: .55; }
-.tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; }
-.tag--strength { color: var(--accent-ink); }
-.tag--mobility { color: var(--mob); }
-.tag--conditioning { color: var(--ink-dim); }
-.card__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-/* Working weight: set once per exercise, so it should read as clearly
-   secondary to the per-set controls below it, not the biggest thing on
-   screen -- shrunk from the original hero-sized treatment. */
-.weight { display: flex; align-items: center; gap: 6px; }
-.step { width: 32px; height: 32px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 16px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
+/* One accent signal per card (the now-chip above); the type tag is a neutral
+   outline folded onto the why-line, not a second badge competing for attention. */
+.tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim); }
+.card__subline { display: flex; align-items: baseline; gap: 8px; margin: -4px 0 4px; }
+/* Working weight: set once per exercise, so it reads as clearly secondary to
+   the per-set controls below it -- a compact inline label + stepper group,
+   not a standalone hero control. .weight__input gets real padding (not a
+   bare fixed width at zero padding) so a 3-digit-decimal load like 142.5
+   never clips against the box edge. */
+.startweight { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.startweight__label { flex: none; font-size: 11px; color: var(--ink-dim); font-weight: 600; letter-spacing: .02em; }
+.startweight__group { display: inline-flex; align-items: center; gap: 5px; }
+.step { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
 .step:hover { border-color: var(--accent-ink); }
 .step:active { transform: scale(.9); }
-.weight__field { display: inline-flex; align-items: baseline; gap: 3px; min-width: 56px; justify-content: center; }
-.weight__input { width: 60px; text-align: right; background: none; border: 0; padding: 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 600; letter-spacing: -.02em; -moz-appearance: textfield; }
+.weight__field { display: inline-flex; align-items: baseline; gap: 3px; justify-content: center; }
+.weight__input { width: 56px; box-sizing: border-box; padding: 0 3px; text-align: right; background: none; border: 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; letter-spacing: -.02em; -moz-appearance: textfield; }
 .weight__input::-webkit-outer-spin-button, .weight__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .weight__unit { font-size: 12px; color: var(--ink-dim); font-weight: 600; letter-spacing: .04em; }
 .weight-note { font-size: 12px; color: var(--ink-dim); font-style: italic; }
@@ -241,13 +243,14 @@ input, textarea { font: inherit; color: inherit; }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: var(--font-body); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
-.card__why { font-size: 12px; color: var(--ink-dim); margin: -4px 0 4px; }
+.card__why { font-size: 12px; color: var(--ink-dim); margin: 0; }
 .card__cue { margin: 0 0 14px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
 .setshead__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; }
 .setshead .setcount { margin-left: auto; }
 .setshead .setcount__done { font-size: 15px; }
 .setshead .setcount__sep, .setshead .setcount__total { font-size: 13px; }
+.setshead__target { margin: 0 0 6px; font-size: 12px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { min-width: 56px; min-height: var(--tap); padding: 6px 12px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 13px; font-family: "Spline Sans Mono", monospace; transition: transform .12s ease, background .15s ease, border-color .15s ease, color .15s ease; }
 .pill__reps { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -267,7 +270,7 @@ input, textarea { font: inherit; color: inherit; }
 .setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
 .setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
-.rstep { width: 33px; height: 33px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 10px; font-size: 16px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.rstep { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 9px; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
 .runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
@@ -277,9 +280,9 @@ input, textarea { font: inherit; color: inherit; }
    solid = this set has its own explicit value (same distinction the old
    button-vs-input toggle carried, now just a border style on one control). */
 .setrow__wt { display: flex; align-items: center; gap: 2px; flex: none; }
-.wtstep { width: 24px; height: 33px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 8px; font-size: 14px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.wtstep { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 9px; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .wtstep:hover { border-color: var(--accent-ink); color: var(--ink); }
-.setrow__wtinput { flex: none; width: 46px; min-height: 33px; padding: 4px 1px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
+.setrow__wtinput { flex: none; width: 56px; box-sizing: border-box; min-height: 28px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
 .setrow__wt.is-override .setrow__wtinput { border-style: solid; border-color: var(--accent-ink); }
 .setrow__rpe { flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); background: none; border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
@@ -478,8 +481,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .exmeta__row { display: flex; gap: 12px; font-size: 13px; line-height: 1.4; }
 .exmeta__k { flex: none; width: 76px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); padding-top: 2px; }
 .exmeta__v { color: var(--ink); }
-.warmup { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.warm-label { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+/* Warm-up strip collapses behind a tap, same pattern as form notes -- it's
+   reference info glanced at once, not something that should hold header
+   space open on every render. */
+.warmup { margin-bottom: 4px; }
 .warm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 9px; min-height: 28px; border: 1px dashed var(--line-strong); border-radius: 8px; background: none; color: var(--ink-dim); font-size: 12px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, border-color .15s ease; }
 .warm-pill.is-done { opacity: .4; border-style: solid; }
@@ -2700,7 +2705,36 @@ function resolveSpec(request, state) {
   function repsLow(ex) { var m = String(ex.reps || "").match(/\d+/); return m ? parseInt(m[0], 10) : null; }
   function repsTop(ex) { return topRepsOf(ex.reps); }
   function est1RM(w, reps) { return (w > 0 && reps > 0) ? Math.round(w * (1 + reps / 30)) : 0; }
-  function setRowsInner(e, lg) {
+  // A single "Target Xkg × Y" line under the working-sets header replaces the
+  // per-row planned captions ONLY when every set genuinely shares the same
+  // planned weight and reps (a "straight" curve). Ramp/wave curves have real
+  // per-set differences that must stay on their own rows, not get flattened
+  // into one misleading line.
+  function computeUniformTarget(lg) {
+    if (!lg.sets.length) return null;
+    var w0 = lg.sets[0].target_weight, r0 = lg.sets[0].target_reps;
+    for (var i = 1; i < lg.sets.length; i++) {
+      if (lg.sets[i].target_weight !== w0 || lg.sets[i].target_reps !== r0) return null;
+    }
+    if (!(w0 > 0) && r0 == null) return null; // P0: nothing real to show either way
+    return { weight: w0, reps: r0 };
+  }
+  function targetLineHtml(uniformTarget, unit) {
+    return uniformTarget ? '<p class="setshead__target">Target ' + esc(uniformTarget.weight) + esc(unit) + ' × ' + esc(uniformTarget.reps != null ? uniformTarget.reps : "–") + '</p>' : "";
+  }
+  // Recomputes the uniform-target line in place after any weight/set-count
+  // change -- these live-refresh handlers only ever touch .setlist directly,
+  // so without this the header line would go stale (or the setlist's own
+  // suppressCaption flag would fall out of sync with what the header shows).
+  function refreshTargetLine(card, lg, unit) {
+    var uniformTarget = computeUniformTarget(lg);
+    var existing = card.querySelector(".setshead__target");
+    var html = targetLineHtml(uniformTarget, unit);
+    if (existing) { if (html) existing.outerHTML = html; else existing.remove(); }
+    else if (html) { var anchor = card.querySelector(".setlist"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
+    return uniformTarget;
+  }
+  function setRowsInner(e, lg, suppressCaption) {
     var html = "";
     for (var k = 0; k < e.sets; k++) {
       var s = lg.sets[k], d = s.completed, rv = s.reps, rp = s.rpe;
@@ -2719,7 +2753,7 @@ function resolveSpec(request, state) {
       var rpeBtn = '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>';
       // P0: no real planned weight/reps yet -> render nothing, not a
       // misleading "planned 0kg x -" line.
-      var showPlanned = s.target_weight > 0 || s.target_reps != null;
+      var showPlanned = !suppressCaption && (s.target_weight > 0 || s.target_reps != null);
       var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + esc(s.target_weight) + esc(state.program.unit) + ' × ' + esc(s.target_reps != null ? s.target_reps : '–') + '</span>' : '<span></span>';
       html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
         '<span class="setrow__n">' + (k + 1) + '</span>' +
@@ -2807,11 +2841,15 @@ function resolveSpec(request, state) {
     if (state.warmups === false) return "";
     var sets = warmupSets(e, weight, unit, full);
     if (!sets.length) return "";
+    var open = !!e.warmOpen;
     var pills = sets.map(function (s, i) {
       var d = !!(warmDone && warmDone[i]);
       return '<button type="button" class="warm-pill' + (d ? " is-done" : "") + '" data-act="warm" data-ex="' + e.id + '" data-warm="' + i + '" aria-pressed="' + d + '" aria-label="Warm-up set ' + (i + 1) + ', ' + s.weight + " " + esc(unit) + ' for ' + s.reps + ' reps' + (d ? ", done" : "") + '"><span class="warm-pill__w">' + s.weight + '</span><span class="warm-pill__r">× ' + s.reps + '</span></button>';
     }).join("");
-    return '<div class="warmup" data-warmfull="' + (full ? "1" : "0") + '"><span class="warm-label">Warm-up</span><div class="warm-pills" role="group" aria-label="Warm-up sets">' + pills + '</div></div>';
+    return '<div class="warmup" data-warmfull="' + (full ? "1" : "0") + '">' +
+      '<button type="button" class="notes-toggle" data-act="warmnotes" data-ex="' + e.id + '" aria-expanded="' + (open ? "true" : "false") + '" aria-controls="warm-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Warm-up · ' + sets.length + (sets.length === 1 ? " set" : " sets") + '</button>' +
+      '<div class="cuewrap' + (open ? " is-open" : "") + '" id="warm-' + e.id + '"><div class="cuewrap__inner"><div class="cuewrap__pad"><div class="warm-pills" role="group" aria-label="Warm-up sets">' + pills + '</div></div></div></div>' +
+    '</div>';
   }
   function refreshWarm(card, e, ses, weight, unit) {
     if (!card) return;
@@ -2840,10 +2878,15 @@ function resolveSpec(request, state) {
     var warmRow = warmupRowHtml(e, lg.weight, unit, lg.warm, warmFull);
     if (warmRow) warmFirstUsed = true;
     var weightCtrl = e.type === "strength"
-      ? '<div class="weight" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>'
+      ? '<div class="startweight"><span class="startweight__label">Start weight</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
       : e.type === "conditioning" ? ''
       : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
     var setsHead = '<div class="setshead">' + (e.type === "strength" ? '<span class="setshead__label">Working sets</span>' : '') + '<span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
+    // Single "Target" line replaces the per-row planned captions ONLY when every
+    // set genuinely shares the same planned weight/reps; ramp/wave exercises
+    // keep their real per-row differences instead (see computeUniformTarget).
+    var uniformTarget = e.type === "strength" ? computeUniformTarget(lg) : null;
+    var targetLine = targetLineHtml(uniformTarget, unit);
     var cueInner = (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
     // Conditioning: target IS the prescription, keep it on the card face. Strength/mobility:
     // target/rest is reference, so demote it into Form notes and keep the face glanceable.
@@ -2860,7 +2903,7 @@ function resolveSpec(request, state) {
       }
     }
     var setsContainer = e.type === "strength"
-      ? '<div class="setlist" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg) + '</div>'
+      ? '<div class="setlist" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget) + '</div>'
       : '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>';
     var foot = "";
     if (e.type === "strength") {
@@ -2871,7 +2914,10 @@ function resolveSpec(request, state) {
     // Task 3.1: a plain one-line "why" under the name, generated only from the
     // real inputs that drove selection (see selectComplementary/defaultWhy) --
     // never a fabricated reason.
-    var whyLine = e.why ? '<p class="card__why">' + esc(e.why) + '</p>' : "";
+    // The type tag is folded onto this same line as a neutral outline tag,
+    // not a second badge in the header (see .card__subline) -- the now-chip
+    // is the only accent-colored signal left on the card.
+    var subLine = '<div class="card__subline"><span class="tag">' + esc(e.type) + '</span>' + (e.why ? '<p class="card__why">' + esc(e.why) + '</p>' : '') + '</div>';
     // Step 4 (Active screen): the coaching cue collapses behind its own toggle
     // again, default collapsed -- the always-visible face from Task 2 competed
     // with the set-logging controls for space on the one screen where logging
@@ -2882,11 +2928,11 @@ function resolveSpec(request, state) {
         '<div class="cuewrap' + (e.cueOpen ? " is-open" : "") + '" id="cue-' + e.id + '"><div class="cuewrap__inner"><div class="cuewrap__pad"><div class="card__cue cuebox">' + formatCue(e.notes) + '</div></div></div></div>'
       : "";
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
-      '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
-      whyLine +
+      '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span></header>' +
+      subLine +
       formNotes +
-      (e.type === "strength" ? '<div class="card__row">' + weightCtrl + lastHint + '</div>' : weightCtrl) +
-      warmRow + setsHead + setsContainer + foot + faceCue + swapHtml +
+      weightCtrl +
+      warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
       '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Details</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + notesCue +
@@ -2961,7 +3007,8 @@ function resolveSpec(request, state) {
       refreshWarm(wcard, e, ses, wl.el.weight, state.program.unit);
       // The shared default moved -- refresh the setlist too, since any set still
       // inheriting it (no per-set override) shows a stale weight chip otherwise.
-      var wsetlist = wcard.querySelector(".setlist"); if (wsetlist) wsetlist.innerHTML = setRowsInner(e, readLog(ses, e));
+      var wlg = readLog(ses, e), wut = refreshTargetLine(wcard, wlg, state.program.unit);
+      var wsetlist = wcard.querySelector(".setlist"); if (wsetlist) wsetlist.innerHTML = setRowsInner(e, wlg, !!wut);
       refreshFoot(wcard, e, ses);
     } else if (act === "wt-" || act === "wt+") {
       // Mirrors rep-/rep+: read the live input's current value (not a fresh
@@ -2986,9 +3033,17 @@ function resolveSpec(request, state) {
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
       btn.closest(".card").querySelector(".notes").classList.toggle("is-open", e.notesOpen);
     } else if (act === "cuenotes") {
+      // Both this and warmnotes below toggle a ".cuewrap" that is the button's
+      // own next sibling -- a card can now hold two (form notes + warm-up), so
+      // this must not be a card-wide querySelector, which would always grab
+      // whichever one happens to come first in the DOM.
       e.cueOpen = !e.cueOpen; save();
       btn.setAttribute("aria-expanded", e.cueOpen ? "true" : "false");
-      btn.closest(".card").querySelector(".cuewrap").classList.toggle("is-open", e.cueOpen);
+      btn.nextElementSibling.classList.toggle("is-open", e.cueOpen);
+    } else if (act === "warmnotes") {
+      e.warmOpen = !e.warmOpen; save();
+      btn.setAttribute("aria-expanded", e.warmOpen ? "true" : "false");
+      btn.nextElementSibling.classList.toggle("is-open", e.warmOpen);
     } else if (act === "swap") {
       e.swapOpen = !e.swapOpen; save();
       btn.setAttribute("aria-expanded", e.swapOpen ? "true" : "false");
@@ -3014,7 +3069,7 @@ function resolveSpec(request, state) {
       }
       e.sets = ns; writeLog(ses, e); save();
       var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.sets.filter(function (s) { return s.completed; }).length;
-      if (e.type === "strength") { card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2); refreshFoot(card2, e, ses); }
+      if (e.type === "strength") { var ut2 = refreshTargetLine(card2, lg2, state.program.unit); card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2, !!ut2); refreshFoot(card2, e, ses); }
       else card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.sets.map(function (s) { return s.completed; }));
       card2.querySelector(".setcount__total").textContent = e.sets;
       card2.querySelector(".setcount__done").textContent = dc2;
@@ -3069,7 +3124,8 @@ function resolveSpec(request, state) {
       var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
       var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit);
       refreshWarm(wc, e, ses, w.el.weight, state.program.unit);
-      var iwsetlist = wc.querySelector(".setlist"); if (iwsetlist) iwsetlist.innerHTML = setRowsInner(e, readLog(ses, e));
+      var iwlg = readLog(ses, e), iwut = refreshTargetLine(wc, iwlg, state.program.unit);
+      var iwsetlist = wc.querySelector(".setlist"); if (iwsetlist) iwsetlist.innerHTML = setRowsInner(e, iwlg, !!iwut);
       refreshFoot(wc, e, ses);
     } else if (act === "setwt") {
       // Refreshes only the foot (est-1RM), never the setlist -- re-rendering it
