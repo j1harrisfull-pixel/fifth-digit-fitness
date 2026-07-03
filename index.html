@@ -1542,11 +1542,16 @@ function selectComplementary(o) {
     var debtHere = debt && debt[mpNow] ? debt[mpNow].debt : 0;
     var hadOppHere = !!(debt && debt[mpNow] && debt[mpNow].hadOpportunity);
     var reason;
-    if (debtHere >= 4 && hadOppHere) {
+    // No flat "is this debt big enough to mention" cutoff -- a genuine
+    // shortfall of any size is real information (a bare threshold like ">=4"
+    // silently never fired for the several patterns whose whole weekly target
+    // is 3-4 sets, exactly the small-target core/anti-rotation work most
+    // likely to get skipped).
+    if (debtHere > 0 && hadOppHere) {
       // A session already came up this week and included (or should have
       // included) this pattern, and it's still short -- "behind" is accurate.
       reason = "You're " + debtHere + " set" + (debtHere === 1 ? "" : "s") + " behind on " + (MP_LABEL[mpNow] || mpNow).toLowerCase() + " this week";
-    } else if (debtHere >= 4) {
+    } else if (debtHere > 0) {
       // No engaged session has touched this pattern yet -- state the target,
       // not a deficit; there's been no real chance to address it yet.
       reason = (MP_LABEL[mpNow] || mpNow) + ": " + debtHere + " set" + (debtHere === 1 ? "" : "s") + " due this week";
@@ -2228,11 +2233,14 @@ var MP_LABEL = {
 //
 // Also tracks, per pattern, whether it has had a real OPPORTUNITY this week --
 // not a fixed day-of-week guess (splits only train a given pattern on certain
-// days), but whether any session the user has actually engaged with (at least
-// one completed set anywhere in it) included this pattern. A pattern that
-// simply hasn't come up yet is untouched, not "behind"; a pattern that came up
-// in an already-engaged session and still fell short (including a session
-// where it was present but skipped entirely) genuinely is.
+// days), and not merely "the session had a completed set somewhere" (too
+// coarse -- one logged set at the top of the card would count every later,
+// never-reached exercise as "had its shot"). Position-based instead: within
+// each session, find the LAST exercise index with any completed set -- that
+// is how far the user actually got. Every exercise at or before that index
+// counts as reached (including one that was present and genuinely skipped);
+// everything strictly after it was never reached, so its pattern stays
+// untouched rather than "behind".
 function computeWeeklyDebt(state) {
   var byName = {};
   for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
@@ -2242,13 +2250,17 @@ function computeWeeklyDebt(state) {
   if (wk && Array.isArray(wk.sessions)) {
     wk.sessions.forEach(function (ses) {
       var sl = log[ses.id];
-      var engaged = !!(sl && sl.ex && Object.keys(sl.ex).some(function (exId) {
-        return (sl.ex[exId].sets || []).some(function (s) { return s.completed; });
-      }));
-      (ses.exercises || []).forEach(function (ex) {
+      var exercises = ses.exercises || [];
+      var lastReachedIndex = -1;
+      exercises.forEach(function (ex, idx) {
+        var el = sl && sl.ex ? sl.ex[ex.id] : null;
+        var hasCompleted = !!(el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; }));
+        if (hasCompleted) lastReachedIndex = idx;
+      });
+      exercises.forEach(function (ex, idx) {
         var lib = byName[String(ex.name).toLowerCase()];
         if (!lib || lib.type !== "strength") return;
-        if (engaged && lib.movement_pattern) seenPat[lib.movement_pattern] = true;
+        if (idx <= lastReachedIndex && lib.movement_pattern) seenPat[lib.movement_pattern] = true;
         var el = sl && sl.ex ? sl.ex[ex.id] : null;
         var done = el && Array.isArray(el.sets) ? el.sets.filter(function (s) { return s.completed; }).length : 0;
         if (!done) return;
