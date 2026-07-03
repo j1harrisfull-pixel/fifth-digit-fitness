@@ -256,24 +256,43 @@ input, textarea { font: inherit; color: inherit; }
 .pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .setlist { display: flex; flex-direction: column; gap: 7px; }
-.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
-.setrow__target { flex-basis: 100%; font-size: 11px; color: var(--ink-dim); padding-left: 20px; font-family: "Spline Sans Mono", monospace; }
-.setrow.is-done { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 6px 5px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
+/* Secondary line: planned-vs-actual + the demoted RPE affordance, together on
+   their own row below the primary weight/reps/done controls. */
+.setrow__meta { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-left: 20px; margin-top: 1px; }
+.setrow__target { font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
+.setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
-.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
-.rstep { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 12px; font-size: 19px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
+.rstep { width: 33px; height: 33px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 10px; font-size: 16px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
 .runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
-.setrow__wt { flex: none; min-width: 34px; min-height: 44px; padding: 4px 4px; border: 1px dashed var(--line-strong); background: none; border-radius: 10px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
-.setrow__wt:hover { border-color: var(--accent-ink); color: var(--ink); }
-.setrow__wtinput { flex: none; width: 46px; min-height: 44px; padding: 4px 2px; border: 1px solid var(--accent-ink); border-radius: 10px; background: var(--surface-2); font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
-.setrow__rpe { flex: none; min-width: 50px; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+/* Weight: always a typable field (never a tap-to-reveal button) flanked by flat
+   +/- 2.5 steppers -- widened so a 3-digit/decimal load like 142.5 is never
+   clipped. Dashed border = still inheriting the exercise's shared weight;
+   solid = this set has its own explicit value (same distinction the old
+   button-vs-input toggle carried, now just a border style on one control). */
+.setrow__wt { display: flex; align-items: center; gap: 2px; flex: none; }
+.wtstep { width: 24px; height: 33px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 8px; font-size: 14px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.wtstep:hover { border-color: var(--accent-ink); color: var(--ink); }
+.setrow__wtinput { flex: none; width: 46px; min-height: 33px; padding: 4px 1px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
+.setrow__wt.is-override .setrow__wtinput { border-style: solid; border-color: var(--accent-ink); }
+.setrow__rpe { flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); background: none; border-radius: 999px; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
-.setrow__done { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-strong); background: transparent; color: transparent; border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
-.setrow__done:hover { border-color: var(--accent-ink); }
-.setrow.is-done .setrow__done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* Done: the one control that matters mid-set -- visibly tappable at rest (not
+   transparent), fills ready-green on completion. Slightly larger than the
+   other row controls so it reads as the primary action, not just another one. */
+.setrow__done { width: 50px; height: 50px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done:hover { border-color: var(--ready); color: var(--ink); }
+.setrow.is-done .setrow__done { background: var(--ready); border-color: var(--ready); color: var(--on-accent); }
 .setrow.pulse .setrow__done { animation: pulse .3s ease; }
+/* Per-set form-note collapse (mirrors .notes' grid-row trick, distinct class so
+   it can coexist with the exercise-level "Details" collapse on the same card). */
+.cuewrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.2,.8,.2,1); }
+.cuewrap.is-open { grid-template-rows: 1fr; }
+.cuewrap__inner { overflow: hidden; min-height: 0; }
+.cuewrap__pad { padding-top: 10px; }
 .card__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .card__1rm { display: flex; align-items: baseline; gap: 6px; }
 .card__1rm span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
@@ -2644,7 +2663,7 @@ function resolveSpec(request, state) {
   }
   function renderDayBar() {
     var sessions = curWeek().sessions;
-    $("dayTitle").textContent = curSession().name;
+    $("dayTitle").textContent = dayPositionLabel(sessions, state.activeSession);
     $("dayPrev").disabled = state.activeSession <= 0;
     $("dayNext").disabled = state.activeSession >= sessions.length - 1;
   }
@@ -2682,9 +2701,23 @@ function resolveSpec(request, state) {
     var html = "";
     for (var k = 0; k < e.sets; k++) {
       var s = lg.sets[k], d = s.completed, rv = s.reps, rp = s.rpe;
-      var wtCtrl = s.overridden
-        ? '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight override for set ' + (k + 1) + '">'
-        : '<button type="button" class="setrow__wt" data-act="wt-edit" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Set ' + (k + 1) + ' weight ' + s.weight + ', tap to use a different weight for this set">' + s.weight + '</button>';
+      // Always a typable input (never a tap-to-reveal button) flanked by flat
+      // +/- steppers -- dashed border while inheriting the exercise's shared
+      // weight, solid once this set has its own explicit value (same
+      // distinction the old button/input toggle carried).
+      var wtCtrl = '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '">' +
+        '<button type="button" class="wtstep" data-act="wt-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Decrease weight, set ' + (k + 1) + '">−</button>' +
+        '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight for set ' + (k + 1) + ', ' + s.weight + ' ' + esc(state.program.unit) + '">' +
+        '<button type="button" class="wtstep" data-act="wt+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Increase weight, set ' + (k + 1) + '">+</button>' +
+      '</div>';
+      // RPE demoted to a compact secondary affordance (same tap-to-cycle
+      // interaction as before, just moved off the primary row) -- available
+      // every set, never competing with weight/reps/done for space.
+      var rpeBtn = '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>';
+      // P0: no real planned weight/reps yet -> render nothing, not a
+      // misleading "planned 0kg x -" line.
+      var showPlanned = s.target_weight > 0 || s.target_reps != null;
+      var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + esc(s.target_weight) + esc(state.program.unit) + ' × ' + esc(s.target_reps != null ? s.target_reps : '–') + '</span>' : '<span></span>';
       html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
         '<span class="setrow__n">' + (k + 1) + '</span>' +
         wtCtrl +
@@ -2693,13 +2726,10 @@ function resolveSpec(request, state) {
           '<span class="rval">' + rv + '</span><span class="runit">reps</span>' +
           '<button type="button" class="rstep" data-act="rep+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One more rep, set ' + (k + 1) + '">+</button>' +
         '</div>' +
-        '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>' +
-        '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
-        // Task 3.3: planned vs actual, side by side. Real data already computed by
-        // readLog (target_weight/target_reps) -- wraps to its own line within the
-        // existing flex-wrap row, so it doesn't widen the row or disturb the
-        // interactive controls' spacing.
-        '<span class="setrow__target">planned ' + esc(s.target_weight) + esc(state.program.unit) + ' × ' + esc(s.target_reps != null ? s.target_reps : '–') + '</span>' +
+        // Done: the one control that matters mid-set -- larger, visibly
+        // tappable at rest, fills ready-green on completion (see CSS).
+        '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
+        '<div class="setrow__meta">' + plannedSpan + rpeBtn + '</div>' +
       '</div>';
     }
     return html;
@@ -2839,11 +2869,15 @@ function resolveSpec(request, state) {
     // real inputs that drove selection (see selectComplementary/defaultWhy) --
     // never a fabricated reason.
     var whyLine = e.why ? '<p class="card__why">' + esc(e.why) + '</p>' : "";
-    // Task 2: the coaching cue (Setup/Key/Fault) now sits inline directly under the
-    // name, before the sets/reps -- so a non-expert sees how to do the move without
-    // tapping to reveal it. Same formatCue output that used to live behind the
-    // (now "Details") toggle; pure relocation, no change to the cue content.
-    var formNotes = (e.notes && e.notes.trim()) ? '<div class="card__cue cuebox">' + formatCue(e.notes) + '</div>' : "";
+    // Step 4 (Active screen): the coaching cue collapses behind its own toggle
+    // again, default collapsed -- the always-visible face from Task 2 competed
+    // with the set-logging controls for space on the one screen where logging
+    // speed matters most. Label unchanged ("Form notes") per instruction; only
+    // its expand/collapse behavior changed, not the copy.
+    var formNotes = (e.notes && e.notes.trim())
+      ? '<button type="button" class="notes-toggle" data-act="cuenotes" data-ex="' + e.id + '" aria-expanded="' + (e.cueOpen ? "true" : "false") + '" aria-controls="cue-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Form notes</button>' +
+        '<div class="cuewrap' + (e.cueOpen ? " is-open" : "") + '" id="cue-' + e.id + '"><div class="cuewrap__inner"><div class="cuewrap__pad"><div class="card__cue cuebox">' + formatCue(e.notes) + '</div></div></div></div>'
+      : "";
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span><span class="tag tag--' + e.type + '">' + e.type + '</span></header>' +
       whyLine +
@@ -2926,13 +2960,19 @@ function resolveSpec(request, state) {
       // inheriting it (no per-set override) shows a stale weight chip otherwise.
       var wsetlist = wcard.querySelector(".setlist"); if (wsetlist) wsetlist.innerHTML = setRowsInner(e, readLog(ses, e));
       refreshFoot(wcard, e, ses);
-    } else if (act === "wt-edit") {
-      var wi2 = parseInt(btn.getAttribute("data-set"), 10), ww = writeLog(ses, e);
-      ww.el.sets[wi2].actual_weight = readLog(ses, e).sets[wi2].weight; save();
-      var wtcard = btn.closest(".card");
-      wtcard.querySelector(".setlist").innerHTML = setRowsInner(e, readLog(ses, e));
-      var newInput = wtcard.querySelector('.setrow[data-set="' + wi2 + '"] .setrow__wtinput');
-      if (newInput) { newInput.focus(); newInput.select(); }
+    } else if (act === "wt-" || act === "wt+") {
+      // Mirrors rep-/rep+: read the live input's current value (not a fresh
+      // readLog recompute) so rapid successive taps each build on the last,
+      // write it as this set's own explicit weight, and update just this one
+      // input -- no full setlist re-render, so it never fights mid-edit typing.
+      var wsi3 = parseInt(btn.getAttribute("data-set"), 10), w3 = writeLog(ses, e);
+      var wrow3 = btn.closest(".setrow"), winp3 = wrow3.querySelector(".setrow__wtinput");
+      var cur3 = winp3 ? numOr(winp3.value, 0) : 0;
+      var nv3 = roundW(Math.max(0, cur3 + (act === "wt+" ? STEP : -STEP)));
+      w3.el.sets[wsi3].actual_weight = nv3; saveSoon();
+      if (winp3) winp3.value = nv3;
+      wrow3.querySelector(".setrow__wt").classList.add("is-override");
+      refreshFoot(btn.closest(".card"), e, ses);
     } else if (act === "warm") {
       var wi = parseInt(btn.getAttribute("data-warm"), 10), wwl = writeLog(ses, e);
       if (!wwl.el.warm) wwl.el.warm = [];
@@ -2942,6 +2982,10 @@ function resolveSpec(request, state) {
       e.notesOpen = !e.notesOpen; save();
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
       btn.closest(".card").querySelector(".notes").classList.toggle("is-open", e.notesOpen);
+    } else if (act === "cuenotes") {
+      e.cueOpen = !e.cueOpen; save();
+      btn.setAttribute("aria-expanded", e.cueOpen ? "true" : "false");
+      btn.closest(".card").querySelector(".cuewrap").classList.toggle("is-open", e.cueOpen);
     } else if (act === "swap") {
       e.swapOpen = !e.swapOpen; save();
       btn.setAttribute("aria-expanded", e.swapOpen ? "true" : "false");
