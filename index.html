@@ -207,7 +207,7 @@ input, textarea { font: inherit; color: inherit; }
 
 /* ---------- Exercise list ---------- */
 .list { padding: 8px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; gap: 12px; }
-.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 16px 14px; box-shadow: var(--shadow); transition: border-color .25s ease; }
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 14px 12px; box-shadow: var(--shadow); transition: border-color .25s ease; }
 .card.is-complete { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .card.is-complete::after { content: "DONE"; position: absolute; top: 14px; right: 16px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .18em; color: var(--accent-ink); }
 .list.reveal .card { opacity: 0; animation: rise .5s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i) * 55ms); }
@@ -223,13 +223,16 @@ input, textarea { font: inherit; color: inherit; }
 .tag--strength { color: var(--accent-ink); }
 .tag--mobility { color: var(--mob); }
 .tag--conditioning { color: var(--ink-dim); }
-.card__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.weight { display: flex; align-items: center; gap: 8px; }
-.step { width: 44px; height: 44px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 22px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 11px; color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
+.card__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+/* Working weight: set once per exercise, so it should read as clearly
+   secondary to the per-set controls below it, not the biggest thing on
+   screen -- shrunk from the original hero-sized treatment. */
+.weight { display: flex; align-items: center; gap: 6px; }
+.step { width: 32px; height: 32px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 16px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
 .step:hover { border-color: var(--accent-ink); }
 .step:active { transform: scale(.9); }
-.weight__field { display: inline-flex; align-items: baseline; gap: 4px; min-width: 78px; justify-content: center; }
-.weight__input { width: 84px; text-align: right; background: none; border: 0; padding: 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 600; letter-spacing: -.02em; -moz-appearance: textfield; }
+.weight__field { display: inline-flex; align-items: baseline; gap: 3px; min-width: 56px; justify-content: center; }
+.weight__input { width: 60px; text-align: right; background: none; border: 0; padding: 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 600; letter-spacing: -.02em; -moz-appearance: textfield; }
 .weight__input::-webkit-outer-spin-button, .weight__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .weight__unit { font-size: 12px; color: var(--ink-dim); font-weight: 600; letter-spacing: .04em; }
 .weight-note { font-size: 12px; color: var(--ink-dim); font-style: italic; }
@@ -238,9 +241,9 @@ input, textarea { font: inherit; color: inherit; }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: var(--font-body); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
-.card__why { font-size: 12px; color: var(--ink-dim); margin: -4px 0 10px; }
+.card__why { font-size: 12px; color: var(--ink-dim); margin: -4px 0 4px; }
 .card__cue { margin: 0 0 14px; }
-.setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
 .setshead__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; }
 .setshead .setcount { margin-left: auto; }
 .setshead .setcount__done { font-size: 15px; }
@@ -255,8 +258,8 @@ input, textarea { font: inherit; color: inherit; }
 .pill.is-done .pill__reps::before { content: "✓ "; }
 .pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
-.setlist { display: flex; flex-direction: column; gap: 7px; }
-.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 6px 5px; border: 1px solid var(--line); border-radius: 12px; transition: background .14s ease, border-color .14s ease; }
+.setlist { display: flex; flex-direction: column; gap: 3px; }
+.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 4px 5px; border: 1px solid var(--line); border-radius: 9px; transition: background .14s ease, border-color .14s ease; }
 /* Secondary line: planned-vs-actual + the demoted RPE affordance, together on
    their own row below the primary weight/reps/done controls. */
 .setrow__meta { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-left: 20px; margin-top: 1px; }
@@ -283,7 +286,7 @@ input, textarea { font: inherit; color: inherit; }
 /* Done: the one control that matters mid-set -- visibly tappable at rest (not
    transparent), fills ready-green on completion. Slightly larger than the
    other row controls so it reads as the primary action, not just another one. */
-.setrow__done { width: 50px; height: 50px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
 .setrow__done:hover { border-color: var(--ready); color: var(--ink); }
 .setrow.is-done .setrow__done { background: var(--ready); border-color: var(--ready); color: var(--on-accent); }
 .setrow.pulse .setrow__done { animation: pulse .3s ease; }
@@ -301,7 +304,7 @@ input, textarea { font: inherit; color: inherit; }
 .card__prog.is-ready { color: var(--accent-ink); font-weight: 600; }
 .cue { margin-top: 12px; font-size: 12px; color: var(--ink-dim); display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .cue b { color: var(--accent-ink); font-weight: 600; }
-.notes-toggle { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 2px; color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.notes-toggle { margin-top: 4px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 3px 2px; color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
 .notes-toggle .chev { display: inline-block; transition: transform .22s ease; font-size: 11px; }
 .notes-toggle[aria-expanded="true"] { color: var(--ink); }
 .notes-toggle[aria-expanded="true"] .chev { transform: rotate(90deg); }
@@ -475,10 +478,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .exmeta__row { display: flex; gap: 12px; font-size: 13px; line-height: 1.4; }
 .exmeta__k { flex: none; width: 76px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); padding-top: 2px; }
 .exmeta__v { color: var(--ink); }
-.warmup { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.warmup { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .warm-label { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
 .warm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 10px; min-height: 34px; border: 1px dashed var(--line-strong); border-radius: 9px; background: none; color: var(--ink-dim); font-size: 13px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, border-color .15s ease; }
+.warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 9px; min-height: 28px; border: 1px dashed var(--line-strong); border-radius: 8px; background: none; color: var(--ink-dim); font-size: 12px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, border-color .15s ease; }
 .warm-pill.is-done { opacity: .4; border-style: solid; }
 .warm-pill__w { font-weight: 700; color: var(--ink); }
 .warm-pill.is-done .warm-pill__w { color: var(--ink-dim); }
