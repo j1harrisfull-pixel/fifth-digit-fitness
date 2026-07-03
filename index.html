@@ -141,8 +141,10 @@ input, textarea { font: inherit; color: inherit; }
 .recovery-ring { position: relative; width: 72px; height: 72px; flex: none; border-radius: 50%; --ring-color: var(--ready); background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), var(--line-strong) 0); }
 .recovery-ring.is-manage { --ring-color: var(--manage); }
 .recovery-ring.is-rough { --ring-color: var(--rough); }
+.recovery-ring.is-unknown { --ring-color: var(--line-strong); background: none; border: 2px dashed var(--line-strong); }
 .recovery-ring__hole { position: absolute; inset: 6px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
 .recovery-ring__pct { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--ink); }
+.recovery-ring.is-unknown .recovery-ring__pct { color: var(--faint); font-size: 20px; }
 .home-hero__readiness { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .home-hero__readiness-label { font-size: 15px; font-weight: 700; color: var(--ink); }
 .home-hero__readiness-sub { font-size: 13px; color: var(--muted); }
@@ -171,8 +173,8 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
 .weekrow__del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 10px; transition: background .12s ease, color .12s ease; }
 .weekrow__del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
-.weekbar__prog { min-width: 0; flex: 1 1 auto; }
-.weekbar__title { font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weekbar__prog { min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; }
+.weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
 .weeknav { display: inline-flex; align-items: center; gap: 4px; flex: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
 .weeknav__btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; border-radius: 9px; font-size: 22px; line-height: 1; color: var(--ink); }
@@ -229,6 +231,9 @@ input, textarea { font: inherit; color: inherit; }
    never clips against the box edge. */
 .startweight { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .startweight__label { flex: none; font-size: 11px; color: var(--ink-dim); font-weight: 600; letter-spacing: .02em; }
+.startweight.is-unset .startweight__label { color: var(--accent-ink); }
+.startweight.is-unset .weight__input { color: var(--accent-ink); }
+.startweight.is-unset .weight__field { border-bottom: 1.5px dashed var(--accent-ink); padding-bottom: 1px; }
 .startweight__group { display: inline-flex; align-items: center; gap: 5px; }
 .step { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
 .step:hover { border-color: var(--accent-ink); }
@@ -461,6 +466,24 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .confirm__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
 .confirm__icon { flex: none; }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
+.complete__title { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; margin: 0 0 10px; display: flex; align-items: center; gap: 9px; color: var(--ready); }
+.complete__icon { flex: none; }
+.complete__summary { font-size: 14px; line-height: 1.55; color: var(--ink-dim); margin: 0 0 22px; }
+.history__title { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; margin: 0 0 16px; }
+.history__empty { font-size: 14px; color: var(--ink-dim); padding: 8px 0 20px; }
+.history__section { margin-bottom: 22px; }
+.history__section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 10px; }
+.history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.history__lift:first-child { border-top: 0; }
+.history__lift-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history__lift-spark { flex: none; width: 70px; height: 24px; color: var(--accent-ink); }
+.history__lift-val { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 56px; text-align: right; }
+.history__session { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.history__session:first-child { border-top: 0; }
+.history__session-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.history__session-date { font-size: 11px; color: var(--faint); margin-left: 6px; }
+.history__session-sets { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+.weekbar__deload { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--manage); color: var(--manage); }
 .preview__error { color: var(--danger); font-size: 13px; line-height: 1.45; padding: 12px 14px; border: 1px solid var(--danger); border-radius: 11px; background: var(--surface-2); }
 .todaylist { margin-top: 12px; display: flex; flex-direction: column; }
 .todayrow { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
@@ -506,8 +529,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <span class="brand__name">Fifth Digit Fitness</span>
       </div>
       <div class="topbar__actions">
-        <button class="icon-btn is-accent" id="planBtn" aria-label="Get or load a workout from Claude" aria-haspopup="dialog">
+        <button class="icon-btn is-accent" id="planBtn" title="Build or load a workout" aria-label="Get or load a workout from Claude" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5"/><path d="M5 8v8l7 5 7-5V8"/></svg>
+        </button>
+        <button class="icon-btn" id="historyBtn" title="Progress history" aria-label="Progress history" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
         </button>
         <button class="icon-btn" id="settingsBtn" aria-label="Settings and backup" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -517,6 +543,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="weekbar view-week">
       <div class="weekbar__prog">
         <div class="weekbar__title" id="progTitle">Program</div>
+        <span class="weekbar__deload" id="weekDeload" hidden>Deload</span>
       </div>
       <div class="weeknav" id="weekNav">
         <button class="weeknav__btn" id="weekPrev" aria-label="Previous week">‹</button>
@@ -782,6 +809,26 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <button class="btn btn--danger" id="confirmYes" type="button">Confirm</button>
       <button class="btn" id="confirmNo" type="button">Cancel</button>
     </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="completeSheet" aria-labelledby="completeTitle">
+  <div class="sheet__grip"></div>
+  <div class="sheet__body">
+    <h2 class="complete__title" id="completeTitle"><svg class="complete__icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg><span id="completeTitleText">Session done</span></h2>
+    <p class="complete__summary" id="completeSummary"></p>
+    <div class="btn-row">
+      <button class="btn btn--primary" id="completeNext" type="button">Back to week</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="historySheet" aria-labelledby="historyTitle">
+  <div class="sheet__grip"></div>
+  <div class="sheet__body">
+    <h2 class="history__title" id="historyTitle">Progress</h2>
+    <div id="historyBody"></div>
+    <div class="btn-row"><button class="btn" id="historyDone" type="button">Done</button></div>
   </div>
 </dialog>
 
@@ -2328,6 +2375,11 @@ function computeFatigueState(state) {
   // every session) read as chronic fatigue forever. A sliding recent baseline
   // reads a genuinely stable run of sessions as 0% every time.
   var BASELINE_WINDOW = 3;
+  // hasData: at least one exercise has enough history (a baseline + a recent
+  // point) to actually compute a real signal from -- distinct from "computed
+  // and came out green", which is indistinguishable from "never computed
+  // anything" using percent/band alone (both read as overall=0/green).
+  var hasData = Object.keys(hist).some(function (name) { return hist[name].length >= 2; });
   Object.keys(hist).forEach(function (name) {
     var h = hist[name]; if (h.length < 2) return; // need a baseline + a recent point
     var recent = h[h.length - 1];
@@ -2346,7 +2398,7 @@ function computeFatigueState(state) {
   var byPattern = avgPct(patAgg), byMuscle = avgPct(musAgg), overall = 0;
   Object.keys(byPattern).forEach(function (k) { if (byPattern[k] > overall) overall = byPattern[k]; });
   var band = overall >= 20 ? "red" : overall >= 10 ? "amber" : "green";
-  return { percent: overall, band: band, byPattern: byPattern, byMuscle: byMuscle };
+  return { percent: overall, band: band, byPattern: byPattern, byMuscle: byMuscle, hasData: hasData };
 }
 // Resolve-stage stubs (block-week / readiness land in Phases 9 / 2.1b).
 function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
@@ -2620,6 +2672,9 @@ function resolveSpec(request, state) {
     $("weekTotal").textContent = p.weeks.length;
     $("weekPrev").disabled = state.activeWeek <= 0;
     $("weekNext").disabled = state.activeWeek >= p.weeks.length - 1;
+    // A deload week used to look identical to every other week from this
+    // screen -- the tag only ever showed once you were already inside a day.
+    $("weekDeload").hidden = !wk.deload;
   }
   // Home hero: recovery ring + the currently-open session as a "today" card +
   // a week strip. Every number here is real, not invented: the ring reads the
@@ -2637,16 +2692,40 @@ function resolveSpec(request, state) {
   function renderHomeHero() {
     var el = $("homeHero"); if (!el) return;
     if (!hasProgram()) { el.innerHTML = ""; return; }
-    var wk = curWeek(), ses = curSession();
+    var wk = curWeek();
     var fs = (typeof computeFatigueState === "function") ? computeFatigueState(state) : null;
-    var band = fs ? fs.band : "green";
-    var recoveryPct = fs ? Math.max(0, Math.min(100, 100 - fs.percent)) : 100;
-    var ringClass = band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "";
-    var label = band === "red" ? "High fatigue" : band === "amber" ? "Managing fatigue" : "Fully recovered";
-    var sub = band === "red" ? "Consider an easier session today" : band === "amber" ? "Take it a bit easier today" : "You're ready to train";
-    var whyText = "";
-    for (var i = 0; i < ses.exercises.length; i++) { var e = ses.exercises[i]; if (e.type === "strength" && e.why) { whyText = e.why; break; } }
-    var whyHtml = whyText ? '<p class="today-card__why">' + esc(whyText) + '</p>' : "";
+    var hasData = !!(fs && fs.hasData);
+    var band = hasData ? fs.band : null;
+    var ringClass = !hasData ? "is-unknown" : band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "";
+    var recoveryPct = hasData ? Math.max(0, Math.min(100, 100 - fs.percent)) : 100;
+    var pctText = hasData ? recoveryPct + "%" : "–";
+    var label = !hasData ? "No readings yet" : band === "red" ? "High fatigue" : band === "amber" ? "Managing fatigue" : "Fully recovered";
+    var sub = !hasData ? "Log a couple of sessions to see this" : band === "red" ? "Consider an easier session today" : band === "amber" ? "Take it a bit easier today" : "You're ready to train";
+    // "Up next" is the first session in the CURRENT week that isn't fully done
+    // yet -- not just whatever state.activeSession happens to be pointing at,
+    // which used to leave this card stuck on a session you'd already finished.
+    // Every session from Build-a-week or Just-Today already has its exercises,
+    // so "not done" is the only real distinction to make here.
+    var nextIdx = -1;
+    for (var i = 0; i < wk.sessions.length; i++) {
+      var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
+      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
+    }
+    var weekDone = nextIdx < 0 && wk.sessions.length > 0;
+    var heroIdx = weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx);
+    var heroSes = wk.sessions[heroIdx];
+    var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
+    var started = !weekDone && heroPr.done > 0;
+    var label2 = weekDone ? "Week complete" : "Up next";
+    var name = weekDone ? "Nice work this week" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
+    // Subtitle used to grab an arbitrary exercise's own selection-reason and
+    // present it as if it described the whole session -- honest per-exercise,
+    // but misleading once relabelled as the session's own description here.
+    var subLine = weekDone ? (wk.sessions.length + " of " + wk.sessions.length + " sessions done")
+      : started ? (heroPr.done + "/" + heroPr.total + " done · pick up where you left off")
+      : (heroSes ? heroSes.exercises.length + " exercises" : "");
+    var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
+    var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
     // The strip only means something once there's an actual week to show (2+
     // sessions) -- a single-session program (e.g. a first "Just Today" build
     // with nothing else yet) has nothing to compare it against, so it's omitted
@@ -2655,24 +2734,94 @@ function resolveSpec(request, state) {
     if (wk.sessions.length > 1) {
       var dots = wk.sessions.map(function (s, i) {
         var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
-        var cls = i === state.activeSession ? "is-current" : (done ? "is-done" : "");
+        var cls = i === heroIdx ? "is-current" : (done ? "is-done" : "");
         return '<span class="week-strip__dot ' + cls + '"></span>';
       }).join("");
       stripHtml = '<div class="week-strip" role="img" aria-label="This week: ' + wk.sessions.length + ' sessions">' + dots + '</div>';
     }
     el.innerHTML =
       '<div class="home-hero__top">' +
-        '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + recoveryPct + '%</span></div></div>' +
+        '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + esc(pctText) + '</span></div></div>' +
         '<div class="home-hero__readiness"><span class="home-hero__readiness-label">' + esc(label) + '</span><span class="home-hero__readiness-sub">' + esc(sub) + '</span></div>' +
       '</div>' +
       '<div class="today-card">' +
-        '<div class="today-card__label">Up next</div>' +
-        '<h2 class="today-card__name">' + esc(dayPositionLabel(wk.sessions, state.activeSession)) + '</h2>' +
-        whyHtml +
-        '<button type="button" class="today-card__cta" id="homeHeroCta">Build today’s session</button>' +
+        '<div class="today-card__label">' + esc(label2) + '</div>' +
+        '<h2 class="today-card__name">' + esc(name) + '</h2>' +
+        subHtml +
+        '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
       '</div>' +
       stripHtml;
-    var cta = $("homeHeroCta"); if (cta) cta.addEventListener("click", openPlan);
+    var cta = $("homeHeroCta");
+    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { openDay(heroIdx); });
+  }
+  // ---- History view: real completed-session data, current program + archive.
+  // Answers the question the app never used to: am I actually getting
+  // stronger? Every figure here is a genuine logged set -- nothing modeled or
+  // estimated beyond the same Epley est-1RM already shown per exercise.
+  function buildHistoryData(st) {
+    function epley(w, reps) { return (w > 0 && reps > 0) ? w * (1 + reps / 30) : 0; }
+    var lifts = {}, sessions = [];
+    function ingest(program, log) {
+      if (!program || !Array.isArray(program.weeks)) return;
+      program.weeks.forEach(function (wk) {
+        (wk.sessions || []).forEach(function (ses) {
+          var sl = log && log[ses.id]; if (!sl) return;
+          var setsDone = 0;
+          (ses.exercises || []).forEach(function (ex) {
+            var el = sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
+            var best = 0;
+            el.sets.forEach(function (s) {
+              if (!s.completed) return;
+              setsDone++;
+              if (s.actual_reps != null) {
+                var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
+                var o = epley(w, s.actual_reps); if (o > best) best = o;
+              }
+            });
+            if (best > 0) (lifts[ex.name] = lifts[ex.name] || []).push({ date: sl.date || "", orm: Math.round(best) });
+          });
+          if (setsDone > 0) sessions.push({ date: sl.date || "", name: ses.name, setsDone: setsDone });
+        });
+      });
+    }
+    if (Array.isArray(st.archive)) st.archive.forEach(function (a) { ingest(a.program, a.log); });
+    ingest(st.program, st.log);
+    sessions.sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    Object.keys(lifts).forEach(function (k) { lifts[k].sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }); });
+    return { lifts: lifts, sessions: sessions };
+  }
+  function sparklineSvg(values) {
+    if (values.length < 2) return "";
+    var w = 70, h = 24, pad = 2, min = Math.min.apply(null, values), max = Math.max.apply(null, values), range = max - min || 1;
+    var pts = values.map(function (v, i) {
+      var x = pad + (i / (values.length - 1)) * (w - pad * 2);
+      var y = h - pad - ((v - min) / range) * (h - pad * 2);
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    return '<svg class="history__lift-spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function fmtHistDate(iso) {
+    if (!iso) return "";
+    var d = new Date(iso); if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  function openHistory() {
+    var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
+    var liftNames = Object.keys(data.lifts).filter(function (k) { return data.lifts[k].length >= 2; })
+      .sort(function (a, b) { return data.lifts[b].length - data.lifts[a].length; }).slice(0, 8);
+    var liftsHtml = liftNames.length ? liftNames.map(function (name) {
+      var pts = data.lifts[name].slice(-8), values = pts.map(function (p) { return p.orm; }), last = values[values.length - 1];
+      return '<div class="history__lift"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></div>';
+    }).join("") : '<p class="history__empty">Log a lift across at least two different sessions to see a trend here.</p>';
+    var recentSessions = data.sessions.slice(0, 12);
+    var sessHtml = recentSessions.length ? recentSessions.map(function (s) {
+      return '<div class="history__session"><span><span class="history__session-name">' + esc(s.name) + '</span><span class="history__session-date">' + esc(fmtHistDate(s.date)) + '</span></span><span class="history__session-sets">' + s.setsDone + ' sets</span></div>';
+    }).join("") : '<p class="history__empty">Nothing logged yet — finish a set and it will show up here.</p>';
+    $("historyBody").innerHTML =
+      '<div class="history__section"><p class="history__section-title">Progress · est. 1RM</p>' + liftsHtml + '</div>' +
+      '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
+    var dlg = $("historySheet");
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
   }
   var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
   var trashIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
@@ -2771,6 +2920,12 @@ function resolveSpec(request, state) {
     else if (html) { var anchor = card.querySelector(".setlist"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
     return uniformTarget;
   }
+  function refreshStartWeightLabel(card, weight) {
+    var wrap = card.querySelector(".startweight"); if (!wrap) return;
+    var unset = !(weight > 0);
+    wrap.classList.toggle("is-unset", unset);
+    var label = wrap.querySelector(".startweight__label"); if (label) label.textContent = unset ? "Set your weight" : "Start weight";
+  }
   function setRowsInner(e, lg, suppressCaption) {
     var html = "";
     for (var k = 0; k < e.sets; k++) {
@@ -2791,7 +2946,12 @@ function resolveSpec(request, state) {
       // P0: no real planned weight/reps yet -> render nothing, not a
       // misleading "planned 0kg x -" line.
       var showPlanned = !suppressCaption && (s.target_weight > 0 || s.target_reps != null);
-      var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + esc(s.target_weight) + esc(state.program.unit) + ' × ' + esc(s.target_reps != null ? s.target_reps : '–') + '</span>' : '<span></span>';
+      // A ramp/wave set can have a real planned rep count before any weight is
+      // chosen (target_weight still 0) -- show just the reps then, not a
+      // misleading "0kg" figure that reads as a real prescribed load.
+      var plannedWeightPart = s.target_weight > 0 ? esc(s.target_weight) + esc(state.program.unit) + " × " : "";
+      var plannedRepsPart = esc(s.target_reps != null ? s.target_reps : "–") + (plannedWeightPart ? "" : " reps");
+      var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + plannedWeightPart + plannedRepsPart + '</span>' : '<span></span>';
       html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
         '<span class="setrow__n">' + (k + 1) + '</span>' +
         wtCtrl +
@@ -2914,8 +3074,12 @@ function resolveSpec(request, state) {
     var warmFull = qualifiesWarm ? !warmFirstUsed : false;
     var warmRow = warmupRowHtml(e, lg.weight, unit, lg.warm, warmFull);
     if (warmRow) warmFirstUsed = true;
+    // An unset weight (still 0) gates warm-ups, plates, est-1RM and the
+    // progression hint -- highlight the field and swap the label to an
+    // explicit invitation instead of silently sitting at "0" until noticed.
+    var weightUnset = e.type === "strength" && !(lg.weight > 0);
     var weightCtrl = e.type === "strength"
-      ? '<div class="startweight"><span class="startweight__label">Start weight</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
+      ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your weight" : "Start weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
       : e.type === "conditioning" ? ''
       : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
     var setsHead = '<div class="setshead">' + (e.type === "strength" ? '<span class="setshead__label">Working sets</span>' : '') + '<span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
@@ -3034,12 +3198,17 @@ function resolveSpec(request, state) {
       var card = btn.closest(".card"), dc = w.el.sets.filter(function (s) { return s.completed; }).length;
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
-      if (on) { unlockAudio(); startRest(e, si); }
+      if (on) {
+        unlockAudio();
+        var pr1 = sessionProgress(sessionItemsFor(ses));
+        if (pr1.total > 0 && pr1.done === pr1.total) showSessionComplete(ses); else startRest(e, si);
+      }
       applyGlance();
     } else if (act === "w-" || act === "w+") {
       var wl = writeLog(ses, e);
       wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); save();
       var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
+      refreshStartWeightLabel(wcard, wl.el.weight);
       var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
       refreshWarm(wcard, e, ses, wl.el.weight, state.program.unit);
       // The shared default moved -- refresh the setlist too, since any set still
@@ -3135,7 +3304,11 @@ function resolveSpec(request, state) {
       dcard.querySelector(".setcount__done").textContent = ddc;
       dcard.classList.toggle("is-complete", e.sets > 0 && ddc === e.sets);
       refreshFoot(dcard, e, ses);
-      if (on2) { unlockAudio(); startRest(e, di); }
+      if (on2) {
+        unlockAudio();
+        var pr2 = sessionProgress(sessionItemsFor(ses));
+        if (pr2.total > 0 && pr2.done === pr2.total) showSessionComplete(ses); else startRest(e, di);
+      }
       applyGlance();
     } else if (act === "rep-" || act === "rep+") {
       var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e), rs = wr.el.sets[ri];
@@ -3160,6 +3333,7 @@ function resolveSpec(request, state) {
     if (act === "wset") {
       var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
       var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit);
+      refreshStartWeightLabel(wc, w.el.weight);
       refreshWarm(wc, e, ses, w.el.weight, state.program.unit);
       var iwlg = readLog(ses, e), iwut = refreshTargetLine(wc, iwlg, state.program.unit);
       var iwsetlist = wc.querySelector(".setlist"); if (iwsetlist) iwsetlist.innerHTML = setRowsInner(e, iwlg, !!iwut);
@@ -3648,6 +3822,13 @@ function resolveSpec(request, state) {
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
   planSheet.addEventListener("close", cancelBuildThinking); // covers Escape, which bypasses closePlan()
+  (function () {
+    var cs = $("completeSheet");
+    cs.addEventListener("click", function (ev) { if (ev.target === cs) { if (cs.close) cs.close(); else cs.removeAttribute("open"); } });
+  })();
+  $("historyBtn").addEventListener("click", openHistory);
+  $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
+  $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
   // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
   function setReadiness(v) { state.readiness = { value: v, date: todayStr() }; save(); syncReadinessChips(); }
   function syncReadinessChips() {
@@ -3814,6 +3995,35 @@ function resolveSpec(request, state) {
     if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
   }
   function hideRest() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); document.body.classList.remove("has-rest"); }
+  // The one-shot moment a finished session used to skip entirely -- the cards
+  // just faded and, worse, the rest timer kept counting down for a set that no
+  // longer exists. Fires once, right when the session's last exercise becomes
+  // fully done; every number in it is already computed elsewhere (sets logged,
+  // strengthFoot's own "ready to add weight" signal), nothing invented.
+  function showSessionComplete(ses) {
+    hideRest();
+    var setsDone = 0, readyCount = 0, unit = state.program.unit;
+    ses.exercises.forEach(function (e) {
+      if (e.type !== "strength") { var lg0 = readLog(ses, e); setsDone += lg0.sets.filter(function (s) { return s.completed; }).length; return; }
+      var lg = readLog(ses, e);
+      setsDone += lg.sets.filter(function (s) { return s.completed; }).length;
+      if (strengthFoot(e, lg, unit).ready) readyCount++;
+    });
+    var wk = curWeek(), nextIdx = -1;
+    for (var i = 0; i < wk.sessions.length; i++) {
+      var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
+      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
+    }
+    var summary = setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged" +
+      (readyCount ? " · ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts") : "");
+    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + " done";
+    $("completeSummary").textContent = summary;
+    var nextBtn = $("completeNext"), dlg = $("completeSheet");
+    function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
+    nextBtn.textContent = nextIdx >= 0 ? "Next: " + dayPositionLabel(wk.sessions, nextIdx) : "Back to week";
+    nextBtn.onclick = function () { closeDlg(); if (nextIdx >= 0) openDay(nextIdx); else backToWeek(); };
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
   function initRest() {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill");
     try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
