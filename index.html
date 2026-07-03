@@ -153,10 +153,6 @@ input, textarea { font: inherit; color: inherit; }
 .today-card__name { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
 .today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
 .today-card__cta { display: block; width: 100%; margin-top: 16px; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 13px; padding: 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; }
-.week-strip { display: flex; gap: 9px; margin: 18px 2px 0; }
-.week-strip__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); flex: none; }
-.week-strip__dot.is-done { background: var(--ready); }
-.week-strip__dot.is-current { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
 .weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
 .weekrow { display: flex; align-items: center; width: 100%; border-top: 1px solid var(--line); }
 .weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
@@ -2726,19 +2722,11 @@ function resolveSpec(request, state) {
       : (heroSes ? heroSes.exercises.length + " exercises" : "");
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
     var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
-    // The strip only means something once there's an actual week to show (2+
-    // sessions) -- a single-session program (e.g. a first "Just Today" build
-    // with nothing else yet) has nothing to compare it against, so it's omitted
-    // rather than rendering one orphaned dot.
-    var stripHtml = "";
-    if (wk.sessions.length > 1) {
-      var dots = wk.sessions.map(function (s, i) {
-        var pr = sessionProgress(sessionItemsFor(s)), done = pr.total > 0 && pr.done === pr.total;
-        var cls = i === heroIdx ? "is-current" : (done ? "is-done" : "");
-        return '<span class="week-strip__dot ' + cls + '"></span>';
-      }).join("");
-      stripHtml = '<div class="week-strip" role="img" aria-label="This week: ' + wk.sessions.length + ' sessions">' + dots + '</div>';
-    }
+    // No week-strip dot row here anymore -- it read as a swipeable carousel
+    // page-indicator even though the hero itself never was one (always a
+    // single fixed card), and it duplicated the day list right below, which
+    // already shows every session with real progress and its own open
+    // control. That list is the one place to browse or jump to another day.
     el.innerHTML =
       '<div class="home-hero__top">' +
         '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + esc(pctText) + '</span></div></div>' +
@@ -2749,8 +2737,7 @@ function resolveSpec(request, state) {
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
         subHtml +
         '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
-      '</div>' +
-      stripHtml;
+      '</div>';
     var cta = $("homeHeroCta");
     if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { openDay(heroIdx); });
   }
