@@ -1946,7 +1946,25 @@ function parseSession(text) {
   if (/\b(cardio|conditioning|hiit|metcon|finisher|intervals?)\b/.test(s)) includes.push("conditioning");
   var equipment = null;
   if (/\b(bodyweight|body weight|no (?:gym|equipment|weights?|kit)|at home)\b/.test(s)) equipment = ["bodyweight"];
-  else { var eqs = []; [["bands?", "band"], ["kettlebells?", "kettlebell"], ["\\bkb\\b", "kettlebell"], ["dumbbells?", "dumbbell"], ["barbell", "barbell"], ["cables?", "cable"], ["machines?", "machine"], ["smith", "smith"]].forEach(function (p) { if (new RegExp(p[0]).test(s) && eqs.indexOf(p[1]) < 0) eqs.push(p[1]); }); if (eqs.length) equipment = eqs; }
+  else {
+    // Typo-tolerant equipment matching. The barbell family is where users
+    // fat-finger the double b / double l (e.g. "dumbells", "barbel",
+    // "ketlebell"), which the strict spellings silently missed -- so those
+    // fall through to null and the build reverts to the saved full-gym
+    // profile, quietly ignoring "only dumbbells". The relaxed patterns are
+    // supersets of the correct spellings, plus the common db/kb shorthands.
+    // Word-boundary anchored so an equipment name can't be matched as a
+    // substring of an unrelated word (the old un-anchored "bands?" matched
+    // the "band" inside "abandoned", etc.).
+    var eqs = [];
+    [["\\bbands?\\b", "band"],
+     ["\\bkett?le?bel+s?\\b", "kettlebell"], ["\\bkbs?\\b", "kettlebell"],
+     ["\\bdumb+el+s?\\b", "dumbbell"], ["\\bdbs?\\b", "dumbbell"],
+     ["\\bbarb+e?l+s?\\b", "barbell"],
+     ["\\bcables?\\b", "cable"], ["\\bmachines?\\b", "machine"], ["\\bsmith\\b", "smith"]
+    ].forEach(function (p) { if (new RegExp(p[0]).test(s) && eqs.indexOf(p[1]) < 0) eqs.push(p[1]); });
+    if (eqs.length) equipment = eqs;
+  }
   var role = null;
   if (/\bfull\s*body\b|\bwhole\s*body\b|\bfull\b/.test(s)) role = "full";
   else if (/\bpush\b/.test(s)) role = "push";
@@ -3702,6 +3720,10 @@ function resolveSpec(request, state) {
     parseIntent(text, function (req) {
       // Absent explicitly-stated kit, honour the saved equipment profile instead
       // of assuming full gym access (same rule the regex path always used).
+      // Track whether the kit came from the text vs. this fallback, so the
+      // readback can make the fallback visible instead of silent -- the exact
+      // failure mode where a misparsed "only dumbbells" quietly became full gym.
+      var eqFromText = !!req.equipment;
       if (!req.equipment) req.equipment = buildPrefs().equipment;
       var parsed = requestToParsed(req);
       todaySeed++;
@@ -3729,9 +3751,19 @@ function resolveSpec(request, state) {
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so — easing off</div>';
       }
+      // Effective kit, shown so the user can catch a wrong equipment read
+      // (e.g. an unrecognised word that reverted to their saved profile)
+      // before committing the session. Named when specific, "full gym" for the
+      // whole set, and flagged as the saved-profile fallback when the text
+      // didn't name any kit at all.
+      var eqList = req.equipment;
+      var eqLbl = (!Array.isArray(eqList) || !eqList.length) ? "your saved kit"
+        : eqList.length >= 8 ? "full gym"
+        : eqList.map(function (id) { return (EQUIP_LABELS[id] || id).toLowerCase(); }).join(" + ");
+      var eqNote = eqFromText ? eqLbl : eqLbl + " (your saved kit)";
       var rows = todayRowsHtml(pendingToday.exercises);
       pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
-        '<div class="preview__meta">Understood: ' + esc(req.summary) + '</div>' +
+        '<div class="preview__meta">Understood: ' + esc(req.summary) + ' · ' + esc(eqNote) + '</div>' +
         banner +
         '<div class="todaylist">' + rows + '</div>' +
         '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
