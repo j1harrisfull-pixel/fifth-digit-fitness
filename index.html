@@ -113,8 +113,14 @@ input, textarea { font: inherit; color: inherit; }
 }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(env(safe-area-inset-top) + 12px) 18px 10px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand__mark { width: 32px; height: 16px; color: var(--accent-ink); flex: none; }
-.brand__name { font-family: var(--font-display); font-weight: 800; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* FDF monogram, recoloured to ink (white on dark, near-black on light) per
+   the brand handoff -- the accent stays reserved for the one action per screen. */
+.brand__mark { width: 42px; height: 18px; color: var(--ink); flex: none; }
+/* Two-line wordmark so the FULL name fits beside the monogram + three icons
+   at 375px without clipping (a single line would have to drop below the 10px
+   legibility floor to fit). */
+.brand__name { display: flex; flex-direction: column; font-family: var(--font-display); font-weight: 800; font-size: 10.5px; line-height: 1.18; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); min-width: 0; }
+.brand__name span { white-space: nowrap; }
 .topbar__actions { display: flex; gap: 8px; }
 .icon-btn { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; transition: transform .12s ease, border-color .12s ease; }
 .icon-btn:hover { border-color: var(--line-strong); }
@@ -603,14 +609,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="appbar">
     <header class="topbar">
       <div class="brand">
-        <svg class="brand__mark" viewBox="0 0 48 24" aria-hidden="true"><g fill="currentColor">
-          <rect x="18" y="10.5" width="12" height="3" rx="1.5"/>
-          <rect x="11.5" y="5.5" width="4.6" height="13" rx="2.2"/>
-          <rect x="31.9" y="5.5" width="4.6" height="13" rx="2.2"/>
-          <rect x="6.5" y="8.3" width="3.6" height="7.4" rx="1.8"/>
-          <rect x="37.9" y="8.3" width="3.6" height="7.4" rx="1.8"/>
-        </g></svg>
-        <span class="brand__name">Fifth Digit Fitness</span>
+        <svg class="brand__mark" viewBox="0 0 236 100" fill="currentColor" role="img" aria-label="FDF">
+          <g><rect x="0" y="0" width="27" height="100"/><rect x="0" y="0" width="62" height="27"/><rect x="0" y="37" width="44" height="26"/></g>
+          <g transform="translate(78,0)"><path fill-rule="evenodd" d="M0,0 L27,0 A50,50 0 0 1 27,100 L0,100 Z M27,24 A26,26 0 0 1 27,76 Z"/></g>
+          <g transform="translate(171,0)"><rect x="0" y="0" width="27" height="100"/><rect x="0" y="0" width="62" height="27"/><rect x="0" y="37" width="44" height="26"/></g>
+        </svg>
+        <span class="brand__name"><span>Fifth Digit</span><span>Fitness</span></span>
       </div>
       <div class="topbar__actions">
         <button class="icon-btn" id="planBtn" title="Build or load a workout" aria-label="Get or load a workout from Claude" aria-haspopup="dialog">
