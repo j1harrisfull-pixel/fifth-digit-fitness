@@ -154,17 +154,12 @@ input, textarea { font: inherit; color: inherit; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 /* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
 .home-hero { padding: 8px 14px 4px; }
-.home-hero__top { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
-.recovery-ring { position: relative; width: 72px; height: 72px; flex: none; border-radius: 50%; --ring-color: var(--ready); background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), var(--line-strong) 0); }
-.recovery-ring.is-manage { --ring-color: var(--manage); }
-.recovery-ring.is-rough { --ring-color: var(--rough); }
-.recovery-ring.is-unknown { --ring-color: var(--line-strong); background: none; border: 2px dashed var(--line-strong); }
-.recovery-ring__hole { position: absolute; inset: 6px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
-.recovery-ring__pct { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--ink); }
-.recovery-ring.is-unknown .recovery-ring__pct { color: var(--faint); font-size: 20px; }
-.home-hero__readiness { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.home-hero__readiness-label { font-size: 15px; font-weight: 700; color: var(--ink); }
-.home-hero__readiness-sub { font-size: 13px; color: var(--muted); }
+/* The fatigue reading, demoted from a percentage donut to one honest line:
+   semantic dot + sentence, silent when there's no data yet. */
+.home-hero__reading { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.home-hero__reading-dot { flex: none; width: 8px; height: 8px; background: var(--ready); }
+.home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
+.home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
 .today-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
 .today-card__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin-bottom: 6px; }
 .today-card__name { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
@@ -289,6 +284,7 @@ input, textarea { font: inherit; color: inherit; }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: var(--font-body); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
+.card__last.is-earned { color: var(--ready); }
 .card__why { font-size: 12px; color: var(--ink-dim); margin: 0; }
 .card__cue { margin: 0 0 14px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
@@ -2861,14 +2857,23 @@ function resolveSpec(request, state) {
     var el = $("homeHero"); if (!el) return;
     if (!hasProgram()) { el.innerHTML = ""; return; }
     var wk = curWeek();
+    // Demoted from a Whoop-style percentage donut to its one honest sentence:
+    // the ring's only actionable content ever WAS this line, and a chart
+    // borrowed from the wellness apps this brand defines itself against was
+    // the most generic element on the most-seen screen. Same real
+    // computeFatigueState reading, same semantic color, zero ornament.
+    // Silent when there's no data yet -- an instrument with no reading shows
+    // nothing rather than a placeholder dial.
     var fs = (typeof computeFatigueState === "function") ? computeFatigueState(state) : null;
     var hasData = !!(fs && fs.hasData);
     var band = hasData ? fs.band : null;
-    var ringClass = !hasData ? "is-unknown" : band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "";
-    var recoveryPct = hasData ? Math.max(0, Math.min(100, 100 - fs.percent)) : 100;
-    var pctText = hasData ? recoveryPct + "%" : "–";
-    var label = !hasData ? "No readings yet" : band === "red" ? "High fatigue" : band === "amber" ? "Managing fatigue" : "Fully recovered";
-    var sub = !hasData ? "Log a couple of sessions to see this" : band === "red" ? "Consider an easier session today" : band === "amber" ? "Take it a bit easier today" : "You're ready to train";
+    var readingClass = band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "is-ready";
+    var readingTxt = band === "red" ? "High fatigue · consider an easier session today"
+      : band === "amber" ? "Managing fatigue · take it a bit easier today"
+      : "Recovered · ready to train";
+    var readingHtml = hasData
+      ? '<p class="home-hero__reading ' + readingClass + '"><span class="home-hero__reading-dot" aria-hidden="true"></span>' + esc(readingTxt) + '</p>'
+      : "";
     // "Up next" is the first session in the CURRENT week that isn't fully done
     // yet -- not just whatever state.activeSession happens to be pointing at,
     // which used to leave this card stuck on a session you'd already finished.
@@ -2916,10 +2921,7 @@ function resolveSpec(request, state) {
     // already shows every session with real progress and its own open
     // control. That list is the one place to browse or jump to another day.
     el.innerHTML =
-      '<div class="home-hero__top">' +
-        '<div class="recovery-ring ' + ringClass + '" style="--pct:' + recoveryPct + '"><div class="recovery-ring__hole"><span class="recovery-ring__pct">' + esc(pctText) + '</span></div></div>' +
-        '<div class="home-hero__readiness"><span class="home-hero__readiness-label">' + esc(label) + '</span><span class="home-hero__readiness-sub">' + esc(sub) + '</span></div>' +
-      '</div>' +
+      readingHtml +
       '<div class="today-card">' +
         '<div class="today-card__label">' + esc(label2) + '</div>' +
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
@@ -3358,7 +3360,14 @@ function resolveSpec(request, state) {
     var pills = pillsHtml(e, lg.sets.map(function (s) { return s.completed; }));
     var lastW = lastWeights[e.name.toLowerCase()];
     var lr = lastLogs[e.name.toLowerCase()];
-    var lastHint = (e.type === "strength" && lastW > 0) ? '<span class="card__last">last ' + esc(roundW(lastW) + " " + unit) + '</span>' : "";
+    // The engine already pre-fills an EARNED step-up (suggestedWeight adds
+    // STEP when every working set hit the top of the range last time).
+    // Surface that as the why beside the number -- "35 → 37.5 earned" -- so
+    // accepting the prescription is the default and declining is the edit.
+    var earned = e.type === "strength" && lr && lr.ready && lr.weight != null && lg.weight === roundW(lr.weight + STEP);
+    var lastHint = earned
+      ? '<span class="card__last is-earned">' + esc(roundW(lr.weight)) + ' → ' + esc(lg.weight + " " + unit) + ' earned</span>'
+      : (e.type === "strength" && lastW > 0) ? '<span class="card__last">last ' + esc(roundW(lastW) + " " + unit) + '</span>' : "";
     var platesNote = (e.type === "strength" && e.equipment === "barbell" && lg.weight > 0) ? platesText(lg.weight, unit) : "";
     var libEx = libByName(e.name);
     var metaRows = "";
@@ -4443,7 +4452,15 @@ function resolveSpec(request, state) {
       var isPR = cur > allTimePrev;
       var icon, cls, detail;
       if (cur > prev) { icon = "↑"; cls = "is-up"; detail = "Est. 1RM up from " + prev + unit + " to " + cur + unit + "." + (isPR ? " New best." : ""); }
-      else if (cur < prev) { icon = "↓"; cls = "is-down"; detail = "Pulled back from an est. " + prev + unit + " to " + cur + unit + " — logged as-is, not papered over."; }
+      else if (cur < prev) {
+        icon = "↓"; cls = "is-down";
+        // The corrective input, not just the reading: this is exactly what
+        // suggestedWeight will do next session (hold this session's weight,
+        // no step-up until every set clears the top of the range again).
+        var holdAt = pts[pts.length - 1].w;
+        detail = "Pulled back from an est. " + prev + unit + " to " + cur + unit + ", logged as-is."
+          + (holdAt > 0 ? " Next session holds " + roundW(holdAt) + unit + ": bank clean reps before adding." : "");
+      }
       else { icon = "—"; cls = "is-flat"; detail = "Flat at an est. " + cur + unit + "."; }
       rows.push('<div class="complete__read-row"><span class="complete__read-icon ' + cls + '">' + icon + '</span><div><p class="complete__read-name">' + esc(e.name) + '</p><p class="complete__read-detail">' + esc(detail) + '</p></div></div>');
     });
