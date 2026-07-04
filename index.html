@@ -2156,7 +2156,10 @@ var MUSCLE_PATTERNS = {
 function titleCaseAreas(areas) {
   var seen = {}, out = [];
   (areas || []).forEach(function (a) { if (!seen[a]) { seen[a] = 1; out.push(a.charAt(0).toUpperCase() + a.slice(1)); } });
-  return out.join(" + ");
+  // " · " matches the muscle-focus separator used everywhere else (ROLE_FOCUS,
+  // week-row focus line) so a free-text Just-Today request reads the same way
+  // as a Build-a-week day, not in a different style.
+  return out.join(" · ");
 }
 function rolePatterns(role) {
   var set = {}, out = [];
@@ -2290,7 +2293,18 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
   var name = parsed.role ? (ROLE_NAME[parsed.role] || "Today") : (parsed.areas && parsed.areas.length ? titleCaseAreas(parsed.areas) : "Today");
-  return guaranteeSession({ name: name, focus: parsed.summary || "", exercises: strengthEx.concat(extraEx) });
+  // Muscle-group focus, same as a Build-a-week day (ROLE_FOCUS) -- not
+  // parsed.summary, which restates the name + time + goal ("Full Body · ~45
+  // min · general") and reads as a duplicate right under a name that already
+  // says "Full Body". Only set for a role match, where ROLE_FOCUS is a genuinely
+  // different (wider) muscle grouping than the name. A free-text request (no
+  // role) has no such wider grouping to fall back to -- titleCaseAreas(areas)
+  // would just repeat the name verbatim ("Chest · Triceps" under "Chest ·
+  // Triceps"), the same duplicate-word bug in a new outfit. Leaving focus empty
+  // here lets the existing UI fallback show the exercise count instead, which is
+  // genuinely different information rather than an echo.
+  var focus = parsed.role ? (ROLE_FOCUS[parsed.role] || "") : "";
+  return guaranteeSession({ name: name, focus: focus, exercises: strengthEx.concat(extraEx) });
 }
 // Real run-workout structures for the Endurance goal: easy / long / tempo / intervals,
 // polarized across the week, run as the day's focus. Emitted as conditioning so the
