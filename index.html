@@ -142,8 +142,9 @@ input, textarea { font: inherit; color: inherit; }
 .livebar__dot { flex: none; width: 7px; height: 7px; background: var(--accent); }
 .livebar__label { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--ink-dim); text-transform: uppercase; }
 .livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); }
-.livebar__end { flex: none; background: none; border: 1px solid var(--line-strong); color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 0; cursor: pointer; }
-.livebar__end:hover { border-color: var(--ink-dim); color: var(--ink); }
+.livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 0; cursor: pointer; }
+.livebar__end::after { content: ""; position: absolute; inset: -3px 0; }
+.livebar__end:hover { border-color: var(--ink); }
 /* Sticky bottom LOG button: the one primary action while training. Mirrors
    (never duplicates) the current exercise's next-incomplete setrow__done tap
    -- clicking it dispatches a click on that exact row control, so there is
@@ -206,14 +207,20 @@ input, textarea { font: inherit; color: inherit; }
 .weeknav__cap { text-transform: uppercase; letter-spacing: .1em; font-size: 10px; }
 
 /* Narrow phones: the column header already says REPS, so the per-row
-   "reps" unit label is duplicate ink -- dropping it (plus slightly slimmer
-   inputs) stops the reps stepper colliding with the done circle at 375px. */
+   "reps" unit label is duplicate ink -- dropping it keeps the row on one line
+   at 375px. (The width trims live in the base .setrow__* rules below, which
+   come later in source and would otherwise override an override here.) */
 @media (max-width: 400px) {
   .card.is-current .runit { display: none; }
-  .setrow__wtinput { width: 48px; }
-  .setrow__prev { width: 44px; }
   .rval { min-width: 16px; }
 }
+
+/* One-time RPE / est-1RM explainer: pulled, dismissible, shown once. */
+.coachhint { margin: 0 14px 8px; padding: 12px 14px; border: 1px solid var(--line-strong); background: var(--surface); display: flex; align-items: flex-start; gap: 12px; }
+.coachhint__body { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
+.coachhint__body b { color: var(--ink); font-weight: 700; }
+.coachhint__dismiss { flex: none; align-self: center; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; }
+.coachhint__dismiss:hover { border-color: var(--ink-dim); }
 
 /* ---------- Session head ---------- */
 .session { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px 6px; }
@@ -225,12 +232,18 @@ input, textarea { font: inherit; color: inherit; }
 .sprog__txt { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sprog__tag { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent-ink); font-weight: 700; }
 .sprog__tag--fatigue { color: var(--danger); }
-.reset-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--line-strong); border-radius: 0; padding: 9px 13px; font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink); transition: border-color .12s ease, transform .12s ease; }
-.reset-btn:hover { border-color: var(--accent-ink); color: var(--accent-ink); }
+/* Reset is a rare, undo-backed action; demoted to a quiet borderless control
+   so it stops out-ranking End (the every-session action, up in the live bar). */
+.reset-btn { position: relative; flex: none; display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; border-radius: 0; padding: 6px 4px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--faint); transition: color .12s ease; }
+.reset-btn::after { content: ""; position: absolute; inset: -8px -4px; }
+.reset-btn:hover { color: var(--ink-dim); }
 .reset-btn:active { transform: scale(.96); }
 
 /* ---------- Exercise list ---------- */
 .list { padding: 8px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; gap: 12px; }
+/* Clear the sticky LOG bar's height so the last card's foot (est-1RM, History)
+   never renders behind it. */
+body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 14px 12px; box-shadow: var(--shadow); transition: border-color .25s ease; }
 .card.is-complete { border-color: color-mix(in srgb, var(--ready) 45%, var(--line)); }
 .card.is-complete::after { content: "DONE"; position: absolute; top: 14px; right: 16px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .18em; color: var(--ready); }
@@ -291,7 +304,7 @@ input, textarea { font: inherit; color: inherit; }
 .weight__unit { font-size: 12px; color: var(--ink-dim); font-weight: 600; letter-spacing: .04em; }
 .weight-note { font-size: 12px; color: var(--ink-dim); font-style: italic; }
 .setcount { display: flex; align-items: baseline; gap: 3px; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; }
-.setcount__done { font-size: 22px; font-weight: 600; color: var(--accent-ink); }
+.setcount__done { font-size: 22px; font-weight: 600; color: var(--ink); }
 .setcount__sep, .setcount__total { font-size: 16px; color: var(--ink-dim); }
 .setcount__label { font-family: var(--font-body); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); margin-left: 4px; align-self: center; }
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
@@ -309,7 +322,7 @@ input, textarea { font: inherit; color: inherit; }
 .setcolhead { display: none; padding: 0 5px 4px; }
 .card.is-current .setcolhead { display: flex; align-items: center; gap: 3px; }
 .setcolhead span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; }
-.setcolhead .colhead__n { width: 14px; text-align: center; flex: none; }
+.setcolhead .colhead__n { width: 20px; text-align: center; flex: none; }
 .setcolhead .colhead__prev { width: 52px; text-align: center; flex: none; }
 .setcolhead .colhead__wt { width: 90px; text-align: center; flex: none; }
 .setcolhead .colhead__reps { flex: 1; text-align: center; }
@@ -331,13 +344,21 @@ input, textarea { font: inherit; color: inherit; }
 .setrow__meta { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-left: 20px; margin-top: 1px; }
 .setrow__target { font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
 .setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
-.setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 14px; text-align: center; flex: none; }
+/* The one live set: a stronger border + full-ink set number so the row you're
+   about to log is unmistakable and agrees with the sticky LOG bar. Neutral,
+   not accent -- the LOG bar stays the single orange signal. */
+.setrow.is-next { border-color: var(--line-strong); }
+.setrow.is-next .setrow__n { color: var(--ink); font-weight: 600; }
+.setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 20px; text-align: center; flex: none; }
 /* PREV: last session's own weight x reps for this exact set index, straight
    from buildLastLogs -- an honest reference number, never editable. */
-.setrow__prev { width: 52px; flex: none; text-align: center; font-size: 12px; color: var(--faint); }
+.setrow__prev { width: 46px; flex: none; text-align: center; font-size: 12px; color: var(--faint); }
 .setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
-.rstep { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+.rstep { position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
+/* Expand the thumb target to ~44px tall without changing the visual size or
+   stealing horizontal taps from the number between the steppers. */
+.rstep::after, .wtstep::after { content: ""; position: absolute; inset: -8px 0; }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
 .runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
 /* Weight: always a typable field (never a tap-to-reveal button) flanked by flat
@@ -345,12 +366,15 @@ input, textarea { font: inherit; color: inherit; }
    clipped. Dashed border = still inheriting the exercise's shared weight;
    solid = this set has its own explicit value (same distinction the old
    button-vs-input toggle carried, now just a border style on one control). */
-.setrow__wt { display: flex; align-items: center; gap: 2px; flex: none; }
-.wtstep { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
+/* margin-right separates the weight-stepper group from the reps-stepper group
+   so the KG "+" and REPS "−" no longer read as one control cluster. */
+.setrow__wt { display: flex; align-items: center; gap: 2px; flex: none; margin-right: 6px; }
+.wtstep { position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
 .wtstep:hover { border-color: var(--accent-ink); color: var(--ink); }
-.setrow__wtinput { flex: none; width: 56px; box-sizing: border-box; min-height: 28px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: 0; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
+.setrow__wtinput { flex: none; width: 46px; box-sizing: border-box; min-height: 28px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: 0; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
 .setrow__wt.is-override .setrow__wtinput { border-style: solid; border-color: var(--accent-ink); }
-.setrow__rpe { flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); background: none; border-radius: 0; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
+.setrow__rpe { position: relative; flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); background: none; border-radius: 0; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
+.setrow__rpe::after { content: ""; position: absolute; inset: -9px -2px; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
 /* Done: the one control that matters mid-set -- visibly tappable at rest (not
    transparent), fills ready-green on completion. Slightly larger than the
@@ -373,7 +397,8 @@ input, textarea { font: inherit; color: inherit; }
 .card__prog.is-ready { color: var(--accent-ink); font-weight: 600; }
 .cue { margin-top: 12px; font-size: 12px; color: var(--ink-dim); display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .cue b { color: var(--accent-ink); font-weight: 600; }
-.notes-toggle { margin-top: 4px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 3px 2px; color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.notes-toggle { position: relative; margin-top: 4px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 3px 2px; color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.notes-toggle::after { content: ""; position: absolute; inset: -10px 0; }
 .notes-toggle .chev { display: inline-block; transition: transform .22s ease; font-size: 11px; }
 .notes-toggle[aria-expanded="true"] { color: var(--ink); }
 .notes-toggle[aria-expanded="true"] .chev { transform: rotate(90deg); }
@@ -563,7 +588,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .exhist__axis { flex: none; display: flex; flex-direction: column; justify-content: space-between; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); font-style: normal; }
 .exhist__axis b, .exhist__axis i { font-style: normal; font-weight: 600; }
 .exhist__pr { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 1px 5px; border: 1px solid var(--ready); color: var(--ready); margin-left: 6px; vertical-align: 1px; }
-.card__hist { flex: none; margin-left: auto; background: none; border: 0; color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 4px 0 4px 10px; cursor: pointer; font-family: var(--font-body); }
+.card__hist { position: relative; flex: none; margin-left: auto; background: none; border: 0; color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 4px 0 4px 10px; cursor: pointer; font-family: var(--font-body); }
+.card__hist::after { content: ""; position: absolute; inset: -10px -4px; }
 .card__hist:hover { color: var(--ink); }
 .history__lift-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__lift-spark { flex: none; width: 70px; height: 24px; color: var(--accent-ink); }
@@ -659,6 +685,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="home-hero view-week" id="homeHero"></div>
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
+    <div class="coachhint view-day" id="coachHint" hidden>
+      <p class="coachhint__body"><b>RPE</b> is how hard a set felt: 6 easy, 10 all-out (optional). <b>Est. 1RM</b> is your estimated one-rep max, worked out from the weight and reps you log.</p>
+      <button type="button" class="coachhint__dismiss" id="coachHintDismiss" aria-label="Dismiss">Got it</button>
+    </div>
     <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
   </main>
   <div class="logbar view-day" id="logBar" hidden>
@@ -2835,7 +2865,7 @@ function resolveSpec(request, state) {
     for (var i = 0; i < cards.length; i++) cards[i].classList.toggle("is-current", cards[i].getAttribute("data-ex") === cid);
     var fill = document.getElementById("sprogFill"), txt = document.getElementById("sprogTxt");
     if (fill) fill.style.transform = "scaleX(" + (p.total ? p.done / p.total : 0) + ")";
-    if (txt) txt.textContent = p.done + "/" + p.total + " done";
+    if (txt) txt.textContent = p.done + "/" + p.total + " exercises";
     refreshLogBar(cid, items);
   }
   // Active-screen rebuild: the sticky bottom LOG button mirrors (never
@@ -2844,15 +2874,28 @@ function resolveSpec(request, state) {
   // there's still only one code path (onListClick's "setdone"/"set" handling)
   // that actually logs anything.
   function refreshLogBar(cid, items) {
+    refreshLogBarInner(cid, items);
+    // The list reserves bottom padding for the sticky LOG bar only when it's
+    // actually shown, so its last card content (est-1RM, History) never sits
+    // hidden behind the bar, and there's no dead space when it's absent.
+    var lb = $("logBar");
+    document.body.classList.toggle("has-logbar", !!(lb && !lb.hidden));
+  }
+  function refreshLogBarInner(cid, items) {
     var bar = $("logBar"), btn = $("logBarBtn"); if (!bar || !btn) return;
     var card = cid ? listEl.querySelector('.card[data-ex="' + cid + '"]') : null;
     if (!card) { bar.hidden = true; return; }
+    // Mark exactly the row the LOG bar targets, so the row and the bar always
+    // agree on "where am I" (line-strong border + ink set number, not accent).
+    card.querySelectorAll(".setrow.is-next").forEach(function (r) { r.classList.remove("is-next"); });
     var nextRow = card.querySelector(".setrow:not(.is-done)");
     if (nextRow) {
+      nextRow.classList.add("is-next");
       var setNo = parseInt(nextRow.getAttribute("data-set"), 10) + 1;
       var wtInput = nextRow.querySelector(".setrow__wtinput");
-      var wt = wtInput ? wtInput.value : "";
-      btn.textContent = "Log set " + setNo + (wt ? " · " + wt + " " + state.program.unit : "");
+      var wtNum = wtInput ? parseFloat(wtInput.value) : 0;
+      // Only name a weight when there's a real one -- never "Log set 2 · 0 kg".
+      btn.textContent = "Log set " + setNo + (wtNum > 0 ? " · " + roundW(wtNum) + " " + state.program.unit : "");
       btn.disabled = false; btn.classList.remove("is-muted");
       bar.hidden = false;
       btn.onclick = function () { var d = nextRow.querySelector(".setrow__done"); if (d) d.click(); };
@@ -2882,7 +2925,14 @@ function resolveSpec(request, state) {
   }
   function scrollToCurrent() {
     var c = listEl.querySelector(".card.is-current");
-    if (c) { try { c.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" }); } catch (e) {} }
+    if (!c) return;
+    // Offset by the ACTUAL sticky-header height (livebar + daybar), which grows
+    // when a long day name wraps to two lines -- a fixed offset would leave the
+    // current exercise hidden behind the taller bar. block:"start" + a dynamic
+    // scroll-margin-top lands the card just below the sticky header.
+    var appbar = document.querySelector(".appbar");
+    c.style.scrollMarginTop = (appbar ? appbar.getBoundingClientRect().height + 8 : 128) + "px";
+    try { c.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" }); } catch (e) {}
   }
 
   /* ===================== Render ===================== */
@@ -3274,7 +3324,7 @@ function resolveSpec(request, state) {
       ? '<span class="sprog__tag sprog__tag--fatigue">fatigue ' + fs.band + '</span>' : '';
     headEl.innerHTML =
       '<div class="session__main"><h1 class="session__focus">' + esc(ses.focus || ses.name) + '</h1>' +
-      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' done</span>' + tag + fatigueTag + '</div></div>' +
+      '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' exercises</span>' + tag + fatigueTag + '</div></div>' +
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>';
     $("resetBtn").addEventListener("click", resetDay);
   }
@@ -3304,7 +3354,13 @@ function resolveSpec(request, state) {
     return { weight: w0, reps: r0 };
   }
   function targetLineHtml(uniformTarget, unit) {
-    return uniformTarget ? '<p class="setshead__target">Target ' + esc(uniformTarget.weight) + esc(unit) + ' × ' + esc(uniformTarget.reps != null ? uniformTarget.reps : "–") + '</p>' : "";
+    if (!uniformTarget) return "";
+    var reps = uniformTarget.reps != null ? uniformTarget.reps : "–";
+    // No weight set yet (or a rep-driven lift): state reps only, never a
+    // misleading "0kg" prescription.
+    return uniformTarget.weight > 0
+      ? '<p class="setshead__target">Target ' + esc(uniformTarget.weight) + esc(unit) + ' × ' + esc(reps) + '</p>'
+      : '<p class="setshead__target">Target · ' + esc(reps) + ' reps</p>';
   }
   // Recomputes the uniform-target line in place after any weight/set-count
   // change -- these live-refresh handlers only ever touch .setlist directly,
@@ -3324,24 +3380,28 @@ function resolveSpec(request, state) {
     wrap.classList.toggle("is-unset", unset);
     var label = wrap.querySelector(".startweight__label"); if (label) label.textContent = unset ? "Set your weight" : "Start weight";
   }
-  function setRowsInner(e, lg, suppressCaption, lr) {
+  function setRowsInner(e, lg, suppressCaption, lr, loadable) {
     var html = "";
     var unit = state.program.unit;
     for (var k = 0; k < e.sets; k++) {
       var s = lg.sets[k], d = s.completed, rv = s.reps, rp = s.rpe;
       // PREV column (Active-screen rebuild): last session's own result for this
       // set index, straight from buildLastLogs -- never a fabricated number.
+      // Rep-driven (band/bodyweight) exercises show reps only, no phantom kg.
       var prevReps = (lr && Array.isArray(lr.reps)) ? lr.reps[k] : null;
-      var prevTxt = (lr && lr.weight > 0 && prevReps != null) ? (roundW(lr.weight) + "×" + prevReps) : "–";
+      var prevTxt = !loadable
+        ? (prevReps != null ? (prevReps + " reps") : "–")
+        : ((lr && lr.weight > 0 && prevReps != null) ? (roundW(lr.weight) + "×" + prevReps) : "–");
       // Always a typable input (never a tap-to-reveal button) flanked by flat
       // +/- steppers -- dashed border while inheriting the exercise's shared
       // weight, solid once this set has its own explicit value (same
-      // distinction the old button/input toggle carried).
-      var wtCtrl = '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '">' +
+      // distinction the old button/input toggle carried). Omitted entirely for
+      // rep-driven exercises where a kg number is meaningless.
+      var wtCtrl = loadable ? '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '">' +
         '<button type="button" class="wtstep" data-act="wt-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Decrease weight, set ' + (k + 1) + '">−</button>' +
         '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight for set ' + (k + 1) + ', ' + s.weight + ' ' + esc(state.program.unit) + '">' +
         '<button type="button" class="wtstep" data-act="wt+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Increase weight, set ' + (k + 1) + '">+</button>' +
-      '</div>';
+      '</div>' : '';
       // RPE demoted to a compact secondary affordance (same tap-to-cycle
       // interaction as before, just moved off the primary row) -- available
       // every set, never competing with weight/reps/done for space.
@@ -3461,6 +3521,11 @@ function resolveSpec(request, state) {
     if (existing) { if (html) existing.outerHTML = html; else existing.remove(); }
     else if (html) { var anchor = card.querySelector(".setshead") || card.querySelector(".pills"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
   }
+  // Generic fallback why-strings that restate what's already on screen (the
+  // type tag, the NOW chip, the exercise position). An informative why comes
+  // from real weekly-debt / fatigue / progression reasoning.
+  var GENERIC_WHY = { "general accessory work": 1, "mobility work": 1, "conditioning work": 1, "primary lift for today's session": 1 };
+  function isInformativeWhy(w) { return !!(w && !GENERIC_WHY[String(w).toLowerCase().trim()]); }
   function buildCard(e, i, ses, badge) {
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.sets.filter(function (s) { return s.completed; }).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var total_ex = ses.exercises.length;
@@ -3490,11 +3555,18 @@ function resolveSpec(request, state) {
     // An unset weight (still 0) gates warm-ups, plates, est-1RM and the
     // progression hint -- highlight the field and swap the label to an
     // explicit invitation instead of silently sitting at "0" until noticed.
-    var weightUnset = e.type === "strength" && !(lg.weight > 0);
-    var weightCtrl = e.type === "strength"
+    // "Loadable" = a kg number is meaningful (barbell/dumbbell/machine/cable/
+    // kettlebell/smith). Band/bodyweight/pull-up-bar/sled strength work is
+    // rep-driven: no "Set your weight" invitation, no kg column, no phantom
+    // "0 kg" -- progress is reps. Reuses the same equipment set warm-ups use.
+    var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
+    var weightUnset = loadable && !(lg.weight > 0);
+    var weightCtrl = loadable
       ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your weight" : "Start weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
       : e.type === "conditioning" ? ''
-      : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
+      : e.type === "strength"
+        ? '<span class="weight-note">' + esc(EQ_LABEL[e.equipment] || "Bodyweight") + ' · progress by reps</span>'
+        : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
     var setsHead = '<div class="setshead">' + (e.type === "strength" ? '<span class="setshead__label">Working sets</span>' : '') + '<span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
     // Single "Target" line replaces the per-row planned captions ONLY when every
     // set genuinely shares the same planned weight/reps; ramp/wave exercises
@@ -3517,25 +3589,33 @@ function resolveSpec(request, state) {
       }
     }
     var setColHead = e.type === "strength"
-      ? '<div class="setcolhead" aria-hidden="true"><span class="colhead__n">Set</span><span class="colhead__prev">Prev</span><span class="colhead__wt">' + esc(unit.charAt(0).toUpperCase() + unit.slice(1)) + '</span><span class="colhead__reps">Reps</span><span class="colhead__done"></span></div>'
+      ? '<div class="setcolhead" aria-hidden="true"><span class="colhead__n">Set</span><span class="colhead__prev">Prev</span>' + (loadable ? '<span class="colhead__wt">' + esc(unit.charAt(0).toUpperCase() + unit.slice(1)) + '</span>' : '') + '<span class="colhead__reps">Reps</span><span class="colhead__done"></span></div>'
       : "";
     var setsContainer = e.type === "strength"
-      ? setColHead + '<div class="setlist" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget, lr) + '</div>'
+      ? setColHead + '<div class="setlist' + (loadable ? '' : ' setlist--noload') + '" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget, lr, loadable) + '</div>'
       : '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>';
     var foot = "";
-    if (e.type === "strength") {
+    if (e.type === "strength" && loadable) {
       var fd = strengthFoot(e, lg, unit);
       foot = '<div class="card__foot"><div class="card__1rm"><span>est. 1RM</span><b>' + fd.ormTxt + '</b></div>' +
         '<div class="card__prog' + (fd.ready ? " is-ready" : "") + '"' + (fd.progTxt ? "" : ' style="display:none"') + '>' + esc(fd.progTxt) + '</div>' +
         '<button type="button" class="card__hist" data-act="exhist" data-ex="' + e.id + '" aria-haspopup="dialog">History ›</button></div>';
     }
-    // Task 3.1: a plain one-line "why" under the name, generated only from the
-    // real inputs that drove selection (see selectComplementary/defaultWhy) --
-    // never a fabricated reason.
-    // The type tag is folded onto this same line as a neutral outline tag,
-    // not a second badge in the header (see .card__subline) -- the now-chip
-    // is the only accent-colored signal left on the card.
-    var subLine = '<div class="card__subline"><span class="tag">' + esc(e.type) + '</span>' + (e.why ? '<p class="card__why">' + esc(e.why) + '</p>' : '') + '</div>';
+    // Rep-driven strength (band/bodyweight): no foot at all. est-1RM and the
+    // "add weight" hint are meaningless, and the History view keys on est-1RM
+    // (needs a real load), so it would open empty. Rep-trend history for
+    // bodyweight lifts is a separate future feature, not a dead affordance now.
+    // The why-line earns its space only when it says something the screen
+    // doesn't already: keep debt/fatigue/progression reasoning, drop the
+    // generic fallbacks that just restate the obvious ("General accessory
+    // work", "Mobility work", "Primary lift for today's session"). The type
+    // tag shows only for non-strength, since strength is the default and the
+    // tag rarely informs. When both are empty, the subline is omitted whole.
+    var showWhy = isInformativeWhy(e.why);
+    var showTag = e.type !== "strength";
+    var subLine = (showTag || showWhy)
+      ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<p class="card__why">' + esc(e.why) + '</p>' : '') + '</div>'
+      : '';
     // Step 4 (Active screen): the coaching cue collapses behind its own toggle
     // again, default collapsed -- the always-visible face from Task 2 competed
     // with the set-logging controls for space on the one screen where logging
@@ -3612,8 +3692,17 @@ function resolveSpec(request, state) {
     // program exists; once one does, the hero CTA carries the accent instead.
     var pb = $("planBtn"); if (pb) pb.classList.toggle("is-accent", !hasProgram());
     renderWeekBar();
-    if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); if (animate) scrollToCurrent(); }
+    if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); maybeShowCoachHint(); if (animate) scrollToCurrent(); }
     else { renderHomeHero(); renderWeekList(); }
+  }
+  // The RPE/1RM explainer shows once (until dismissed), and only on a day that
+  // actually has a strength exercise for those terms to be relevant.
+  function maybeShowCoachHint() {
+    var el = $("coachHint"); if (!el) return;
+    var seen = false; try { seen = localStorage.getItem("tl:coachHintSeen") === "1"; } catch (e) {}
+    var ses = curSession();
+    var hasStrength = !!(ses && ses.exercises && ses.exercises.some(function (x) { return x.type === "strength"; }));
+    el.hidden = seen || !hasStrength;
   }
 
   /* ===================== Interactions ===================== */
@@ -3828,6 +3917,10 @@ function resolveSpec(request, state) {
   });
   $("backWeek").addEventListener("click", backToWeek);
   $("liveBarEnd").addEventListener("click", backToWeek);
+  $("coachHintDismiss").addEventListener("click", function () {
+    try { localStorage.setItem("tl:coachHintSeen", "1"); } catch (e) {}
+    $("coachHint").hidden = true;
+  });
   $("dayPrev").addEventListener("click", function () { switchSession(state.activeSession - 1); });
   $("dayNext").addEventListener("click", function () { switchSession(state.activeSession + 1); });
   // Restores the day-tab bar's old ArrowLeft/ArrowRight day-switching for keyboard
@@ -4591,6 +4684,9 @@ function resolveSpec(request, state) {
     persistRest();
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
+    // Reset the controls a completed rest may have swapped (Done -> Skip, +15s back).
+    var rpB = $("restPlus"); if (rpB) rpB.hidden = false;
+    var rskB = $("restSkip"); if (rskB) rskB.textContent = "Skip";
     showFiller(ex);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
@@ -4609,7 +4705,12 @@ function resolveSpec(request, state) {
       // the audio beep + on-screen flash remain the iOS signals).
       try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
       var anD = $("restAnnounce"); if (anD) anD.textContent = "Rest complete";
-      setTimeout(function () { if (!restState.timer) hideRest(); }, 4000);
+      // Hold the "rest over" state until the user acts (logs the next set,
+      // which starts a fresh rest, or taps Done) instead of auto-dismissing
+      // after 4s -- a face-up phone on a bench would miss a 4s flash. +15s is
+      // meaningless once rest is over, so the row collapses to a single Done.
+      var rp = $("restPlus"); if (rp) rp.hidden = true;
+      var rsk = $("restSkip"); if (rsk) rsk.textContent = "Done";
       return;
     }
     restTimeEl.textContent = fmtClock(rem);
