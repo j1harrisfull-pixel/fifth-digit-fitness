@@ -28,28 +28,12 @@
 @font-face { font-family: "Spline Sans Mono"; src: url("fonts/SplineSansMono-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
 @font-face { font-family: "Spline Sans Mono"; src: url("fonts/SplineSansMono-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 /* ============================================================
-   Fifth Digit Fitness — light visual direction, warm neutrals + a
-   softened orange accent. Light + dark via prefers-color-scheme,
-   manual override on <html>. WCAG AA for text + interactive colour
-   pairs in both themes.
+   Fifth Digit Fitness (BUILD-SPEC "Unlocked" instrument direction).
+   Dark is the single locked identity -- there is no light theme and no
+   theme control; the base :root carries the one dark palette. Radius is
+   zeroed globally (one token) per the "zero corner radius everywhere" rule.
+   WCAG AA for text + interactive colour pairs.
    ============================================================ */
-/* Reskin (2026-07-02): new light visual direction. Same variable names so every
-   existing rule re-colors automatically; --line/--line-strong keep their old
-   subtle/visible roles but now carry the new palette's line/line-soft values
-   (the new spec's "line" is the more visible of the two, "line-soft" the subtler
-   one -- the reverse of how loud the two hex values look, so the mapping is
-   intentionally swapped here, not a typo). --mob/--danger are recolored to the
-   new semantic ready/rough tones since they already mean "done"/"destructive"
-   everywhere they're used. Dark theme is UNCHANGED (still cobalt) -- this pass
-   is light-only, per instruction; new token names are added to dark too so nothing
-   resolves to an unset value once later steps start reading them there. */
-/* Design-system reskin (BUILD-SPEC "Unlocked" instrument direction): dark is
-   now the locked default identity, not a system-preference variant -- the
-   base :root carries the dark palette so the app is dark by default with no
-   theme selected. Light remains available via the Settings toggle for
-   whoever wants it, re-pointed to the same accent so the brand color never
-   shifts hue across themes. Radius is zeroed globally here (one token, both
-   themes) per the "zero corner radius everywhere" rule. */
 :root {
   --bg: #0B0C0E; --grid: rgba(255,255,255,.035); --surface: #13151A; --surface-2: #1A1D23;
   --ink: #F4F5F6; --ink-dim: #8B9098; --line: #1E2126; --line-strong: #343A44; --line-soft: #1E2126;
@@ -63,24 +47,6 @@
      display/body face (e.g. to real Söhne) without touching any other rule. */
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
-}
-:root[data-theme="light"] {
-  --bg: #F3F4F6; --grid: transparent; --surface: #FFFFFF; --surface-2: #F1F2F5;
-  --ink: #16181C; --ink-dim: #666B73; --line: #EDEEF1; --line-strong: #E4E6EA; --line-soft: #EDEEF1;
-  --accent: #FF4A1C; --accent-ink: #CC3B15; --on-accent: #FFFFFF; --accent-tint: #FDE9E2;
-  --mob: #12945F; --danger: #E24427;
-  --ready: #12945F; --ready-tint: #E4F4EC; --manage: #D98A1E; --rough: #E24427;
-  --muted: #666B73; --faint: #6E747D;
-  --shadow: 0 1px 2px rgba(17,18,22,.04), 0 10px 26px -14px rgba(17,18,22,.16); color-scheme: light;
-}
-:root[data-theme="dark"] {
-  --bg: #0B0C0E; --grid: rgba(255,255,255,.035); --surface: #13151A; --surface-2: #1A1D23;
-  --ink: #F4F5F6; --ink-dim: #8B9098; --line: #1E2126; --line-strong: #343A44; --line-soft: #1E2126;
-  --accent: #FF4A1C; --accent-ink: #FF4A1C; --on-accent: #0B0C0E; --accent-tint: rgba(255,74,28,.14);
-  --mob: #26C281; --danger: #FF6B52;
-  --ready: #26C281; --ready-tint: rgba(38,194,129,.14); --manage: #E8A23D; --rough: #FF6B52;
-  --muted: #8B9098; --faint: #7A828C;
-  --shadow: none; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -184,17 +150,17 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__tag--alt { color: var(--accent-ink); border-color: var(--accent-ink); }
 .weekrow__tag--done { padding: 2px 5px; color: var(--ready); border-color: var(--ready); }
 .weekrow__tag--skipped { color: var(--faint); border-style: dashed; }
-.weekrow__tag--next { color: var(--ink); border-color: var(--line-strong); font-weight: 700; }
-.weekrow.is-current .weekrow__tag--next { background: var(--surface-2); }
 .weekrow__tag--today { color: var(--ready); border-color: var(--ready); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
+.weekrow__focus { font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; }
 .weekrow.is-current .weekrow__name { color: var(--ink); }
 .weekrow__prog { font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); flex: none; }
 .weekrow__prog.is-done { color: var(--mob); }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
-.weekrow__del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-dim); cursor: pointer; border-radius: 0; transition: background .12s ease, color .12s ease; }
-.weekrow__del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+/* Quiet "Remove this day" at the foot of a day; faint until pressed. */
+.day-remove { display: block; margin: 8px auto 0; padding: 10px 14px; background: none; border: 0; color: var(--faint); font-size: 13px; font-weight: 600; cursor: pointer; }
+.day-remove:hover { color: var(--rough); }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; }
 .weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
@@ -223,10 +189,9 @@ input, textarea { font: inherit; color: inherit; }
 .coachhint__dismiss:hover { border-color: var(--ink-dim); }
 
 /* ---------- Session head ---------- */
-.session { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px 6px; }
+.session { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 18px 6px; }
 .session__main { min-width: 0; flex: 1 1 auto; }
-.session__focus { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: -.01em; line-height: 1.06; margin: 0; }
-.sprog { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.sprog { display: flex; align-items: center; gap: 10px; }
 .sprog__track { flex: 0 1 150px; height: 6px; border-radius: 0; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
 .sprog__fill { height: 100%; width: 100%; transform-origin: left; background: var(--accent); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
 .sprog__txt { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -254,12 +219,10 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-right: 44px; }
 .card__name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-.now-chip { flex: none; display: none; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 0; background: var(--accent-tint); color: var(--accent-ink); }
-.card.is-current .now-chip { display: inline-flex; }
 .card { cursor: pointer; }
 .card.is-complete:not(.is-current) { opacity: .55; }
-/* One accent signal per card (the now-chip above); the type tag is a neutral
-   outline folded onto the why-line, not a second badge competing for attention. */
+/* The type tag is a neutral outline folded onto the why-line, not a badge
+   competing for attention -- the LOG bar is the card's one accent signal. */
 .tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 0; border: 1px solid var(--line); color: var(--ink-dim); }
 .card__subline { display: flex; align-items: baseline; gap: 8px; margin: -4px 0 4px; }
 /* Active screen: the why-line is first-class beside the anchor exercise --
@@ -315,7 +278,6 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__why { font-size: 12px; color: var(--ink-dim); margin: 0; }
 .card__cue { margin: 0 0 14px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
-.setshead__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; }
 .setshead .setcount { margin-left: auto; }
 .setshead .setcount__done { font-size: 15px; }
 .setshead .setcount__sep, .setshead .setcount__total { font-size: 13px; }
@@ -491,7 +453,6 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .intro__list li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.5; color: var(--ink); }
 .intro__list li::before { content: ""; position: absolute; left: 0; top: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .intro__go { width: 100%; }
-.intro__add { font-size: 12px; color: var(--ink-dim); text-align: center; margin: 14px 0 0; }
 .adv { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
 .adv > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-dim); padding: 8px 2px; list-style: none; }
 .adv > summary::-webkit-details-marker { display: none; }
@@ -683,10 +644,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="daybar view-day">
       <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
       <span class="daybar__title" id="dayTitle"></span>
-      <div class="daybar__nav">
-        <button class="weeknav__btn" id="dayPrev" type="button" aria-label="Previous day">‹</button>
-        <button class="weeknav__btn" id="dayNext" type="button" aria-label="Next day">›</button>
-      </div>
     </div>
   </div>
 
@@ -710,7 +667,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <h2>Build my week</h2>
-    <p class="sheet__lead">Pick what you want. It builds instantly, offline, read-only.</p>
+    <p class="sheet__lead">Pick what you want. It builds instantly, offline.</p>
 
     <div class="seg seg--full" id="planMode" role="group" aria-label="What to build" style="margin-bottom:18px">
       <button data-mode="week" type="button" aria-pressed="true">Build a week</button>
@@ -835,14 +792,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__body">
     <h2>Settings &amp; backup</h2>
     <div class="sect">
-      <div class="sect__label">Appearance</div>
-      <div class="seg" id="themeSeg" role="group" aria-label="Theme">
-        <button data-theme-val="system" type="button">System</button>
-        <button data-theme-val="light" type="button">Light</button>
-        <button data-theme-val="dark" type="button">Dark</button>
-      </div>
-    </div>
-    <div class="sect">
       <div class="sect__label">Weight unit</div>
       <div class="seg" id="unitSeg" role="group" aria-label="Weight unit">
         <button data-unit-val="kg" type="button">kg</button>
@@ -852,7 +801,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="sect" id="scheduleSect" hidden>
       <div class="sect__label">Training days</div>
       <div class="chips" id="sDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
-      <p class="sect__hint" style="margin-top:8px">Pick the weekdays you train to schedule each session, or tap all off to stay flexible. Changes the current program without touching your logged sets.</p>
+      <p class="sect__hint" style="margin-top:8px">Pick the weekdays you train, or tap all off to stay flexible.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Rest timer sound</div>
@@ -878,12 +827,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="sect">
       <div class="sect__label">My equipment</div>
       <div class="chips" id="myEquip" role="group" aria-label="Equipment I have"></div>
-      <p class="sect__hint" style="margin-top:8px">Saved for every workout you build. Bodyweight is always included. Only changes when you change it, or when you erase all data.</p>
+      <p class="sect__hint" style="margin-top:8px">Saved for every workout you build; bodyweight is always included.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Advanced moves I can do</div>
       <div class="chips" id="skillChips" role="group" aria-label="Advanced skill moves you can already do"></div>
-      <p class="sect__hint" style="margin-top:8px">These are skill moves, not just heavy lifts. We leave them out of your workouts until you tick the ones you can already do. Until then you get an easier version in their place.</p>
+      <p class="sect__hint" style="margin-top:8px">Left out until you tick the ones you can already do; you get an easier version in their place.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Backup (everything)</div>
@@ -953,7 +902,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <li><b>Technique:</b> open <b>Form notes</b> on any exercise for the coaching cues.</li>
     </ul>
     <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
-    <p class="intro__add">Tip: in Safari, tap Share then “Add to Home Screen” to keep it on your phone.</p>
   </div>
 </div>
 
@@ -1608,7 +1556,22 @@ var ROLES = {
   legs: [{ patterns: ["squat"], compound: true }, { patterns: ["hinge"], compound: true }, { patterns: ["lunge"], compound: false }, { patterns: ["squat"], compound: false }, { patterns: ["hinge"], compound: false }, { patterns: ["calf"], compound: false }],
 };
 var ROLE_NAME = { full: "Full Body", upper: "Upper", lower: "Lower", push: "Push", pull: "Pull", legs: "Legs" };
-var ROLE_FOCUS = { full: "Full body", upper: "Push · pull", lower: "Squat · hinge", push: "Chest · shoulders · triceps", pull: "Back · biceps", legs: "Quads · hams · glutes" };
+// Muscle-group focus shown under the session name (week list, hero) and in the
+// LIVE bar -- the coached detail every real app leads with. Kept to three big
+// rocks so it stays readable uppercased in the narrow live bar.
+var ROLE_FOCUS = { full: "Full body", upper: "Chest · back · shoulders", lower: "Quads · hams · glutes", push: "Chest · shoulders · triceps", pull: "Back · biceps", legs: "Quads · hams · glutes" };
+// Two same-role days in a week (the two Upper days, the two Lower days) genuinely
+// differ by which compound LEADS -- the ROLES slot list is rotated by occurrence,
+// so day A leads one pattern and day B the next. This maps that lead pattern to a
+// real emphasis word ("Upper · Bench" vs "Upper · Pull-up") instead of a bare A/B.
+var PATTERN_EMPHASIS = { hpush: "Bench", vpush: "Overhead", hpull: "Row", vpull: "Pull-up", squat: "Squat", hinge: "Hinge", lunge: "Lunge", power: "Power" };
+// Shape of the split for the program title ("Upper/Lower", "Push/Pull/Legs").
+function splitLabel(roleList) {
+  var uniq = [];
+  roleList.forEach(function (r) { if (uniq.indexOf(r) < 0) uniq.push(r); });
+  if (uniq.length === 1 && uniq[0] === "full") return "Full body";
+  return uniq.map(function (r) { return ROLE_NAME[r] || r; }).join("/");
+}
 var GOAL_TEXT = { hybrid: "Hybrid", strength: "Strength & muscle", endurance: "Endurance", hypertrophy: "Build muscle", conditioning: "Conditioning", general: "General fitness" };
 
 function splitForDays(days, goal) {
@@ -1969,6 +1932,32 @@ function getExPattern(name) {
     if (LIBRARY[i].name === name) return LIBRARY[i].pattern || "";
   }
   return "";
+}
+// Emphasis word for a session, read from the pattern of the lift that actually
+// leads it (strengthEx[0]) -- the truthful source, since that's the compound the
+// user opens the day with. "" when there's no strength lead (floor fallback).
+function leadEmphasis(strengthEx) {
+  if (!strengthEx || !strengthEx.length) return "";
+  return PATTERN_EMPHASIS[getExPattern(strengthEx[0].name)] || "";
+}
+// Finalize strength-session names once the whole week is built. A role with two
+// days is named by lead emphasis ("Upper · Bench" / "Upper · Pull-up") ONLY when
+// those emphases are genuinely distinct; if both days lead the same pattern (or
+// one has no readable lead) the whole role falls back to letters, so you never
+// see a half-labelled "Lower · Squat" sitting next to a bare "Lower B".
+function nameStrengthSessions(sessions) {
+  var byRole = {};
+  sessions.forEach(function (s, i) { if (s && s._nmeta) (byRole[s._nmeta.role] = byRole[s._nmeta.role] || []).push(i); });
+  Object.keys(byRole).forEach(function (role) {
+    var idxs = byRole[role], base = ROLE_NAME[role] || "Day";
+    if (idxs.length === 1) { sessions[idxs[0]].name = base; return; }
+    var emphs = idxs.map(function (i) { return sessions[i]._nmeta.emph; });
+    var distinct = emphs.every(function (e) { return !!e; }) && (new Set(emphs)).size === emphs.length;
+    idxs.forEach(function (i, k) {
+      sessions[i].name = distinct ? base + " · " + emphs[k] : base + " " + String.fromCharCode(65 + k);
+    });
+  });
+  sessions.forEach(function (s) { if (s) delete s._nmeta; });
 }
 function assignSupersets(exercises) {
   var strengthExes = exercises.filter(function (e) { return e.type === "strength"; });
@@ -2358,30 +2347,40 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
 
       if (minutes <= 45) assignSupersets(strengthEx);
 
-      var suffix = totalOf[role] > 1 ? " " + String.fromCharCode(65 + occ) : "";
-      var dayName, dayFocus;
+      var repeated = totalOf[role] > 1;
+      var dayName, dayFocus, nmeta = null;
       if (isEnd && leadEx.length) {
         var rn = leadEx[0].name;
         nameSeen[rn] = (nameSeen[rn] || 0) + 1;
         dayName = nameSeen[rn] > 1 ? rn + " " + nameSeen[rn] : rn;
         dayFocus = leadEx[0].target || "";
       } else {
-        dayName = (ROLE_NAME[role] || "Day") + suffix;
+        // Provisional name; finalized by nameStrengthSessions() once the whole
+        // week is built, so a role's two days can be compared and named by their
+        // real lead emphasis ("Upper · Bench" / "Upper · Pull-up") -- or fall
+        // back together to letters if their leads don't actually differ.
+        dayName = ROLE_NAME[role] || "Day";
         dayFocus = ROLE_FOCUS[role] || "";
+        nmeta = { role: role, emph: repeated ? leadEmphasis(strengthEx) : "" };
       }
-      return guaranteeSession({
+      var built = guaranteeSession({
         name: dayName,
         focus: dayFocus,
         exercises: leadEx.concat(strengthEx).concat(extraEx)
       });
+      if (nmeta) built._nmeta = nmeta;
+      return built;
     });
 
+    nameStrengthSessions(sessions);
     weeks.push({ week: wn, focus: phaseLabel(wn, isDeload), deload: isDeload, sessions: sessions });
   }
 
-  var weekLabel = totalWeeks > 1 ? totalWeeks + "-week " : "";
+  // Title = goal + split shape ("Hybrid · Upper/Lower"), so the program bar reads
+  // as a named program, not a bare category tag. Week count stays in the week nav
+  // ("of 4") and day count in the visible list, so neither is restated here.
   return normalizeProgram({
-    title: (GOAL_TEXT[goal] || "Workout") + " · " + weekLabel + days + "-day",
+    title: (GOAL_TEXT[goal] || "Workout") + " · " + splitLabel(roleList),
     goal:  GOAL_TEXT[goal] || "",
     unit:  intake.unit === "lb" ? "lb" : "kg",
     weeks: weeks
@@ -2977,12 +2976,12 @@ function resolveSpec(request, state) {
     for (var i = 0; i < sessions.length; i++) if (weekdayForSession(i) === tw) return i;
     return -1;
   }
-  // The session's own split-led identity -- "Upper A", "Lower B", "Push", a
-  // lead-lift name for endurance, or an imported name. The generator's " A"/
-  // " B" suffix is KEPT now (it distinguishes the week's two upper/lower days);
-  // the old "Day N ·" ordinal is gone (it reset every week and carried no
-  // training information). Falls back to a positional label only for a session
-  // that genuinely has no name.
+  // The session's own split-led identity -- "Upper · Bench", "Lower · Hinge",
+  // "Push", a lead-lift name for endurance, or an imported name. Two same-role
+  // days are told apart by their real lead emphasis (see PATTERN_EMPHASIS), not
+  // a bare A/B; the old "Day N ·" ordinal is gone (it reset every week and
+  // carried no training information). Falls back to a positional label only for
+  // a session that genuinely has no name.
   function sessionSplitName(sessions, i) {
     var raw = (sessions[i] && sessions[i].name) || "";
     return raw.trim() || ("Session " + (i + 1));
@@ -3057,21 +3056,14 @@ function resolveSpec(request, state) {
     var started = !weekDone && heroPr.done > 0;
     var label2 = weekDone ? "Week complete" : "Up next";
     var name = weekDone ? "Nice work this week" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
-    // Home's demoted why-line (BUILD-SPEC handoff: "one quiet line" on Home,
-    // vs. the first-class bordered block on Active -- see .card.is-current
-    // .card__why). Uses the session's own first real why-string verbatim
-    // (already computed per-exercise, not invented here) rather than a
-    // fabricated session-level summary; falls back to the exercise count
-    // when nothing's been generated for this session yet.
-    var heroWhy = "";
-    if (heroSes && Array.isArray(heroSes.exercises)) {
-      for (var wi = 0; wi < heroSes.exercises.length; wi++) {
-        if (heroSes.exercises[wi].why) { heroWhy = heroSes.exercises[wi].why; break; }
-      }
-    }
+    // Subline leads with the session's muscle focus (the coached detail), not a
+    // generic "pick up where you left off". Mid-session it appends the honest
+    // count of what's left; before starting it's the focus alone.
+    var heroFocus = (heroSes && heroSes.focus) || "";
+    var leftN = heroPr.total - heroPr.done;
     var subLine = weekDone ? (wk.sessions.length + " of " + wk.sessions.length + " sessions done")
-      : started ? (heroPr.done + "/" + heroPr.total + " done · pick up where you left off")
-      : (heroWhy || (heroSes ? heroSes.exercises.length + " exercises" : ""));
+      : started ? (heroFocus ? heroFocus + " · " + leftN + " left" : leftN + " exercises left")
+      : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : ""));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
     var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
     // Substitution entry point (BUILD-SPEC §6): quiet, subordinate to START --
@@ -3208,7 +3200,6 @@ function resolveSpec(request, state) {
     if (!dlg.hasAttribute("open")) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); }
   }
   var chevRight ='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
-  var trashIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
   var swapIcon = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>';
   var checkIcon = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg>';
   // Five-state week status (BUILD-SPEC §7): prescribed / alternate / skipped /
@@ -3231,13 +3222,6 @@ function resolveSpec(request, state) {
   function renderWeekList() {
     var sessions = curWeek().sessions;
     if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
-    // nextIdx: first day that is neither done nor skipped-past -- the single
-    // "current"/NEXT day. Computed once so exactly one row can ever claim it.
-    var nextIdx = -1;
-    for (var n = 0; n < sessions.length; n++) {
-      var st = weekDayStatus(sessions, n);
-      if (st.key === "pending" || st.key === "progress") { nextIdx = n; break; }
-    }
     var todayIdx = todaySessionIdx(sessions);
     weekListEl.innerHTML = sessions.map(function (s, i) {
       var st = weekDayStatus(sessions, i), pr = st.pr;
@@ -3246,21 +3230,41 @@ function resolveSpec(request, state) {
       // what's-up-next tag; only shown for a scheduled program, and not on a
       // day already finished (nothing left to do there today).
       if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">TODAY</span>';
+      // No NEXT tag: the home hero directly above already names the next
+      // session in display type with the accent Continue button, so a tag
+      // here just repeats the biggest element on the screen. (done / alt /
+      // skipped remain -- each is real per-day status, not a restatement.)
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
       else if (st.key === "done") tagHtml += '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + '</span>';
       else if (st.key === "skipped") tagHtml += '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
-      else if (i === nextIdx) tagHtml += '<span class="weekrow__tag weekrow__tag--next">NEXT</span>';
       if (st.key === "done") progHtml = '<span class="weekrow__prog is-done">done</span>';
       else if (st.key !== "skipped" || pr.total > 0) progHtml = '<span class="weekrow__prog">' + pr.done + ' / ' + pr.total + '</span>';
+      // No per-row delete: a destructive control shown on every row of the
+      // most-visited screen, for an action taken maybe once a program. It now
+      // lives quietly inside the day itself (see the "Remove this day" control
+      // in renderList), off the hot path but still one tap + undo away.
+      // The muscle focus under the name is the coached detail that makes a bare
+      // "Upper" read as a real session rather than a list entry.
+      var focusTxt = (sessions[i] && sessions[i].focus) || "";
+      var focusHtml = focusTxt ? '<span class="weekrow__focus">' + esc(focusTxt) + '</span>' : "";
       return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
         '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(dayPositionLabel(sessions, i)) + '">' +
-        '<span class="weekrow__main"><span class="weekrow__name">' + esc(dayPositionLabel(sessions, i)) + tagHtml + '</span></span>' +
+        '<span class="weekrow__main"><span class="weekrow__name">' + esc(dayPositionLabel(sessions, i)) + tagHtml + '</span>' + focusHtml + '</span>' +
         progHtml +
         '<span class="weekrow__chev">' + chevRight + '</span>' +
         '</button>' +
-        '<button class="weekrow__del" type="button" data-day="' + i + '" aria-label="Delete ' + esc(s.name) + '">' + trashIcon + '</button>' +
         '</div>';
     }).join("");
+  }
+  // Delete the day you're currently viewing, then drop back to the week list.
+  // Undo-backed via deleteSession, same as the old per-row trash.
+  function removeCurrentDay() {
+    var idx = state.activeSession;
+    hideRest(); stopLiveTimer(); releaseWakeLock();
+    state.view = "week";
+    deleteSession(idx);
+    renderAll(false);
+    window.scrollTo(0, 0);
   }
   function deleteSession(i) {
     var wk = curWeek(), sessions = wk.sessions;
@@ -3280,8 +3284,6 @@ function resolveSpec(request, state) {
   function renderDayBar() {
     var sessions = curWeek().sessions;
     $("dayTitle").textContent = dayPositionLabel(sessions, state.activeSession);
-    $("dayPrev").disabled = state.activeSession <= 0;
-    $("dayNext").disabled = state.activeSession >= sessions.length - 1;
     var lbl = $("liveBarLabel");
     if (lbl) { var ses = curSession(); lbl.textContent = "LIVE · " + (ses ? (ses.focus || ses.name) : "").toUpperCase(); }
   }
@@ -3336,8 +3338,11 @@ function resolveSpec(request, state) {
     var fs = (typeof computeFatigueState === "function") ? computeFatigueState(state) : null;
     var fatigueTag = (fs && (fs.band === "amber" || fs.band === "red"))
       ? '<span class="sprog__tag sprog__tag--fatigue">fatigue ' + fs.band + '</span>' : '';
+    // No session-focus H1 here: it duplicated the live bar's "LIVE . <focus>"
+    // one line above. The day bar carries the session name; the live bar
+    // carries the focus; this row is just the progress bar + Reset.
     headEl.innerHTML =
-      '<div class="session__main"><h1 class="session__focus">' + esc(ses.focus || ses.name) + '</h1>' +
+      '<div class="session__main">' +
       '<div class="sprog"><div class="sprog__track"><div class="sprog__fill" id="sprogFill" style="transform:scaleX(' + (p.total ? p.done / p.total : 0) + ')"></div></div><span class="sprog__txt" id="sprogTxt">' + p.done + '/' + p.total + ' exercises</span>' + tag + fatigueTag + '</div></div>' +
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>';
     $("resetBtn").addEventListener("click", resetDay);
@@ -3581,7 +3586,7 @@ function resolveSpec(request, state) {
       : e.type === "strength"
         ? '<span class="weight-note">' + esc(EQ_LABEL[e.equipment] || "Bodyweight") + ' · progress by reps</span>'
         : '<span class="weight-note">' + (e.weight > 0 ? esc(e.weight + " " + unit) : "Bodyweight") + ' · move with control</span>';
-    var setsHead = '<div class="setshead">' + (e.type === "strength" ? '<span class="setshead__label">Working sets</span>' : '') + '<span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
+    var setsHead = '<div class="setshead"><span class="setcount"><span class="setcount__done">' + doneCount + '</span><span class="setcount__sep">/</span><span class="setcount__total">' + total + '</span><span class="setcount__label">sets</span></span></div>';
     // Single "Target" line replaces the per-row planned captions ONLY when every
     // set genuinely shares the same planned weight/reps; ramp/wave exercises
     // keep their real per-row differences instead (see computeUniformTarget).
@@ -3657,7 +3662,7 @@ function resolveSpec(request, state) {
       collapsedHtml +
       '<div class="card__full">' +
       exOverline +
-      '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3><span class="now-chip" aria-hidden="true">Now</span></header>' +
+      '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
       subLine +
       formNotes +
       weightCtrl +
@@ -3691,6 +3696,9 @@ function resolveSpec(request, state) {
         block.items.forEach(function (e) { html += buildCard(e, i++, ses, null); });
       }
     });
+    // Quiet, out-of-the-way home for the rare "delete this day" action, at the
+    // very end of the day so it's off the hot path (undo-backed, like before).
+    html += '<button type="button" class="day-remove" id="dayRemove">Remove this day</button>';
     listEl.classList.toggle("reveal", !!animate);
     listEl.innerHTML = html;
     applyGlance();
@@ -3722,6 +3730,7 @@ function resolveSpec(request, state) {
 
   /* ===================== Interactions ===================== */
   function onListClick(ev) {
+    if (ev.target.closest("#dayRemove")) { removeCurrentDay(); return; }
     var cardEl = ev.target.closest(".card");
     if (cardEl) selectExercise(cardEl.getAttribute("data-ex"));
     var btn = ev.target.closest("[data-act]"); if (!btn) return;
@@ -3925,8 +3934,6 @@ function resolveSpec(request, state) {
     hideRest(); state.activeWeek = ni; state.activeSession = 0; save(); renderAll(true);
   }
   weekListEl.addEventListener("click", function (ev) {
-    var del = ev.target.closest(".weekrow__del");
-    if (del) { deleteSession(parseInt(del.getAttribute("data-day"), 10)); return; }
     var open = ev.target.closest(".weekrow__open");
     if (open) openDay(parseInt(open.getAttribute("data-day"), 10));
   });
@@ -3936,8 +3943,6 @@ function resolveSpec(request, state) {
     try { localStorage.setItem("tl:coachHintSeen", "1"); } catch (e) {}
     $("coachHint").hidden = true;
   });
-  $("dayPrev").addEventListener("click", function () { switchSession(state.activeSession - 1); });
-  $("dayNext").addEventListener("click", function () { switchSession(state.activeSession + 1); });
   // Restores the day-tab bar's old ArrowLeft/ArrowRight day-switching for keyboard
   // and screen-reader users, lost when the tabs were replaced by this back/next
   // layout. Skipped while typing in a field or while a dialog is open.
@@ -3969,10 +3974,11 @@ function resolveSpec(request, state) {
   $("weekNext").addEventListener("click", function () { switchWeek(1); });
 
   /* ===================== Theme ===================== */
+  // Dark is the only theme now (no control, no light palette). Kept as a
+  // function so its call sites stay put; it just guarantees the base :root
+  // dark palette by clearing any stale data-theme from an old backup.
   function applyTheme() {
-    if (state.theme === "system") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", state.theme);
-    syncSegs();
+    document.documentElement.removeAttribute("data-theme");
   }
 
   /* ===================== Plan sheet (Claude loop) ===================== */
@@ -4523,7 +4529,6 @@ function resolveSpec(request, state) {
   function openSheet() { syncSegs(); refreshStorage(); if (typeof sheet.showModal === "function") sheet.showModal(); else sheet.setAttribute("open", ""); }
   function closeSheet() { if (typeof sheet.close === "function") sheet.close(); else sheet.removeAttribute("open"); }
   function syncSegs() {
-    document.querySelectorAll("#themeSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-theme-val") === state.theme); });
     document.querySelectorAll("#unitSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-unit-val") === state.program.unit); });
     document.querySelectorAll("#soundSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-sound-val") === (state.restMuted ? "off" : "on")); });
     document.querySelectorAll("#warmSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-warm-val") === (state.warmups === false ? "off" : "on")); });
@@ -4552,7 +4557,6 @@ function resolveSpec(request, state) {
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
   sheet.addEventListener("click", function (ev) { if (ev.target === sheet) closeSheet(); });
-  $("themeSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-theme-val]"); if (!b) return; state.theme = b.getAttribute("data-theme-val"); save(); applyTheme(); });
   $("sDaysOfWeek").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-sdow]"); if (!b || !hasProgram()) return;
     var d = parseInt(b.getAttribute("data-sdow"), 10);
