@@ -355,6 +355,11 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .sect__step { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 .sect__num { font-family: "Spline Sans Mono", monospace; font-weight: 600; color: var(--accent-ink); }
 .sect__hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 10px; line-height: 1.5; }
+.today-subbanner { border-left: 2px solid var(--accent-ink); padding: 2px 0 2px 12px; margin-bottom: 18px; }
+.today-subbanner__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
+.today-subbanner__detail { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin: 0; }
+.today-card__sub { display: block; width: 100%; background: none; border: 0; padding: 10px 0 0; margin: 0; font-size: 12.5px; color: var(--ink-dim); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.today-card__sub:hover { color: var(--ink); }
 .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; padding: 3px; gap: 3px; }
 .seg button { border: 0; background: none; padding: 9px 16px; border-radius: 0; font-size: 13px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, color .15s ease; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
@@ -649,6 +654,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
 
     <div id="modeToday" hidden>
+      <div class="today-subbanner" id="todaySubBanner" hidden></div>
       <div class="bsect">
         <div class="blabel">What do you want to train today?</div>
         <textarea class="pastebox" id="todayText" rows="2" placeholder="e.g. 'chest and triceps, 40 min' / 'heavy legs' / 'quick upper body'" aria-label="What do you want to train today"></textarea>
@@ -2756,6 +2762,13 @@ function resolveSpec(request, state) {
       : (heroSes ? heroSes.exercises.length + " exercises" : "");
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
     var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
+    // Substitution entry point (BUILD-SPEC §6): quiet, subordinate to START --
+    // a link, never a button at parity with the primary action. Only offered
+    // before the day has been started (once you've logged something, the
+    // natural action is Continue, not replace what you're mid-way through).
+    var subLinkHtml = (!weekDone && !started)
+      ? '<button type="button" class="today-card__sub" id="homeHeroSub">Can’t do ' + esc(dayPositionLabel(wk.sessions, heroIdx).replace(/^Day \d+ · /, "")) + ' today? Substitute with Just Today →</button>'
+      : "";
     // No week-strip dot row here anymore -- it read as a swipeable carousel
     // page-indicator even though the hero itself never was one (always a
     // single fixed card), and it duplicated the day list right below, which
@@ -2771,9 +2784,12 @@ function resolveSpec(request, state) {
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
         subHtml +
         '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
+        subLinkHtml +
       '</div>';
     var cta = $("homeHeroCta");
     if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { openDay(heroIdx); });
+    var subBtn = $("homeHeroSub");
+    if (subBtn) subBtn.addEventListener("click", function () { openPlanForSubstitute(heroIdx); });
   }
   // ---- History view: real completed-session data, current program + archive.
   // Answers the question the app never used to: am I actually getting
@@ -3483,6 +3499,12 @@ function resolveSpec(request, state) {
 
   /* ===================== Plan sheet (Claude loop) ===================== */
   var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null, pendingTodayAnyway = null;
+  // Set only via openPlanForSubstitute (the home hero's "Can't do X today?"
+  // link) -- the array index of the day a Just-Today build will REPLACE on
+  // confirm, rather than being appended as an extra session. null means the
+  // generic, non-slot-specific entry point (the header icon), which still
+  // just adds a new session as before.
+  var pendingSubstituteIdx = null;
   var buildThinkTimer = null, buildThinkInterval = null;
   function cancelBuildThinking() {
     clearInterval(buildThinkInterval); buildThinkInterval = null;
@@ -3636,10 +3658,11 @@ function resolveSpec(request, state) {
     syncAllEquipChips();
   }
   function openPlan() {
-    pending = null; pendingBuild = null; pendingToday = null;
+    pending = null; pendingBuild = null; pendingToday = null; pendingSubstituteIdx = null;
     $("loadPreview").classList.add("hidden"); $("loadText").value = "";
     $("buildPreview").classList.add("hidden");
     $("todayPreview").classList.add("hidden");
+    syncSubBanner(); // clears any stale banner if the sheet was last left open on Just-Today
     syncBuild();
     syncEquipChips("todayEquip"); syncTodayEquipHint(); syncReadinessChips();
     $("reqText").value = buildRequest();
@@ -3649,6 +3672,22 @@ function resolveSpec(request, state) {
     var firstBuild = !hasProgram(), wa = $("weekAdjust"), ta = $("todayAdjust");
     if (wa) wa.open = firstBuild; if (ta) ta.open = firstBuild;
     if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
+  }
+  // Entry point for the home hero's "Can't do X today? Substitute with Just
+  // Today" link -- opens straight into Just-Today with the target day
+  // pre-selected, so it's set AFTER openPlan()'s own reset clears it.
+  function openPlanForSubstitute(dayIdx) {
+    openPlan();
+    pendingSubstituteIdx = dayIdx;
+    setPlanMode("today");
+  }
+  function syncSubBanner() {
+    var el = $("todaySubBanner"); if (!el) return;
+    var wk = curWeek(), ses = pendingSubstituteIdx != null ? wk.sessions[pendingSubstituteIdx] : null;
+    if (!ses) { el.hidden = true; pendingSubstituteIdx = null; return; }
+    el.hidden = false;
+    el.innerHTML = '<p class="today-subbanner__label">Substituting — this replaces the plan</p>' +
+      '<p class="today-subbanner__detail">' + esc(dayPositionLabel(wk.sessions, pendingSubstituteIdx)) + ' · ' + esc(ses.focus || ses.name) + '. Recorded as an alternate.</p>';
   }
   function onBuild(showThinking) {
     cancelBuildThinking(); // a build already in flight is superseded by this one
@@ -3692,10 +3731,12 @@ function resolveSpec(request, state) {
   }
   function setPlanMode(mode) {
     var today = mode === "today";
+    if (!today) pendingSubstituteIdx = null; // switching to Build-a-week abandons any pending substitution
     $("modeWeek").hidden = today;
     $("modeToday").hidden = !today;
     document.querySelectorAll("#planMode button").forEach(function (b) { b.setAttribute("aria-pressed", (b.getAttribute("data-mode") === mode).toString()); });
     var h = planSheet.querySelector("h2"); if (h) h.textContent = today ? "Today's session" : "Build my week";
+    if (today) syncSubBanner();
   }
   // The free-text parse endpoint. Empty by default -> the app uses the offline
   // regex parser and never touches the network. Set it to the Cloudflare Worker
@@ -3815,7 +3856,7 @@ function resolveSpec(request, state) {
         '<div class="preview__meta">Understood: ' + esc(req.summary) + ' · ' + esc(eqNote) + '</div>' +
         banner +
         '<div class="todaylist">' + rows + '</div>' +
-        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
+        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">' + esc(confirmTodayLabel()) + '</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
       pv.classList.remove("hidden");
       $("confirmToday").addEventListener("click", addTodaySession);
       $("retryToday").addEventListener("click", onBuildToday);
@@ -3836,9 +3877,18 @@ function resolveSpec(request, state) {
     pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
       '<div class="preview__meta">Building as requested, overriding the recovery suggestion for today only</div>' +
       '<div class="todaylist">' + rows + '</div>' +
-      '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">Add to my week</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
+      '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">' + esc(confirmTodayLabel()) + '</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
     $("confirmToday").addEventListener("click", addTodaySession);
     $("retryToday").addEventListener("click", onBuildToday);
+  }
+  // "Add to my week" is honest for the generic, non-slot-specific build, but
+  // this session will actually REPLACE a day when it came from the "Can't do
+  // X today?" link -- the confirm button says so plainly rather than reusing
+  // "add" language for what is really a substitution.
+  function confirmTodayLabel() {
+    if (pendingSubstituteIdx == null) return "Add to my week";
+    var wk = curWeek(), ses = wk.sessions[pendingSubstituteIdx];
+    return ses ? "Replace " + dayPositionLabel(wk.sessions, pendingSubstituteIdx) : "Add to my week";
   }
   function addTodaySession() {
     if (!pendingToday) return;
@@ -3849,11 +3899,34 @@ function resolveSpec(request, state) {
       return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
     }) };
     session.origin = "alternate"; // marks it a Just-Today substitution for the week list's ALT tag
+    // Substitution (BUILD-SPEC §6): if this build came from the home hero's
+    // "Can't do X today?" link, it REPLACES that specific day's slot -- same
+    // array position, so the week's day count and every other day's index are
+    // unchanged -- instead of appending a new, extra session. The original
+    // day (and anything logged against it) is snapshotted for undo, same
+    // pattern as deleteSession, never silently discarded.
+    if (pendingSubstituteIdx != null && week.sessions[pendingSubstituteIdx]) {
+      var idx = pendingSubstituteIdx;
+      var removedSession = week.sessions[idx];
+      var removedLog = state.log[removedSession.id] ? JSON.parse(JSON.stringify(state.log[removedSession.id])) : null;
+      var oldLabel = dayPositionLabel(week.sessions, idx);
+      week.sessions[idx] = session;
+      delete state.log[removedSession.id];
+      state.activeSession = idx;
+      pendingToday = null; pendingSubstituteIdx = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan();
+      toastUndo("Replaced " + oldLabel + " with " + session.name, function () {
+        week.sessions[idx] = removedSession;
+        if (removedLog) state.log[removedSession.id] = removedLog;
+        delete state.log[sid];
+        save(); renderAll(false); toast("Restored");
+      });
+      return;
+    }
     week.sessions.push(session);
     state.activeSession = week.sessions.length - 1;
     pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added " + session.name);
   }
-  function closePlan() { cancelBuildThinking(); if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
+  function closePlan() { cancelBuildThinking(); pendingSubstituteIdx = null; if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
     var text = $("reqText").value;
     if (navigator.clipboard && navigator.clipboard.writeText) {
