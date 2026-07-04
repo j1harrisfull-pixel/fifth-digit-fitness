@@ -281,6 +281,9 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__collapsed-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.is-complete:not(.is-current) .card__collapsed-name { color: var(--faint); }
 .card__collapsed-meta { flex: none; font-size: 12px; color: var(--faint); }
+/* Superset member badge on a collapsed row, so a paired partner (A2) reads as
+   part of the superset, not an unrelated upcoming exercise. */
+.card__collapsed-badge { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; padding: 1px 5px; background: var(--accent-tint); color: var(--accent-ink); }
 .card__overline { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; }
 .card:not(.is-current) { padding: 10px 14px; cursor: pointer; }
 .card.is-current { padding: 14px 14px 12px; }
@@ -527,6 +530,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 @keyframes restUp { from { transform: translateX(-50%) translateY(16px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
 .resttimer__main { display: flex; align-items: center; gap: 12px; }
 .resttimer__body { flex: 1 1 auto; min-width: 0; }
+/* Superset partner prompt: during a superset's rest, the real next action is
+   the paired exercise, not a random filler. A full-width tap jumps to it. */
+.supernext { margin-top: 11px; width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--accent-ink); background: var(--accent-tint); color: var(--ink); cursor: pointer; text-align: left; }
+.supernext__label { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); }
+.supernext__name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.supernext__go { flex: none; font-size: 13px; font-weight: 600; color: var(--accent-ink); }
 .filler { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line); }
 .filler[hidden] { display: none; }
 .filler__label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
@@ -911,6 +920,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <button class="resttimer__skip" id="restPlus" type="button" aria-label="Add 15 seconds of rest">+15s</button>
     <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
   </div>
+  <button class="supernext" id="superNext" type="button" hidden>
+    <span class="supernext__label">Superset · next up</span>
+    <span class="supernext__name" id="superNextName"></span>
+    <span class="supernext__go" aria-hidden="true">Go →</span>
+  </button>
   <div class="filler" id="restFiller" hidden>
     <span class="filler__label">While you rest · optional</span>
     <div class="filler__row">
@@ -3634,6 +3648,7 @@ function resolveSpec(request, state) {
     if (e.type === "strength" && lastW > 0) collapsedMeta += " · " + roundW(lastW) + " " + unit;
     var collapsedHtml = '<div class="card__collapsed">' +
       '<span class="card__collapsed-check' + (complete ? " is-done" : "") + '" aria-hidden="true">' + (complete ? checkIcon : "") + '</span>' +
+      (badge ? '<span class="card__collapsed-badge">' + esc(badge) + '</span>' : '') +
       '<span class="card__collapsed-name">' + esc(e.name) + '</span>' +
       '<span class="card__collapsed-meta mono">' + esc(collapsedMeta) + '</span>' +
       '</div>';
@@ -4643,6 +4658,7 @@ function resolveSpec(request, state) {
   }
   function showFiller(ex) {
     var box = $("restFiller"); if (!box) return;
+    hideSuperNext();
     var f = pickFiller(ex);
     if (!f) { box.hidden = true; currentFillerEx = null; return; }
     currentFillerEx = ex;
@@ -4652,6 +4668,27 @@ function resolveSpec(request, state) {
     box.hidden = false;
   }
   function hideFiller() { var box = $("restFiller"); if (box) box.hidden = true; currentFillerEx = null; }
+  // The paired member of the same superset group that still has sets to do --
+  // the honest "next" during a superset's rest. null if not in a superset or
+  // the partner is already finished.
+  function supersetPartner(ses, ex) {
+    if (!ses || !ex || !ex.group) return null;
+    var mates = ses.exercises.filter(function (e) { return e.group === ex.group && e.id !== ex.id && e.type === "strength"; });
+    for (var i = 0; i < mates.length; i++) {
+      var lg = readLog(ses, mates[i]);
+      if (lg.sets.some(function (s) { return !s.completed; })) return mates[i];
+    }
+    return null;
+  }
+  var superNextTargetId = null;
+  function showSuperNext(partner) {
+    var el = $("superNext"), fb = $("restFiller"); if (!el) return;
+    if (fb) fb.hidden = true; currentFillerEx = null;
+    superNextTargetId = partner.id;
+    $("superNextName").textContent = partner.name;
+    el.hidden = false;
+  }
+  function hideSuperNext() { var el = $("superNext"); if (el) el.hidden = true; superNextTargetId = null; }
   // Persisted OUTSIDE the main state blob (its own tiny key): a running rest
   // is a live instrument reading, not training history -- but it must survive
   // a lock-screen suspend or PWA reload mid-rest, because "the timer died in
@@ -4687,7 +4724,11 @@ function resolveSpec(request, state) {
     // Reset the controls a completed rest may have swapped (Done -> Skip, +15s back).
     var rpB = $("restPlus"); if (rpB) rpB.hidden = false;
     var rskB = $("restSkip"); if (rskB) rskB.textContent = "Skip";
-    showFiller(ex);
+    // Superset: the real next action during this rest is the paired exercise,
+    // not a random accessory. Route to the partner and suppress the filler;
+    // otherwise fall back to the optional filler suggestion.
+    var partner = supersetPartner(curSession(), ex);
+    if (partner) showSuperNext(partner); else showFiller(ex);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
     tickRest();
@@ -4716,7 +4757,7 @@ function resolveSpec(request, state) {
     restTimeEl.textContent = fmtClock(rem);
     if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
   }
-  function hideRest() { clearInterval(restState.timer); restState.timer = null; clearRestPersist(); if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); document.body.classList.remove("has-rest"); }
+  function hideRest() { clearInterval(restState.timer); restState.timer = null; clearRestPersist(); if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); hideSuperNext(); document.body.classList.remove("has-rest"); }
   // The one-shot moment a finished session used to skip entirely -- the cards
   // just faded and, worse, the rest timer kept counting down for a set that no
   // longer exists. Fires once, right when the session's last exercise becomes
@@ -4788,6 +4829,12 @@ function resolveSpec(request, state) {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill");
     try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     $("restSkip").addEventListener("click", hideRest);
+    // Tapping the superset partner prompt jumps straight to that exercise and
+    // ends the rest -- the guided alternation a superset actually wants.
+    $("superNext").addEventListener("click", function () {
+      var id = superNextTargetId; hideRest();
+      if (id) selectExercise(id);
+    });
     // +15s only extends a RUNNING countdown; once it's hit 0:00 the moment has
     // passed and extending a finished rest would be inventing time.
     $("restPlus").addEventListener("click", function () {
