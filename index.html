@@ -545,8 +545,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .history__empty { font-size: 14px; color: var(--ink-dim); padding: 8px 0 20px; }
 .history__section { margin-bottom: 22px; }
 .history__section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 10px; }
-.history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .history__lift:first-child { border-top: 0; }
+.history__lift:hover .history__lift-name { color: var(--accent-ink); }
+/* Per-exercise drill-down (openExerciseHistory) */
+.exhist__record { margin: 0 0 10px; font-size: 14px; color: var(--ink-dim); }
+.exhist__record b { color: var(--ink); font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; }
+.exhist__chart { display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px; }
+.exhist__chart .history__lift-spark { flex: 1 1 auto; width: auto; height: 56px; }
+.exhist__axis { flex: none; display: flex; flex-direction: column; justify-content: space-between; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); font-style: normal; }
+.exhist__axis b, .exhist__axis i { font-style: normal; font-weight: 600; }
+.exhist__pr { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 9.5px; font-weight: 700; letter-spacing: .1em; padding: 1px 5px; border: 1px solid var(--ready); color: var(--ready); margin-left: 6px; vertical-align: 1px; }
+.card__hist { flex: none; margin-left: auto; background: none; border: 0; color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 4px 0 4px 10px; cursor: pointer; font-family: var(--font-body); }
+.card__hist:hover { color: var(--ink); }
 .history__lift-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__lift-spark { flex: none; width: 70px; height: 24px; color: var(--accent-ink); }
 .history__lift-val { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 56px; text-align: right; }
@@ -2936,16 +2947,16 @@ function resolveSpec(request, state) {
           var setsDone = 0;
           (ses.exercises || []).forEach(function (ex) {
             var el = sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
-            var best = 0;
+            var best = 0, bestW = 0, bestR = 0;
             el.sets.forEach(function (s) {
               if (!s.completed) return;
               setsDone++;
               if (s.actual_reps != null) {
                 var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
-                var o = epley(w, s.actual_reps); if (o > best) best = o;
+                var o = epley(w, s.actual_reps); if (o > best) { best = o; bestW = w; bestR = s.actual_reps; }
               }
             });
-            if (best > 0) (lifts[ex.name] = lifts[ex.name] || []).push({ date: sl.date || "", orm: Math.round(best) });
+            if (best > 0) (lifts[ex.name] = lifts[ex.name] || []).push({ date: sl.date || "", orm: Math.round(best), w: bestW, reps: bestR });
           });
           if (setsDone > 0) sessions.push({ date: sl.date || "", name: ses.name, setsDone: setsDone });
         });
@@ -2973,12 +2984,16 @@ function resolveSpec(request, state) {
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
   function openHistory() {
+    $("historyTitle").textContent = "Progress";
     var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
+    // Ranked by most-recent activity, not lifetime frequency -- a once-a-week
+    // deadlift must never be pushed off this list by a thrice-a-week accessory.
+    function lastDate(k) { var p = data.lifts[k]; return p[p.length - 1].date || ""; }
     var liftNames = Object.keys(data.lifts).filter(function (k) { return data.lifts[k].length >= 2; })
-      .sort(function (a, b) { return data.lifts[b].length - data.lifts[a].length; }).slice(0, 8);
+      .sort(function (a, b) { return lastDate(b).localeCompare(lastDate(a)); }).slice(0, 8);
     var liftsHtml = liftNames.length ? liftNames.map(function (name) {
       var pts = data.lifts[name].slice(-8), values = pts.map(function (p) { return p.orm; }), last = values[values.length - 1];
-      return '<div class="history__lift"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></div>';
+      return '<button type="button" class="history__lift" data-lift="' + esc(name) + '"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></button>';
     }).join("") : '<p class="history__empty">Log a lift across at least two different sessions to see a trend here.</p>';
     var recentSessions = data.sessions.slice(0, 12);
     var sessHtml = recentSessions.length ? recentSessions.map(function (s) {
@@ -2990,7 +3005,41 @@ function resolveSpec(request, state) {
     var dlg = $("historySheet");
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
   }
-  var chevRight = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+  // Per-exercise history at the point of need: the lift's full dated est-1RM
+  // series + its records, from the same buildHistoryData the History sheet
+  // uses -- one source of truth for "what did this lift do". Reuses the
+  // History sheet dialog; opening from an exercise card swaps its body.
+  function openExerciseHistory(name) {
+    var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
+    var pts = data.lifts[name] || [];
+    var body;
+    if (!pts.length) {
+      body = '<p class="history__empty">Nothing logged for this lift yet.</p>';
+    } else {
+      var values = pts.map(function (p) { return p.orm; });
+      var bestIdx = 0;
+      pts.forEach(function (p, i) { if (p.orm > pts[bestIdx].orm) bestIdx = i; });
+      var best = pts[bestIdx];
+      var minV = Math.min.apply(null, values), maxV = Math.max.apply(null, values);
+      var chart = values.length >= 2
+        ? '<div class="exhist__chart">' + sparklineSvg(values) + '<span class="exhist__axis"><b>' + maxV + '</b><i>' + minV + '</i></span></div>'
+        : "";
+      var recordHtml = '<p class="exhist__record">Best est. 1RM <b>' + best.orm + esc(unit) + '</b>' +
+        (best.w > 0 ? ' · best set ' + esc(roundW(best.w)) + esc(unit) + ' × ' + esc(best.reps) : '') +
+        (best.date ? ' · ' + esc(fmtHistDate(best.date)) : '') + '</p>';
+      var rows = pts.slice().reverse().slice(0, 12).map(function (p, i, arr) {
+        var isPR = p.orm === best.orm && (pts.indexOf(p) === bestIdx);
+        return '<div class="history__session"><span><span class="history__session-name">' + esc(fmtHistDate(p.date) || "–") + (isPR ? ' <span class="exhist__pr">PR</span>' : '') + '</span></span>' +
+          '<span class="history__session-sets mono">' + (p.w > 0 ? esc(roundW(p.w)) + esc(unit) + '×' + esc(p.reps) + ' · ' : '') + 'est. ' + p.orm + esc(unit) + '</span></div>';
+      }).join("");
+      body = recordHtml + chart + '<div class="history__section"><p class="history__section-title">Sessions</p>' + rows + '</div>';
+    }
+    $("historyTitle").textContent = name;
+    $("historyBody").innerHTML = body;
+    var dlg = $("historySheet");
+    if (!dlg.hasAttribute("open")) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); }
+  }
+  var chevRight ='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
   var trashIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
   var swapIcon = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>';
   var checkIcon = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg>';
@@ -3361,7 +3410,8 @@ function resolveSpec(request, state) {
     if (e.type === "strength") {
       var fd = strengthFoot(e, lg, unit);
       foot = '<div class="card__foot"><div class="card__1rm"><span>est. 1RM</span><b>' + fd.ormTxt + '</b></div>' +
-        '<div class="card__prog' + (fd.ready ? " is-ready" : "") + '"' + (fd.progTxt ? "" : ' style="display:none"') + '>' + esc(fd.progTxt) + '</div></div>';
+        '<div class="card__prog' + (fd.ready ? " is-ready" : "") + '"' + (fd.progTxt ? "" : ' style="display:none"') + '>' + esc(fd.progTxt) + '</div>' +
+        '<button type="button" class="card__hist" data-act="exhist" data-ex="' + e.id + '" aria-haspopup="dialog">History ›</button></div>';
     }
     // Task 3.1: a plain one-line "why" under the name, generated only from the
     // real inputs that drove selection (see selectComplementary/defaultWhy) --
@@ -3558,6 +3608,8 @@ function resolveSpec(request, state) {
           save(); renderList(true); toast("Set restored");
         });
       }
+    } else if (act === "exhist") {
+      openExerciseHistory(e.name);
     } else if (act === "setdone") {
       var di = parseInt(btn.getAttribute("data-set"), 10), wd = writeLog(ses, e), ds = wd.el.sets[di];
       var on2 = !ds.completed;
@@ -4168,6 +4220,10 @@ function resolveSpec(request, state) {
     cs.addEventListener("click", function (ev) { if (ev.target === cs) { if (cs.close) cs.close(); else cs.removeAttribute("open"); } });
   })();
   $("historyBtn").addEventListener("click", openHistory);
+  $("historyBody").addEventListener("click", function (ev) {
+    var row = ev.target.closest("[data-lift]"); if (!row) return;
+    openExerciseHistory(row.getAttribute("data-lift"));
+  });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
   $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
   // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
@@ -4380,8 +4436,13 @@ function resolveSpec(request, state) {
       var pts = data.lifts[e.name];
       if (!pts || pts.length < 2) return;
       var cur = pts[pts.length - 1].orm, prev = pts[pts.length - 2].orm;
+      // All-time PR check: today's best beats every EARLIER point, not just
+      // the immediately-previous session.
+      var allTimePrev = 0;
+      for (var pi = 0; pi < pts.length - 1; pi++) { if (pts[pi].orm > allTimePrev) allTimePrev = pts[pi].orm; }
+      var isPR = cur > allTimePrev;
       var icon, cls, detail;
-      if (cur > prev) { icon = "↑"; cls = "is-up"; detail = "Est. 1RM up from " + prev + unit + " to " + cur + unit + "."; }
+      if (cur > prev) { icon = "↑"; cls = "is-up"; detail = "Est. 1RM up from " + prev + unit + " to " + cur + unit + "." + (isPR ? " New best." : ""); }
       else if (cur < prev) { icon = "↓"; cls = "is-down"; detail = "Pulled back from an est. " + prev + unit + " to " + cur + unit + " — logged as-is, not papered over."; }
       else { icon = "—"; cls = "is-flat"; detail = "Flat at an est. " + cur + unit + "."; }
       rows.push('<div class="complete__read-row"><span class="complete__read-icon ' + cls + '">' + icon + '</span><div><p class="complete__read-name">' + esc(e.name) + '</p><p class="complete__read-detail">' + esc(detail) + '</p></div></div>');
