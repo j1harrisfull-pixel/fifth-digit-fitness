@@ -1,10 +1,10 @@
 /* Fifth Digit Fitness — service worker
    - Precaches the app shell (incl. self-hosted fonts) for instant, offline-first loads
-   - Navigations are served from the cached shell first (app-shell model)
+   - Navigations are network-first (falls back to the cached shell only when offline)
    - Same-origin assets: cache-first with background fill
    Bump CACHE_VERSION to ship a new shell. */
 
-const CACHE_VERSION = "v53";
+const CACHE_VERSION = "v54";
 const SHELL_CACHE = `training-log-shell-${CACHE_VERSION}`;
 
 // Relative URLs so this works under any base path (e.g. GitHub Pages project page).
@@ -60,19 +60,22 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // App navigations — stale-while-revalidate: serve the cached shell instantly,
-  // then refresh it in the background so a deployed update reaches the user on the
-  // next launch without needing a CACHE_VERSION bump.
+  // App navigations — network-first: a deployed update reaches the user on
+  // THIS launch (not "next launch, if you happen to relaunch a second time"),
+  // since a real online device always gets the fresh HTML. The cached shell
+  // is only ever used as the offline fallback.
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
         const cache = await caches.open(SHELL_CACHE);
-        const cached = (await cache.match("./index.html")) || (await cache.match("./"));
-        const network = fetch("./index.html").then((resp) => {
-          if (resp && resp.ok) { cache.put("./index.html", resp.clone()); cache.put("./", resp.clone()); }
-          return resp;
-        }).catch(() => null);
-        return cached || (await network) || new Response("Offline", { status: 503, statusText: "Offline" });
+        try {
+          const resp = await fetch("./index.html", { cache: "no-store" });
+          if (resp && resp.ok) { cache.put("./index.html", resp.clone()); cache.put("./", resp.clone()); return resp; }
+          throw new Error("bad response: " + resp.status);
+        } catch (e) {
+          const cached = (await cache.match("./index.html")) || (await cache.match("./"));
+          return cached || new Response("Offline", { status: 503, statusText: "Offline" });
+        }
       })()
     );
     return;
