@@ -222,6 +222,13 @@ input, textarea { font: inherit; color: inherit; }
    outline folded onto the why-line, not a second badge competing for attention. */
 .tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 0; border: 1px solid var(--line); color: var(--ink-dim); }
 .card__subline { display: flex; align-items: baseline; gap: 8px; margin: -4px 0 4px; }
+/* Active screen: the why-line is first-class beside the anchor exercise --
+   promoted to its own bordered block, not the plain quiet line every other
+   card gets (BUILD-SPEC handoff: "its own bordered block beside the anchor",
+   demoted to one quiet line everywhere else). .is-current is already toggled
+   on the card by refreshCurrentCard, so this is a pure CSS promotion. */
+.card.is-current .card__subline { flex-direction: column; align-items: flex-start; gap: 6px; }
+.card.is-current .card__why { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; padding: 8px 10px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font-size: 13px; }
 /* Working weight: set once per exercise, so it reads as clearly secondary to
    the per-set controls below it -- a compact inline label + stepper group,
    not a standalone hero control. .weight__input gets real padding (not a
@@ -2754,12 +2761,21 @@ function resolveSpec(request, state) {
     var started = !weekDone && heroPr.done > 0;
     var label2 = weekDone ? "Week complete" : "Up next";
     var name = weekDone ? "Nice work this week" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
-    // Subtitle used to grab an arbitrary exercise's own selection-reason and
-    // present it as if it described the whole session -- honest per-exercise,
-    // but misleading once relabelled as the session's own description here.
+    // Home's demoted why-line (BUILD-SPEC handoff: "one quiet line" on Home,
+    // vs. the first-class bordered block on Active -- see .card.is-current
+    // .card__why). Uses the session's own first real why-string verbatim
+    // (already computed per-exercise, not invented here) rather than a
+    // fabricated session-level summary; falls back to the exercise count
+    // when nothing's been generated for this session yet.
+    var heroWhy = "";
+    if (heroSes && Array.isArray(heroSes.exercises)) {
+      for (var wi = 0; wi < heroSes.exercises.length; wi++) {
+        if (heroSes.exercises[wi].why) { heroWhy = heroSes.exercises[wi].why; break; }
+      }
+    }
     var subLine = weekDone ? (wk.sessions.length + " of " + wk.sessions.length + " sessions done")
       : started ? (heroPr.done + "/" + heroPr.total + " done · pick up where you left off")
-      : (heroSes ? heroSes.exercises.length + " exercises" : "");
+      : (heroWhy || (heroSes ? heroSes.exercises.length + " exercises" : ""));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
     var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
     // Substitution entry point (BUILD-SPEC §6): quiet, subordinate to START --
