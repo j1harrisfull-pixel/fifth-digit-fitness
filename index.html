@@ -1714,7 +1714,16 @@ function selectComplementary(o) {
   var placed = [], why = [];
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
-    var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, o.patCap, o.dlCap,
+    // The day's lead compound (slot 0) is the point of the session, so give its
+    // pattern one extra slot of week-level headroom. Without this, a second
+    // same-role day is starved: the week's two Lower days share a hinge cap, the
+    // squat-led day's accessory hinges spend it, and the hinge-led day then can't
+    // open with a hinge and falls through to an off-pattern substitute (which is
+    // why ~12% of builds produced two squat-led Lower days named "Lower A/B").
+    // The cap is a hard count check, so this can only lift a pattern to patCap+1,
+    // never higher; accessories still respect the base cap.
+    var slotPatCap = k === 0 ? o.patCap + 1 : o.patCap;
+    var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
       { avoidHigh: high >= fatigueBudget, rank: ranker(slot.compound, seedK), unlocked: o.unlocked });
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
     // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
