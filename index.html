@@ -1224,6 +1224,14 @@ const CON = ["conditioning"];
 const LIBRARY = [
   // ---------- SQUAT / quads ----------
   { id: "back-squat", name: "Back Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: bar on rear delts, brace hard, feet shoulder-width. Key: sit between the hips, knees track over toes, drive the floor away. Fault: knees caving or hips shooting up first." },
+  // Accommodating resistance (band + barbell): resistance climbs through the range
+  // so force stays high to lockout where you're strongest. Evidence-backed for
+  // strength / bar speed / rate of force development, thin for hypertrophy -- so
+  // these are gated to the Strength goal, advanced users, and a barbell+band kit,
+  // and capped at one per session (see pickStrength). `needs` forces both implements.
+  { id: "banded-squat", name: "Banded Back Squat", type: "strength", equipment: "barbell", needs: ["barbell", "band"], accommodating: true, pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["back-squat", "front-squat", "pause-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: loop light bands over the bar and anchor them to the base of the rack (or heavy dumbbells) so tension rises as you stand. Key: sit to depth under control, then drive the floor away and keep accelerating through the top where the bands load hardest. Fault: easing off near lockout, accommodating resistance rewards continuous intent to the very top." },
+  { id: "banded-bench-press", name: "Banded Bench Press", type: "strength", equipment: "barbell", needs: ["barbell", "band"], accommodating: true, pattern: "hpush", muscles: ["chest", "triceps"], compound: true, goals: C, unit: "reps", movement_pattern: "horiz_push", primary_muscles: ["chest"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["shoulder", "elbow"], is_unilateral: false, stability_demand: "free", variations: ["bench-press", "dumbbell-bench-press"], progression_policy: "linear_double_progression_load", cue: "Setup: loop bands over the bar ends and anchor them under the bench or heavy dumbbells so tension climbs as you press up. Key: control the descent against dropping tension, then accelerate hard through the mid-range and lockout where the bands fight you most. Fault: slowing at the top, the point is maximal drive against the rising resistance." },
+  { id: "banded-deadlift", name: "Banded Deadlift", type: "strength", equipment: "barbell", needs: ["barbell", "band"], accommodating: true, pattern: "hinge", muscles: ["hamstrings", "glutes", "back"], compound: true, goals: C, unit: "reps", movement_pattern: "hinge", primary_muscles: ["hamstrings"], secondary_muscles: ["glutes", "back"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "free", variations: ["deadlift", "trap-bar-deadlift", "romanian-deadlift"], progression_policy: "linear_double_progression_load", cue: "Setup: anchor bands under the plates or the platform and over the bar so resistance climbs off the floor to lockout. Key: break the floor smoothly, then accelerate as the bands add tension, finishing with a hard glute lockout. Fault: jerking the bar or letting the hips shoot up, keep the bar path vertical against the rising load." },
   { id: "pause-squat", name: "Pause Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: same as a back squat, brace hard before you descend. Key: sit to depth and hold for a full 2-3 count with no bounce, staying tight, then drive up. Fault: relaxing the brace at the bottom or letting the hips shift back during the pause." },
   { id: "front-squat", name: "Front Squat", type: "strength", equipment: "barbell", pattern: "squat", muscles: ["quads"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: bar on front delts, elbows high. Key: stay upright, knees forward, full depth. Fault: elbows dropping and the bar rolling forward." },
   { id: "goblet-squat", name: "Goblet Squat", type: "strength", equipment: "dumbbell", pattern: "squat", muscles: ["quads", "glutes"], compound: true, goals: C, unit: "reps", movement_pattern: "squat", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["knee", "hip", "spine", "ankle"], is_unilateral: false, stability_demand: "free", variations: ["hack-squat", "leg-press", "smith-squat", "belt-squat"], progression_policy: "linear_double_progression_load", cue: "Setup: hold one bell at the chest, elbows tucked. Key: sit straight down, elbows inside the knees at the bottom. Fault: heels lifting or chest collapsing." },
@@ -1610,14 +1618,17 @@ function pickHardConditioningDay(roleList) {
 }
 function equipOk(e, allowed) {
   if (!e) return false;
+  if (allowed == null) return true; // no filter = full gym has everything
+  // Compound requirement (accommodating resistance needs barbell AND bands):
+  // every listed item must be in the kit.
+  if (e.needs) { for (var n = 0; n < e.needs.length; n++) if (allowed.indexOf(e.needs[n]) < 0) return false; return true; }
   if (e.equipment === "bodyweight") return true;
-  if (allowed == null) return true; // no filter = full gym
   return allowed.indexOf(e.equipment) >= 0;
 }
 var ALL_PATTERNS = ["squat", "hinge", "lunge", "hpush", "vpush", "hpull", "vpull", "biceps", "triceps", "calf", "core", "carry"];
 // The hip-hinge barbell/db lifts a lifter calls "a deadlift" — capped hard so they
 // never stack across the week (high axial fatigue + the user's explicit gripe).
-var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning"];
+var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning", "banded-deadlift"];
 // Low-level primitive: pick ONE exercise satisfying a slot, honouring equipment,
 // week-level dedup, pattern cap, and the deadlift-family cap, with a 4-level
 // pool-widening fallback so a slot is never left unfillable. opts (optional,
@@ -1641,6 +1652,12 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
     return e.type === "strength"
       && pats.indexOf(e.pattern) >= 0
       && (useGoal ? e.goals.indexOf(selGoal) >= 0 : true)
+      // Accommodating resistance (band + barbell) is a strength/power method with
+      // thin hypertrophy evidence, and it asks for deliberate setup. Gate it to the
+      // Strength goal AND users who've opted into advanced training (unlocked at
+      // least one advanced move) -- the app's one "I train at this level" signal.
+      // It is NOT itself in the advanced-moves checklist (not a skill to certify).
+      && (!e.accommodating || (selGoal === "strength" && !!(opts.unlocked && Object.keys(opts.unlocked).length)))
       && equipOk(e, allowed)
       && skillAllowed(e, opts.unlocked)
       && !ctx.used[e.id]
@@ -1654,6 +1671,16 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, null, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, ALL_PATTERNS, null, false); });
   if (!pool.length) return null;
+  // Prefer real external load over band-ONLY isolation: on an equipped gym a band
+  // lateral raise reads as rehab, not training. Drop band lifts whenever the slot
+  // has any non-band option; on a band-only kit every candidate is a band, so this
+  // is a no-op and bands stay as the honest fallback. (Accommodating barbell+band
+  // lifts have equipment "barbell", so they are unaffected.)
+  var nonBand = pool.filter(function (e) { return e.equipment !== "band"; });
+  if (nonBand.length) pool = nonBand;
+  // One accommodating-resistance lift per session at most -- it's a deliberate
+  // tool on the main lift, not something to stack.
+  if (opts.avoidAcc) { var na = pool.filter(function (e) { return !e.accommodating; }); if (na.length) pool = na; }
   // Fatigue budget: soft-prefer non-high-fatigue lifts, but never empty the slot.
   if (opts.avoidHigh) { var lo = pool.filter(function (e) { return e.fatigue_cost !== "high"; }); if (lo.length) pool = lo; }
   // Complementary ranking (debt / SFR / muscle-spread / weak-point / variety) wins
@@ -1695,7 +1722,7 @@ function selectComplementary(o) {
   // high-axial count and muscle-spread are PER SESSION; used/pat/dl on ctx stay
   // week-level (shared across a week's sessions by generateProgram) so dedup and
   // pattern/deadlift caps span the week while the fatigue budget resets each day.
-  var high = 0, mus = {};
+  var high = 0, mus = {}, acc = 0;
   var slots = [];
   for (var i = 0; i < o.count; i++) slots.push(o.baseSlots[i % o.baseSlots.length]);
   function ranker(slotCompound, seedForSlot) {
@@ -1724,7 +1751,7 @@ function selectComplementary(o) {
     // never higher; accessories still respect the base cap.
     var slotPatCap = k === 0 ? o.patCap + 1 : o.patCap;
     var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
-      { avoidHigh: high >= fatigueBudget, rank: ranker(slot.compound, seedK), unlocked: o.unlocked });
+      { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK), unlocked: o.unlocked });
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
     // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
     // only candidates are high-axial; this drops such a slot once the budget is
@@ -1766,6 +1793,7 @@ function selectComplementary(o) {
     ctx.pat[ex.pattern] = (ctx.pat[ex.pattern] || 0) + 1;
     if (DEADLIFT_FAMILY.indexOf(ex.id) >= 0) ctx.dl++;
     if (ex.fatigue_cost === "high") high++;
+    if (ex.accommodating) acc++;
     var pm2 = (ex.primary_muscles && ex.primary_muscles[0]) || (ex.muscles && ex.muscles[0]);
     if (pm2) mus[pm2] = (mus[pm2] || 0) + 1;
     placed.push(ex);
@@ -1777,6 +1805,19 @@ function selectComplementary(o) {
 function pickByType(type, allowed, used, seed) {
   var pool = LIBRARY.filter(function (e) { return e.type === type && equipOk(e, allowed) && !used[e.id]; });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return e.type === type && equipOk(e, allowed); });
+  return pool.length ? pool[Math.abs(seed) % pool.length] : null;
+}
+// Functional finisher picker: carries ("carry") or anti-rotation/rotation core
+// work. These live in the library but no ROLES slot requests them, so this is the
+// only path that programs them -- folded into lower/full/legs days (see
+// generateProgram). Returns null when the kit can't support the pattern (e.g. no
+// load to carry), so it degrades honestly rather than forcing an off-kit pick.
+function pickFunctional(kind, allowed, used, seed) {
+  var match = kind === "carry"
+    ? function (e) { return e.pattern === "carry"; }
+    : function (e) { return e.movement_pattern === "anti_rotation" || e.pattern === "rotation"; };
+  var pool = LIBRARY.filter(function (e) { return e.type === "strength" && match(e) && equipOk(e, allowed) && !used[e.id]; });
+  if (!pool.length) pool = LIBRARY.filter(function (e) { return e.type === "strength" && match(e) && equipOk(e, allowed); });
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
 function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
@@ -1795,6 +1836,12 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
       return { sets: 3, reps: "8 min", target: "Tempo · comfortably hard", rest: "3 min easy" };
     }
     return { sets: 4, reps: "4 min", target: "~90-95% HRmax · near-max effort", rest: "3 min easy" };
+  }
+
+  // Loaded carries are time/distance work, not rep work -- prescribe seconds per
+  // set with a heavy-but-controlled cue, never "3 x 8-15 reps @ RPE 8".
+  if (ex.pattern === "carry") {
+    return { sets: isDeload ? 2 : 3, reps: isDeload ? "30s" : "40s", target: "Heavy · tall and braced, steady steps", rest: "90s" };
   }
 
   var rirMap = { 1: "3 RIR · RPE 7", 2: "2 RIR · RPE 8", 3: "1 RIR · RPE 9", 4: "4 RIR · RPE 6" };
@@ -1941,6 +1988,14 @@ function getExPattern(name) {
     if (LIBRARY[i].name === name) return LIBRARY[i].pattern || "";
   }
   return "";
+}
+// Time-based work (loaded carries) is logged in seconds, not reps -- the set row
+// must label it honestly rather than calling "40 sec" "40 reps".
+function exTimed(name) {
+  for (var i = 0; i < LIBRARY.length; i++) {
+    if (LIBRARY[i].name === name) return LIBRARY[i].unit === "sec";
+  }
+  return false;
 }
 // Emphasis word for a session, read from the pattern of the lift that actually
 // leads it (strengthEx[0]) -- the truthful source, since that's the compound the
@@ -2352,6 +2407,20 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
       if (includeMob) {
         var mob = pickByType("mobility", allowed, ctx.used, seed + si * 3 + wn * 7);
         if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, wn, isDeload, lastLogs)); }
+      }
+
+      // Functional finisher: carries + anti-rotation are the two functional
+      // patterns the library carries but the ROLES slots never request, so they
+      // were dead inventory. Fold ONE into lower / full / legs days -- their
+      // real-world-transfer home -- as a low-cost finisher when the session has
+      // time for it. Alternate carry vs anti-rotation across a role's paired days
+      // so both Lower days don't get the same one; fall back to the other pattern
+      // if the kit can't support the first (e.g. nothing to carry -> anti-rotation).
+      if (!isEnd && !isDeload && minutes >= 45 && (role === "lower" || role === "full" || role === "legs")) {
+        var fKind = occ % 2 === 0 ? "carry" : "rotation";
+        var fx = pickFunctional(fKind, allowed, ctx.used, seed + si * 9 + wn * 17)
+              || pickFunctional(fKind === "carry" ? "rotation" : "carry", allowed, ctx.used, seed + si * 9 + wn * 19);
+        if (fx) { ctx.used[fx.id] = 1; extraEx.push(buildEx(fx, goal, false, weightMap, minutes, wn, isDeload, lastLogs)); }
       }
 
       if (minutes <= 45) assignSupersets(strengthEx);
@@ -3075,12 +3144,16 @@ function resolveSpec(request, state) {
       : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : ""));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
     var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
-    // Substitution entry point (BUILD-SPEC §6): quiet, subordinate to START --
-    // a link, never a button at parity with the primary action. Only offered
-    // before the day has been started (once you've logged something, the
-    // natural action is Continue, not replace what you're mid-way through).
-    var subLinkHtml = (!weekDone && !started)
-      ? '<button type="button" class="today-card__sub" id="homeHeroSub">Can’t do ' + esc(sessionSplitName(wk.sessions, heroIdx)) + ' today? Substitute with Just Today →</button>'
+    // A standing "build something else" door, not a per-day apology. Offered
+    // whenever an un-started session remains this week -- it targets the first
+    // un-started day, so a session you're mid-way through is never clobbered.
+    // Quiet link, subordinate to START; simple inviting copy, just opens the builder.
+    var subTargetIdx = -1;
+    for (var si2 = 0; si2 < wk.sessions.length; si2++) {
+      if (sessionProgress(sessionItemsFor(wk.sessions[si2])).done === 0) { subTargetIdx = si2; break; }
+    }
+    var subLinkHtml = (!weekDone && subTargetIdx >= 0)
+      ? '<button type="button" class="today-card__sub" id="homeHeroSub">Fancy a different session? Build one →</button>'
       : "";
     // No week-strip dot row here anymore -- it read as a swipeable carousel
     // page-indicator even though the hero itself never was one (always a
@@ -3099,7 +3172,7 @@ function resolveSpec(request, state) {
     var cta = $("homeHeroCta");
     if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { openDay(heroIdx); });
     var subBtn = $("homeHeroSub");
-    if (subBtn) subBtn.addEventListener("click", function () { openPlanForSubstitute(heroIdx); });
+    if (subBtn) subBtn.addEventListener("click", function () { openPlanForSubstitute(subTargetIdx); });
   }
   // ---- History view: real completed-session data, current program + archive.
   // Answers the question the app never used to: am I actually getting
@@ -3360,7 +3433,7 @@ function resolveSpec(request, state) {
     var total = e.sets, html = "";
     for (var k = 0; k < total; k++) {
       var d = !!doneArr[k];
-      html += '<button type="button" class="pill' + (d ? " is-done" : "") + '" data-act="set" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Set ' + (k + 1) + ' of ' + total + (d ? ", done" : "") + '"><span class="pill__reps">' + esc(e.reps) + '</span><span class="pill__lbl">reps</span></button>';
+      html += '<button type="button" class="pill' + (d ? " is-done" : "") + '" data-act="set" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Set ' + (k + 1) + ' of ' + total + (d ? ", done" : "") + '"><span class="pill__reps">' + esc(e.reps) + '</span>' + (exTimed(e.name) ? '' : '<span class="pill__lbl">reps</span>') + '</button>';
     }
     return html;
   }
@@ -3449,7 +3522,7 @@ function resolveSpec(request, state) {
         wtCtrl +
         '<div class="setrow__reps">' +
           '<button type="button" class="rstep" data-act="rep-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One fewer rep, set ' + (k + 1) + '">−</button>' +
-          '<span class="rval">' + rv + '</span><span class="runit">reps</span>' +
+          '<span class="rval">' + rv + '</span><span class="runit">' + (exTimed(e.name) ? "sec" : "reps") + '</span>' +
           '<button type="button" class="rstep" data-act="rep+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One more rep, set ' + (k + 1) + '">+</button>' +
         '</div>' +
         // Done: the one control that matters mid-set -- larger, visibly
