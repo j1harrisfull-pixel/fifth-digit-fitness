@@ -1567,7 +1567,12 @@ var ROLE_NAME = { full: "Full Body", upper: "Upper", lower: "Lower", push: "Push
 // Muscle-group focus shown under the session name (week list, hero) and in the
 // LIVE bar -- the coached detail every real app leads with. Kept to three big
 // rocks so it stays readable uppercased in the narrow live bar.
-var ROLE_FOCUS = { full: "Full body", upper: "Chest · back · shoulders", lower: "Quads · hams · glutes", push: "Chest · shoulders · triceps", pull: "Back · biceps", legs: "Quads · hams · glutes" };
+// Real muscle groups per role, shown under the session name -- every other role
+// already lists distinct muscles; "full" used to just restate "Full body" under
+// a name that already says "Full Body". ROLES.full's slots (squat/lunge, hinge,
+// hpush, hpull/vpull, vpush, core) genuinely span legs, chest and back, so name
+// those instead of echoing the label.
+var ROLE_FOCUS = { full: "Legs · chest · back", upper: "Chest · back · shoulders", lower: "Quads · hams · glutes", push: "Chest · shoulders · triceps", pull: "Back · biceps", legs: "Quads · hams · glutes" };
 // Two same-role days in a week (the two Upper days, the two Lower days) genuinely
 // differ by which compound LEADS -- the ROLES slot list is rotated by occurrence,
 // so day A leads one pattern and day B the next. This maps that lead pattern to a
