@@ -132,7 +132,7 @@ input, textarea { font: inherit; color: inherit; }
 /* Lives inside .appbar, which is already position:sticky; top:0 for the whole
    header -- no sticky positioning of its own needed (nesting a second sticky
    context here just breaks the stick-to-viewport-top behavior). */
-.livebar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.livebar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 12px) 14px 12px; border-bottom: 1px solid var(--line); }
 .livebar__dot { flex: none; width: 7px; height: 7px; background: var(--accent); }
 .livebar__label { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--ink-dim); text-transform: uppercase; }
 .livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); }
