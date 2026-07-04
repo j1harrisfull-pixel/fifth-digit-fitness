@@ -3096,6 +3096,19 @@ function resolveSpec(request, state) {
   // stores a build-time target per WEEK, not a stored estimate per session, and
   // fabricating one here would be exactly the kind of invented precision this
   // app has always avoided.
+  // The one session the home hero is showing: the first not-yet-complete session
+  // this week (or the last, once the week is done). Shared so the week list can
+  // OMIT it -- the hero already presents the up-next day in full, so repeating it
+  // as a list row below just reads as a second, duplicate workout.
+  function heroInfo(wk) {
+    var nextIdx = -1;
+    for (var i = 0; i < wk.sessions.length; i++) {
+      var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
+      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
+    }
+    var weekDone = nextIdx < 0 && wk.sessions.length > 0;
+    return { nextIdx: nextIdx, weekDone: weekDone, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
+  }
   function renderHomeHero() {
     var el = $("homeHero"); if (!el) return;
     if (!hasProgram()) { el.innerHTML = ""; return; }
@@ -3120,15 +3133,7 @@ function resolveSpec(request, state) {
     // "Up next" is the first session in the CURRENT week that isn't fully done
     // yet -- not just whatever state.activeSession happens to be pointing at,
     // which used to leave this card stuck on a session you'd already finished.
-    // Every session from Build-a-week or Just-Today already has its exercises,
-    // so "not done" is the only real distinction to make here.
-    var nextIdx = -1;
-    for (var i = 0; i < wk.sessions.length; i++) {
-      var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
-      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
-    }
-    var weekDone = nextIdx < 0 && wk.sessions.length > 0;
-    var heroIdx = weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx);
+    var hi = heroInfo(wk), weekDone = hi.weekDone, heroIdx = hi.heroIdx;
     var heroSes = wk.sessions[heroIdx];
     var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
     var started = !weekDone && heroPr.done > 0;
@@ -3305,7 +3310,12 @@ function resolveSpec(request, state) {
     var sessions = curWeek().sessions;
     if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
     var todayIdx = todaySessionIdx(sessions);
+    var hi = heroInfo(curWeek());
     weekListEl.innerHTML = sessions.map(function (s, i) {
+      // Omit the session the hero is already showing in full -- otherwise the
+      // up-next day appears twice (hero + list) and reads as two workouts. When
+      // the week is done the hero is a summary, so nothing is omitted.
+      if (!hi.weekDone && i === hi.nextIdx) return "";
       var st = weekDayStatus(sessions, i), pr = st.pr;
       var tagHtml = "", progHtml = "";
       // "Today" is a neutral when-marker, distinct from the accent NEXT
@@ -4496,14 +4506,16 @@ function resolveSpec(request, state) {
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
       return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
     }) };
-    session.origin = "alternate"; // marks it a Just-Today substitution for the week list's ALT tag
     // Substitution (BUILD-SPEC §6): if this build came from the home hero's
-    // "Can't do X today?" link, it REPLACES that specific day's slot -- same
-    // array position, so the week's day count and every other day's index are
-    // unchanged -- instead of appending a new, extra session. The original
-    // day (and anything logged against it) is snapshotted for undo, same
-    // pattern as deleteSession, never silently discarded.
+    // "Fancy a different session?" link, it REPLACES that specific day's slot --
+    // same array position, so the week's day count and every other day's index
+    // are unchanged -- instead of appending a new, extra session. The original
+    // day (and anything logged against it) is snapshotted for undo, same pattern
+    // as deleteSession, never silently discarded. ONLY a genuine replacement is
+    // marked "alternate" (the ALT tag); a fresh Just-Today build is the original
+    // session, not an alternate of anything, so it carries no origin.
     if (pendingSubstituteIdx != null && week.sessions[pendingSubstituteIdx]) {
+      session.origin = "alternate";
       var idx = pendingSubstituteIdx;
       var removedSession = week.sessions[idx];
       var removedLog = state.log[removedSession.id] ? JSON.parse(JSON.stringify(state.log[removedSession.id])) : null;

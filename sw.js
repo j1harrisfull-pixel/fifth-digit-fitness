@@ -4,7 +4,7 @@
    - Same-origin assets: cache-first with background fill
    Bump CACHE_VERSION to ship a new shell. */
 
-const CACHE_VERSION = "v58";
+const CACHE_VERSION = "v59";
 const SHELL_CACHE = `training-log-shell-${CACHE_VERSION}`;
 
 // Relative URLs so this works under any base path (e.g. GitHub Pages project page).
