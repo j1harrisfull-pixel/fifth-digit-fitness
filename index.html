@@ -848,6 +848,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="resttimer__top"><span class="resttimer__label">Rest</span><span class="resttimer__time mono" id="restTime">0:00</span></div>
       <div class="resttimer__track"><div class="resttimer__fill" id="restFill"></div></div>
     </div>
+    <button class="resttimer__skip" id="restPlus" type="button" aria-label="Add 15 seconds of rest">+15s</button>
     <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
   </div>
   <div class="filler" id="restFiller" hidden>
@@ -2606,8 +2607,15 @@ function resolveSpec(request, state) {
     });
     return !used;
   }
+  // Set when load() found a stored blob it couldn't read: the raw text is
+  // copied to STORE + ":quarantine" BEFORE the app proceeds with fresh state,
+  // so the very next save() can no longer silently overwrite the one
+  // recoverable copy of the user's history. Surfaced as a toast at boot.
+  var quarantinedRaw = false;
   function load() {
-    try { var raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) { if (isPristineStarter(c)) c = freshState(emptyProgram(), { theme: c.theme }); return c; } } } catch (e) {}
+    var raw = null;
+    try { raw = localStorage.getItem(STORE); if (raw) { var c = coerceState(JSON.parse(raw)); if (c) { if (isPristineStarter(c)) c = freshState(emptyProgram(), { theme: c.theme }); return c; } } } catch (e) {}
+    if (raw) { try { localStorage.setItem(STORE + ":quarantine", raw); quarantinedRaw = true; } catch (e2) {} }
     try {
       var v1 = localStorage.getItem(STORE_V1);
       if (v1) {
@@ -2626,6 +2634,11 @@ function resolveSpec(request, state) {
   function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { toast("Couldn't save (storage may be full)"); } }
   var saveTimer;
   function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); }
+  // The 400ms debounce means a swipe-kill right after a weight/reps/RPE edit
+  // could lose that edit -- flush any pending write the moment the page hides.
+  function flushSave() { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; save(); } }
+  addEventListener("pagehide", flushSave);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") flushSave(); });
 
   var state = load();
 
@@ -3050,23 +3063,44 @@ function resolveSpec(request, state) {
     var lbl = $("liveBarLabel");
     if (lbl) { var ses = curSession(); lbl.textContent = "LIVE · " + (ses ? (ses.focus || ses.name) : "").toUpperCase(); }
   }
-  // Active-screen rebuild: a lightweight elapsed-time readout for the sticky
-  // live bar. Deliberately NOT persisted to state/log -- it's an in-session
-  // instrument reading, not a new data field on Session, so it resets on
-  // reload rather than touching the coach engine's data model.
+  // Elapsed-time readout for the sticky live bar. The start TIMESTAMP is
+  // persisted to its own tiny localStorage key (not the state blob -- it's an
+  // in-session instrument reading, not training history) so a lock-screen
+  // suspend or PWA reload mid-session resumes the real elapsed time instead
+  // of lying with a fresh 0:00.
+  var LIVE_KEY = "tl:liveStart";
   var liveTimerHandle = null, liveTimerStart = 0;
-  function startLiveTimer() {
+  function startLiveTimer(resume) {
+    var stored = 0;
+    if (resume) { try { stored = parseInt(localStorage.getItem(LIVE_KEY), 10) || 0; } catch (e) {} }
     stopLiveTimer();
-    liveTimerStart = Date.now();
+    liveTimerStart = (stored > 0 && stored <= Date.now()) ? stored : Date.now();
+    try { localStorage.setItem(LIVE_KEY, String(liveTimerStart)); } catch (e) {}
     var el = $("liveBarTimer"); if (!el) return;
-    el.textContent = "0:00";
-    liveTimerHandle = setInterval(function () {
+    function paint() {
       var secs = Math.floor((Date.now() - liveTimerStart) / 1000);
       var m = Math.floor(secs / 60), s = secs % 60;
       el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    }, 1000);
+    }
+    paint();
+    liveTimerHandle = setInterval(paint, 1000);
   }
-  function stopLiveTimer() { if (liveTimerHandle) { clearInterval(liveTimerHandle); liveTimerHandle = null; } }
+  function stopLiveTimer() {
+    if (liveTimerHandle) { clearInterval(liveTimerHandle); liveTimerHandle = null; }
+    try { localStorage.removeItem(LIVE_KEY); } catch (e) {}
+  }
+  // Keep the screen awake during an active session (iOS 16.4+/Android
+  // Chrome). The lock is auto-released by the OS on tab hide; re-acquire on
+  // return. Failure is fine -- the app degrades to normal screen-dim rules.
+  var wakeLock = null;
+  function acquireWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    try { navigator.wakeLock.request("screen").then(function (l) { wakeLock = l; }).catch(function () {}); } catch (e) {}
+  }
+  function releaseWakeLock() { if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && state.view === "day") acquireWakeLock();
+  });
   function renderHead() {
     var ses = curSession(), wk = curWeek(), p = sessionProgress(sessionItems());
     var fatigue = !wk.deload && sessionFatigueFlag(ses);
@@ -3608,8 +3642,8 @@ function resolveSpec(request, state) {
     renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
     return true;
   }
-  function openDay(i) { hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); }
-  function backToWeek() { hideRest(); stopLiveTimer(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
+  function openDay(i) { hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); acquireWakeLock(); }
+  function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
     if (ni < 0 || ni >= state.program.weeks.length) return;
@@ -4269,6 +4303,25 @@ function resolveSpec(request, state) {
     box.hidden = false;
   }
   function hideFiller() { var box = $("restFiller"); if (box) box.hidden = true; currentFillerEx = null; }
+  // Persisted OUTSIDE the main state blob (its own tiny key): a running rest
+  // is a live instrument reading, not training history -- but it must survive
+  // a lock-screen suspend or PWA reload mid-rest, because "the timer died in
+  // my pocket" is the one unforgivable failure of a gym timer. Timestamps
+  // (endAt), not remaining seconds, so recompute-on-resume is exact.
+  var REST_KEY = "tl:rest";
+  function persistRest() { try { localStorage.setItem(REST_KEY, JSON.stringify({ endAt: restState.endAt, total: restState.total })); } catch (e) {} }
+  function clearRestPersist() { try { localStorage.removeItem(REST_KEY); } catch (e) {} }
+  function resumeRest() {
+    if (state.view !== "day") { clearRestPersist(); return; }
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(REST_KEY)); } catch (e) {}
+    if (!saved || !(saved.endAt > Date.now())) { clearRestPersist(); return; }
+    restState.total = saved.total; restState.endAt = saved.endAt;
+    document.body.classList.add("has-rest");
+    restEl.classList.remove("is-done"); restEl.hidden = false;
+    tickRest();
+    clearInterval(restState.timer); restState.timer = setInterval(tickRest, 250);
+  }
   function startRest(ex, setIdx) {
     // Per-set adaptive rest: a heavier ramp set rests longer than its lighter
     // earlier sets. Falls back to the exercise rest for straight/flat plans.
@@ -4279,6 +4332,7 @@ function resolveSpec(request, state) {
     if (!secs) secs = parseRestSeconds(ex.rest);
     if (!secs) return;
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
+    persistRest();
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
     showFiller(ex);
@@ -4293,7 +4347,11 @@ function resolveSpec(request, state) {
       restTimeEl.textContent = "0:00";
       if (restFillEl) restFillEl.style.transform = "scaleX(0)";
       clearInterval(restState.timer); restState.timer = null;
+      clearRestPersist();
       restEl.classList.add("is-done"); beep();
+      // Android supports vibration; iOS ignores it (harmless no-op there --
+      // the audio beep + on-screen flash remain the iOS signals).
+      try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
       var anD = $("restAnnounce"); if (anD) anD.textContent = "Rest complete";
       setTimeout(function () { if (!restState.timer) hideRest(); }, 4000);
       return;
@@ -4301,7 +4359,7 @@ function resolveSpec(request, state) {
     restTimeEl.textContent = fmtClock(rem);
     if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
   }
-  function hideRest() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); document.body.classList.remove("has-rest"); }
+  function hideRest() { clearInterval(restState.timer); restState.timer = null; clearRestPersist(); if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); document.body.classList.remove("has-rest"); }
   // The one-shot moment a finished session used to skip entirely -- the cards
   // just faded and, worse, the rest timer kept counting down for a set that no
   // longer exists. Fires once, right when the session's last exercise becomes
@@ -4360,6 +4418,13 @@ function resolveSpec(request, state) {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill");
     try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     $("restSkip").addEventListener("click", hideRest);
+    // +15s only extends a RUNNING countdown; once it's hit 0:00 the moment has
+    // passed and extending a finished rest would be inventing time.
+    $("restPlus").addEventListener("click", function () {
+      if (!restState.timer) return;
+      restState.endAt += 15000; restState.total += 15;
+      persistRest(); tickRest();
+    });
     var fd = $("fillerDone"); if (fd) fd.addEventListener("click", function () { var on = !fd.classList.contains("is-done"); fd.classList.toggle("is-done", on); fd.setAttribute("aria-pressed", on ? "true" : "false"); });
     var fsw = $("fillerSwap"); if (fsw) fsw.addEventListener("click", function () { if (currentFillerEx) showFiller(currentFillerEx); });
   }
@@ -4430,7 +4495,8 @@ function resolveSpec(request, state) {
   document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
   document.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
-  if (state.view === "day") startLiveTimer();
+  if (state.view === "day") { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
+  if (quarantinedRaw) toast("Couldn't read your saved data — a recovery copy was kept on this device");
   if ("serviceWorker" in navigator) {
     // Auto-update. The SW skipWaits + claims, so a newly deployed version becomes
     // the controller on its own. If this page was already controlled when it loaded,

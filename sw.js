@@ -4,7 +4,7 @@
    - Same-origin assets: cache-first with background fill
    Bump CACHE_VERSION to ship a new shell. */
 
-const CACHE_VERSION = "v54";
+const CACHE_VERSION = "v55";
 const SHELL_CACHE = `training-log-shell-${CACHE_VERSION}`;
 
 // Relative URLs so this works under any base path (e.g. GitHub Pages project page).
@@ -60,22 +60,29 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // App navigations — network-first: a deployed update reaches the user on
-  // THIS launch (not "next launch, if you happen to relaunch a second time"),
-  // since a real online device always gets the fresh HTML. The cached shell
-  // is only ever used as the offline fallback.
+  // App navigations — network-first with a 3s cap: a deployed update reaches
+  // the user on THIS launch when genuinely online, but a stalled "Lie-Fi"
+  // connection can't hold the launch hostage for the browser's full fetch
+  // timeout — after 3s the cached shell wins and the fetch keeps running in
+  // the background to refresh the cache for next time. Cache is only the
+  // fallback (offline / stall), never the first answer while online.
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
         const cache = await caches.open(SHELL_CACHE);
-        try {
-          const resp = await fetch("./index.html", { cache: "no-store" });
+        const network = fetch("./index.html", { cache: "no-store" }).then((resp) => {
           if (resp && resp.ok) { cache.put("./index.html", resp.clone()); cache.put("./", resp.clone()); return resp; }
-          throw new Error("bad response: " + resp.status);
-        } catch (e) {
-          const cached = (await cache.match("./index.html")) || (await cache.match("./"));
-          return cached || new Response("Offline", { status: 503, statusText: "Offline" });
-        }
+          throw new Error("bad response: " + (resp && resp.status));
+        });
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
+        try {
+          const fresh = await Promise.race([network, timeout]);
+          if (fresh) return fresh;
+        } catch (e) { /* fall through to cache */ }
+        network.catch(() => {}); // keep background refresh alive; swallow its late failure
+        const cached = (await cache.match("./index.html")) || (await cache.match("./"));
+        if (cached) return cached;
+        try { return await network; } catch (e) { return new Response("Offline", { status: 503, statusText: "Offline" }); }
       })()
     );
     return;
