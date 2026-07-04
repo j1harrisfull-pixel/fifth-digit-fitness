@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-04T09:00:00Z",
+  "title": "Design System: Fifth Digit Fitness",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Signal Orange", "canonical": "#FF4A1C" },
+      "bg": { "role": "neutral", "displayName": "Void Black", "canonical": "#0B0C0E" },
+      "surface": { "role": "neutral", "displayName": "Panel", "canonical": "#13151A" },
+      "surface-2": { "role": "neutral", "displayName": "Panel Raised", "canonical": "#1A1D23" },
+      "ink": { "role": "neutral", "displayName": "Signal White", "canonical": "#F4F5F6" },
+      "ink-dim": { "role": "neutral", "displayName": "Dim Ink", "canonical": "#8B9098" },
+      "faint": { "role": "neutral", "displayName": "Faint Ink", "canonical": "#565B62" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#1E2126" },
+      "line-strong": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "#343A44" },
+      "ready-green": { "role": "status", "displayName": "Ready Green", "canonical": "#26C281" },
+      "manage-amber": { "role": "status", "displayName": "Manage Amber", "canonical": "#E8A23D" },
+      "rough-red": { "role": "status", "displayName": "Rough Red", "canonical": "#FF6B52" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Session/day names, home hero title." },
+      "title": { "displayName": "Title", "purpose": "Section headers, exercise card names." },
+      "body": { "displayName": "Body", "purpose": "Descriptive copy, why-lines, form notes." },
+      "label": { "displayName": "Label", "purpose": "Overlines and field labels, uppercase." },
+      "mono": { "displayName": "Mono/Tabular", "purpose": "Every live numeric value: weight, reps, RPE, timers, 1RM." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "step-scale", "value": "transform .1s ease", "purpose": "Stepper button press feedback (scale .9 on :active)." },
+      { "name": "border-shift", "value": "border-color .12s ease", "purpose": "Icon/input hover and focus border color transitions." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary action per screen (START / LOG / Build). Zero radius plus a 45deg-clipped top-right corner, the one signature shape in the system.",
+      "html": "<button class=\"ds-btn-primary\">Start training</button>",
+      "css": ".ds-btn-primary { background: #FF4A1C; color: #0B0C0E; border: 0; padding: 15px 32px 15px 15px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); transition: opacity .12s ease; } .ds-btn-primary:hover { opacity: .92; } .ds-btn-primary:focus-visible { outline: 2.5px solid #FF4A1C; outline-offset: 2px; }"
+    },
+    {
+      "name": "Tag / Status Chip",
+      "kind": "chip",
+      "refersTo": "tag-outline",
+      "description": "Neutral outline tag used for exercise type, week-day status (done/alt/skipped/next). Recolors border+text by state; never filled except the current row.",
+      "html": "<span class=\"ds-tag ds-tag--next\">NEXT</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; font-family: 'Spline Sans Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid #343A44; color: #8B9098; } .ds-tag--next { color: #FF4A1C; border-color: #FF4A1C; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Base container: flat, zero radius, one tonal step above the page background, hairline border.",
+      "html": "<div class=\"ds-card\">Incline Dumbbell Press</div>",
+      "css": ".ds-card { background: #13151A; border: 1px solid #1E2126; border-radius: 0; padding: 14px 14px 12px; }"
+    },
+    {
+      "name": "Why-Block (Active, first-class)",
+      "kind": "custom",
+      "refersTo": "card-border",
+      "description": "The promoted why-line for the current exercise on the Active screen. Full border on all sides, never a side-stripe accent.",
+      "html": "<div class=\"ds-whyblock\">You cleared 57.5 kg every set last session at RPE 7. This is the next step up.</div>",
+      "css": ".ds-whyblock { display: block; box-sizing: border-box; padding: 8px 10px; border: 1px solid #343A44; background: #1A1D23; color: #F4F5F6; font-size: 13px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "This is not a lifestyle app, it's a tool used mid-set, one-handed, under time pressure, in a gym. Every screen is designed to be glanced at and understood in under a second, then put back down. The aesthetic is dark, angular, numeric: tabular-nums everywhere a number appears, zero corner radius, no shadows, no gradients. It reads like cockpit instrumentation, not a consumer wellness product. This system explicitly rejects the generic fitness-influencer look: no gradient hero cards, no badge/streak-shaming, no rounded-friendly SaaS softness, no hype copy, no decorative motivational photography.",
+    "keyCharacteristics": [
+      "Dark canvas by default, zero corner radius, no shadows or blurs",
+      "Exactly one accent color per screen, spent on the single next action",
+      "All numeric data set in tabular-nums monospace so values don't jitter as they change",
+      "Status is quiet (stroke-check, hairline circle); only the one active thing is loud",
+      "A single 45-degree-clipped corner is the one signature shape, echoing the logo stencil cut"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Signal Orange appears on exactly one element per screen: the single most important next action. Status, progress, and everything else uses neutral or the semantic status hues, never orange for decoration.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Any number the user reads at a glance during a set, weight, reps, RPE, rest countdown, est. 1RM, renders in tabular-nums Spline Sans Mono. Prose never gets this treatment, only live changing data does.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest in the dark theme. Depth comes from tonal steps and hairlines, never shadows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use zero corner radius on every surface, card, button, and input, without exception.",
+      "Do reserve Signal Orange (#FF4A1C) for exactly one action per screen.",
+      "Do render every live number (weight, reps, RPE, timer, 1RM) in tabular-nums Spline Sans Mono.",
+      "Do give the primary action button the 45-degree-clipped top-right corner.",
+      "Do state a plain-language reason for every prescribed number, and promote that reason to a full-bordered block for the exercise the user is doing right now.",
+      "Do say plainly when a session went backwards. Never dress up a regression."
+    ],
+    "donts": [
+      "Don't use gradients, glassmorphism, or drop shadows anywhere in the dark (canonical) theme.",
+      "Don't use a border-left/border-right colored stripe as an accent on any card, row, or callout, promote with a full border instead, never a side-stripe.",
+      "Don't use badge/streak-shaming, gamified motivational copy, or fitness-influencer hype language.",
+      "Don't use more than one accent-colored element on a single screen at once.",
+      "Don't fake praise or soften a regression to spare feelings.",
+      "Don't round any corner, anywhere, for any reason."
+    ]
+  }
+}
