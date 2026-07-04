@@ -179,6 +179,7 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__tag--skipped { color: var(--faint); border-style: dashed; }
 .weekrow__tag--next { color: var(--ink); border-color: var(--line-strong); font-weight: 700; }
 .weekrow.is-current .weekrow__tag--next { background: var(--surface-2); }
+.weekrow__tag--today { color: var(--ready); border-color: var(--ready); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
 .weekrow.is-current .weekrow__name { color: var(--ink); }
@@ -692,6 +693,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button data-days="6" type="button">6</button>
       </div>
     </div>
+    <details class="adv adv--adjust" id="scheduleAdv">
+      <summary><span class="adv__label">Training days</span> <span class="adv__hint" id="scheduleHint">Flexible · no set days</span></summary>
+      <div class="adv__body">
+        <div class="bsect">
+          <div class="chips" id="bDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
+          <p class="sect__hint" style="margin-top:8px">Optional. Pick the weekdays you train and each session gets scheduled to a day, so the app knows what's due today. Leave blank to work through the plan at your own pace.</p>
+        </div>
+      </div>
+    </details>
     <details class="adv adv--adjust" id="weekAdjust">
       <summary><span class="adv__label">Adjust</span> <span class="adv__hint" id="adjustHint"></span></summary>
       <div class="adv__body">
@@ -795,6 +805,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button data-unit-val="kg" type="button">kg</button>
         <button data-unit-val="lb" type="button">lb</button>
       </div>
+    </div>
+    <div class="sect" id="scheduleSect" hidden>
+      <div class="sect__label">Training days</div>
+      <div class="chips" id="sDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
+      <p class="sect__hint" style="margin-top:8px">Pick the weekdays you train to schedule each session, or tap all off to stay flexible. Changes the current program without touching your logged sets.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Rest timer sound</div>
@@ -1081,7 +1096,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       });
       return { week: clampInt(wk.week, 1, 999, wi + 1), focus: str(wk.focus, ""), deload: !!wk.deload, sessions: sessions };
     });
-    return { schema: "training-log/program@1", title: str(obj.title, "Workout"), goal: str(obj.goal, ""), unit: obj.unit === "lb" ? "lb" : "kg", weeks: weeks };
+    // Optional training-day schedule: array of weekday indices (0=Sun..6=Sat).
+    // Absent/invalid -> unscheduled (flexible pace-yourself model). Kept as a
+    // program-level field so it survives normalize/coerce/backup round-trips.
+    var trainDays = Array.isArray(obj.trainDays)
+      ? obj.trainDays.filter(function (d) { return typeof d === "number" && d >= 0 && d <= 6; })
+      : null;
+    var out = { schema: "training-log/program@1", title: str(obj.title, "Workout"), goal: str(obj.goal, ""), unit: obj.unit === "lb" ? "lb" : "kg", weeks: weeks };
+    if (trainDays && trainDays.length) out.trainDays = trainDays;
+    return out;
   }
   function migrateV1toV2(v1) {
     v1 = v1 && typeof v1 === "object" ? v1 : {};
@@ -2859,15 +2882,50 @@ function resolveSpec(request, state) {
   }
 
   /* ===================== Render ===================== */
-  // "Day N · Focus" -- N is the session's fixed position in the program (its
-  // array index), never a value that renumbers as sessions complete. Focus word
-  // strips the generator's own " A"/" B" split-suffix off the session name
-  // (e.g. "Upper A" -> "Upper"); an imported/free-text name with no such suffix
-  // passes through unchanged, so this never mangles a name we didn't generate.
-  function dayPositionLabel(sessions, i) {
+  var WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  // The user's chosen training weekdays for the current program, or null when
+  // unscheduled (the default flexible "work through it at your pace" model).
+  // Validated on read so a malformed/imported value can never break labels.
+  function programTrainDays() {
+    var td = state.program && state.program.trainDays;
+    if (!Array.isArray(td) || !td.length) return null;
+    var clean = td.filter(function (d) { return typeof d === "number" && d >= 0 && d <= 6; });
+    return clean.length ? clean : null;
+  }
+  // Which weekday (0-6) a session sits on, cycling by session index so a plan
+  // with more sessions than chosen days still maps cleanly. null = unscheduled.
+  function weekdayForSession(i) {
+    var td = programTrainDays();
+    if (!td) return null;
+    return td[i % td.length];
+  }
+  function todayWeekday() { try { return new Date().getDay(); } catch (e) { return null; } }
+  // Index of the session scheduled for the actual current weekday (first match
+  // when several map to the same day), or -1 when unscheduled / no match today.
+  function todaySessionIdx(sessions) {
+    var td = programTrainDays(); if (!td) return -1;
+    var tw = todayWeekday(); if (tw == null) return -1;
+    for (var i = 0; i < sessions.length; i++) if (weekdayForSession(i) === tw) return i;
+    return -1;
+  }
+  // The session's own split-led identity -- "Upper A", "Lower B", "Push", a
+  // lead-lift name for endurance, or an imported name. The generator's " A"/
+  // " B" suffix is KEPT now (it distinguishes the week's two upper/lower days);
+  // the old "Day N ·" ordinal is gone (it reset every week and carried no
+  // training information). Falls back to a positional label only for a session
+  // that genuinely has no name.
+  function sessionSplitName(sessions, i) {
     var raw = (sessions[i] && sessions[i].name) || "";
-    var focusWord = raw.replace(/ [A-Z]$/, "");
-    return "Day " + (i + 1) + " · " + focusWord;
+    return raw.trim() || ("Session " + (i + 1));
+  }
+  // Full display label: the split name, prefixed with the weekday when the
+  // program is scheduled ("Mon · Upper A"). Week position comes from the week
+  // bar, not this label, so it never renumbers as sessions complete.
+  function dayPositionLabel(sessions, i) {
+    var base = sessionSplitName(sessions, i);
+    var wd = weekdayForSession(i);
+    return wd == null ? base : WEEKDAYS_SHORT[wd] + " · " + base;
   }
   function renderWeekBar() {
     var p = state.program, wk = curWeek();
@@ -2953,7 +3011,7 @@ function resolveSpec(request, state) {
     // before the day has been started (once you've logged something, the
     // natural action is Continue, not replace what you're mid-way through).
     var subLinkHtml = (!weekDone && !started)
-      ? '<button type="button" class="today-card__sub" id="homeHeroSub">Can’t do ' + esc(dayPositionLabel(wk.sessions, heroIdx).replace(/^Day \d+ · /, "")) + ' today? Substitute with Just Today →</button>'
+      ? '<button type="button" class="today-card__sub" id="homeHeroSub">Can’t do ' + esc(sessionSplitName(wk.sessions, heroIdx)) + ' today? Substitute with Just Today →</button>'
       : "";
     // No week-strip dot row here anymore -- it read as a swipeable carousel
     // page-indicator even though the hero itself never was one (always a
@@ -3112,13 +3170,18 @@ function resolveSpec(request, state) {
       var st = weekDayStatus(sessions, n);
       if (st.key === "pending" || st.key === "progress") { nextIdx = n; break; }
     }
+    var todayIdx = todaySessionIdx(sessions);
     weekListEl.innerHTML = sessions.map(function (s, i) {
       var st = weekDayStatus(sessions, i), pr = st.pr;
       var tagHtml = "", progHtml = "";
-      if (st.isAlt) tagHtml = '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
-      else if (st.key === "done") tagHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + '</span>';
-      else if (st.key === "skipped") tagHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
-      else if (i === nextIdx) tagHtml = '<span class="weekrow__tag weekrow__tag--next">NEXT</span>';
+      // "Today" is a neutral when-marker, distinct from the accent NEXT
+      // what's-up-next tag; only shown for a scheduled program, and not on a
+      // day already finished (nothing left to do there today).
+      if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">TODAY</span>';
+      if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
+      else if (st.key === "done") tagHtml += '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + '</span>';
+      else if (st.key === "skipped") tagHtml += '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
+      else if (i === nextIdx) tagHtml += '<span class="weekrow__tag weekrow__tag--next">NEXT</span>';
       if (st.key === "done") progHtml = '<span class="weekrow__prog is-done">done</span>';
       else if (st.key !== "skipped" || pr.total > 0) progHtml = '<span class="weekrow__prog">' + pr.done + ' / ' + pr.total + '</span>';
       return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
@@ -3938,9 +4001,35 @@ function resolveSpec(request, state) {
       mobility: p.mobility === undefined ? true : !!p.mobility,
       conditioning: p.conditioning === undefined ? cardioGoal : !!p.conditioning,
       weeks: [1, 4].indexOf(parseInt(p.weeks, 10)) >= 0 ? parseInt(p.weeks, 10) : 4,
-      equipment: equip
+      equipment: equip,
+      trainDays: Array.isArray(p.trainDays) ? p.trainDays.filter(function (d) { return typeof d === "number" && d >= 0 && d <= 6; }) : []
     };
     return state.buildPrefs;
+  }
+  // Weekday pills run Mon-first (the training-week convention), but store the
+  // real getDay() index (0=Sun) so scheduling maps to actual calendar days.
+  var WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  function renderDayOfWeekChips() {
+    var host = $("bDaysOfWeek"); if (!host || host.childElementCount) return;
+    host.innerHTML = WEEKDAY_ORDER.map(function (d) {
+      return '<button class="chip" type="button" data-dow="' + d + '">' + WEEKDAYS_SHORT[d] + '</button>';
+    }).join("");
+  }
+  function syncDayOfWeekChips() {
+    var p = buildPrefs(), sel = p.trainDays;
+    document.querySelectorAll("#bDaysOfWeek button").forEach(function (b) {
+      b.setAttribute("aria-pressed", sel.indexOf(parseInt(b.getAttribute("data-dow"), 10)) >= 0);
+    });
+    var hint = $("scheduleHint");
+    if (hint) {
+      if (!sel.length) { hint.textContent = "Flexible · no set days"; }
+      else {
+        var ordered = WEEKDAY_ORDER.filter(function (d) { return sel.indexOf(d) >= 0; });
+        var names = ordered.map(function (d) { return WEEKDAYS_SHORT[d]; }).join(" · ");
+        var mismatch = sel.length !== p.days ? " (" + sel.length + " of " + p.days + " days)" : "";
+        hint.textContent = names + mismatch;
+      }
+    }
   }
   function syncBuild() {
     var p = buildPrefs();
@@ -3958,6 +4047,8 @@ function resolveSpec(request, state) {
     document.querySelectorAll("#bWeeks button").forEach(function (b) {
       b.setAttribute("aria-pressed", parseInt(b.getAttribute("data-weeks"), 10) === p.weeks);
     });
+    renderDayOfWeekChips();
+    syncDayOfWeekChips();
     syncAllEquipChips();
   }
   function openPlan() {
@@ -4030,6 +4121,10 @@ function resolveSpec(request, state) {
     hideRest();
     if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
     state.program = pendingBuild; state.unit = pendingBuild.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
+    // Carry the opt-in training-day schedule onto the built program, ordered
+    // Mon-first so session 0 lands on the earliest chosen weekday.
+    var td = buildPrefs().trainDays;
+    if (td && td.length) state.program.trainDays = WEEKDAY_ORDER.filter(function (d) { return td.indexOf(d) >= 0; });
     pendingBuild = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast("Built your week");
   }
   function setPlanMode(mode) {
@@ -4292,6 +4387,12 @@ function resolveSpec(request, state) {
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
   $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } save(); syncBuild(); });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
+  $("bDaysOfWeek").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-dow]"); if (!b) return;
+    var d = parseInt(b.getAttribute("data-dow"), 10), p = buildPrefs(), i = p.trainDays.indexOf(d);
+    if (i >= 0) p.trainDays.splice(i, 1); else p.trainDays.push(d);
+    save(); syncDayOfWeekChips();
+  });
   $("bTime").addEventListener("click", function (ev) { var b = ev.target.closest("[data-min]"); if (!b) return; buildPrefs().minutes = parseInt(b.getAttribute("data-min"), 10); save(); syncBuild(); });
   $("bWeeks").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-weeks]");
@@ -4317,11 +4418,38 @@ function resolveSpec(request, state) {
     document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
     syncEquipChips("myEquip");
     syncSkillChips();
+    syncScheduleSect();
+  }
+  // Settings training-day picker: edits state.program.trainDays IN PLACE (no
+  // rebuild, so logged sets are untouched). Only shown when a program exists.
+  function syncScheduleSect() {
+    var sect = $("scheduleSect"); if (!sect) return;
+    if (!hasProgram()) { sect.hidden = true; return; }
+    sect.hidden = false;
+    var host = $("sDaysOfWeek");
+    if (host && !host.childElementCount) {
+      host.innerHTML = WEEKDAY_ORDER.map(function (d) {
+        return '<button class="chip" type="button" data-sdow="' + d + '">' + WEEKDAYS_SHORT[d] + '</button>';
+      }).join("");
+    }
+    var td = programTrainDays() || [];
+    document.querySelectorAll("#sDaysOfWeek button").forEach(function (b) {
+      b.setAttribute("aria-pressed", td.indexOf(parseInt(b.getAttribute("data-sdow"), 10)) >= 0);
+    });
   }
   $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
   sheet.addEventListener("click", function (ev) { if (ev.target === sheet) closeSheet(); });
   $("themeSeg").addEventListener("click", function (ev) { var b = ev.target.closest("[data-theme-val]"); if (!b) return; state.theme = b.getAttribute("data-theme-val"); save(); applyTheme(); });
+  $("sDaysOfWeek").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-sdow]"); if (!b || !hasProgram()) return;
+    var d = parseInt(b.getAttribute("data-sdow"), 10);
+    var td = (programTrainDays() || []).slice(), i = td.indexOf(d);
+    if (i >= 0) td.splice(i, 1); else td.push(d);
+    td = WEEKDAY_ORDER.filter(function (x) { return td.indexOf(x) >= 0; });
+    if (td.length) state.program.trainDays = td; else delete state.program.trainDays;
+    save(); syncScheduleSect(); renderAll(false);
+  });
   $("unitSeg").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-unit-val]"); if (!b) return;
     var nu = b.getAttribute("data-unit-val");
