@@ -1695,8 +1695,13 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
       && (comp === null ? true : (comp ? e.compound : !e.compound));
   }
   var pats = slot.patterns;
+  // Widen in an order that protects the slot's compound/isolation INTENT as
+  // long as possible: drop the goal filter before ever letting a compound
+  // lift fill an isolation slot (or vice versa). Dropping compound too early
+  // is what let a heavy compound land after an isolation slot mid-session --
+  // a real, if rare, break in professional exercise ordering.
   var pool = LIBRARY.filter(function (e) { return ok(e, pats, slot.compound, true); });
-  if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, null, true); });
+  if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, slot.compound, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, null, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, ALL_PATTERNS, null, false); });
   if (!pool.length) return null;
@@ -1998,6 +2003,17 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
     curve: curve, setPlan: setPlan, why: why || defaultWhy(ex)
   };
 }
+// Agonist-antagonist pairing (Robbins et al., JSCR 2010): alternating opposing
+// muscle groups preserves or enhances performance vs straight sets. This list
+// is a SEARCH-ORDER preference, not the legality check -- every candidate it
+// suggests is still gated through pairLegal() below. squat/hinge are
+// deliberately NOT cross-listed here: pairing two compound lower-body lifts
+// (e.g. Romanian Deadlift + Reverse Lunge) is a real-world crime this used to
+// commit, since both load the same hip/knee extensors and spinal erectors
+// under real axial fatigue -- pairLegal's lowerCompound rule blocks it
+// directly; a true squat/hinge antagonist pair only exists at the ISOLATION
+// level (Leg Extension + Leg Curl), which pairLegal already allows without
+// needing an explicit map entry.
 var ANTAGONIST_MAP = {
   "hpush":   ["hpull", "vpull"],
   "hpull":   ["hpush"],
@@ -2005,8 +2021,8 @@ var ANTAGONIST_MAP = {
   "vpush":   ["biceps", "vpull"],
   "biceps":  ["triceps", "vpush"],
   "triceps": ["biceps", "hpush"],
-  "squat":   ["hinge", "core"],
-  "hinge":   ["squat", "core"],
+  "squat":   ["core"],
+  "hinge":   ["core"],
   "lunge":   ["core"],
   "core":    ["squat", "hinge", "lunge", "carry"],
   "carry":   ["core", "vpush"],
@@ -2017,6 +2033,39 @@ function getExPattern(name) {
     if (LIBRARY[i].name === name) return LIBRARY[i].pattern || "";
   }
   return "";
+}
+function libEntryByName(name) {
+  for (var i = 0; i < LIBRARY.length; i++) {
+    if (LIBRARY[i].name === name) return LIBRARY[i];
+  }
+  return null;
+}
+var LOWER_COMPOUND_PATTERNS = ["squat", "hinge", "lunge"];
+var PUSH_PATTERNS = ["hpush", "vpush"];
+var PULL_PATTERNS = ["hpull", "vpull"];
+// Is it legitimate to pair these two exercises in one superset? Every
+// candidate (map-suggested or fallback) is gated through this -- a single
+// source of truth instead of trusting the map alone.
+function pairLegal(nameA, nameB) {
+  var a = libEntryByName(nameA), b = libEntryByName(nameB);
+  if (!a || !b) return false;
+  if (a.pattern === b.pattern) return false; // same movement pattern (incl. two isolations of the same lift family)
+  // Two compound lower-body lifts compete for the same hip/knee extensors and
+  // spinal erectors under real load (Squat + Lunge, RDL + Split Squat) --
+  // block regardless of which two LOWER patterns they are. Isolation lower
+  // work (Leg Extension/Leg Curl, compound:false) is exempt: it's the
+  // textbook antagonist pair and doesn't carry that systemic competition.
+  if (LOWER_COMPOUND_PATTERNS.indexOf(a.pattern) >= 0 && LOWER_COMPOUND_PATTERNS.indexOf(b.pattern) >= 0 && a.compound && b.compound) return false;
+  // Two same-direction upper compounds compete (Overhead Press + Cable Fly are
+  // both pushes); opposite-direction upper compounds (Bench + Row) are the
+  // gold-standard APS pairing and stay legal even though both are compound.
+  if (PUSH_PATTERNS.indexOf(a.pattern) >= 0 && PUSH_PATTERNS.indexOf(b.pattern) >= 0) return false;
+  if (PULL_PATTERNS.indexOf(a.pattern) >= 0 && PULL_PATTERNS.indexOf(b.pattern) >= 0) return false;
+  if (a.fatigue_cost === "high" && b.fatigue_cost === "high") return false; // never stack two systemically taxing lifts
+  var pmA = (a.primary_muscles && a.primary_muscles[0]) || (a.muscles && a.muscles[0]);
+  var pmB = (b.primary_muscles && b.primary_muscles[0]) || (b.muscles && b.muscles[0]);
+  if (pmA && pmB && pmA === pmB) return false; // same primary muscle -- not a pairing, a pile-on
+  return true;
 }
 // Time-based work (loaded carries) is logged in seconds, not reps -- the set row
 // must label it honestly rather than calling "40 sec" "40 reps".
@@ -2057,18 +2106,28 @@ function assignSupersets(exercises) {
   if (strengthExes.length < 2) return;
   var paired = {};
   var letter = 65;
+  // Index 0 (the anchor, the day's primary lift) is deliberately never
+  // touched here -- the loop starts at 1, and no inner loop ever visits index
+  // 0 as a partner either, so the anchor always stays straight sets.
   for (var i = 1; i < strengthExes.length; i++) {
     if (paired[i]) continue;
     var patA = getExPattern(strengthExes[i].name);
     var antagonists = ANTAGONIST_MAP[patA] || [];
     var partner = -1;
+    // Preferred: a listed antagonist, still gated through pairLegal (defense
+    // in depth -- a map suggestion is never trusted blind).
     for (var j = i + 1; j < strengthExes.length; j++) {
       if (paired[j]) continue;
-      if (antagonists.indexOf(getExPattern(strengthExes[j].name)) >= 0) { partner = j; break; }
+      if (antagonists.indexOf(getExPattern(strengthExes[j].name)) >= 0 && pairLegal(strengthExes[i].name, strengthExes[j].name)) { partner = j; break; }
     }
+    // Fallback: ANY remaining exercise that passes pairLegal -- not literally
+    // the next leftover regardless of fit (that old fallback is what produced
+    // Romanian Deadlift + Reverse Lunge and Overhead Press + Cable Fly). If
+    // nothing legal remains, this exercise stays straight sets -- a real
+    // coach leaves a lift unpaired sooner than force a bad combination.
     if (partner < 0) {
       for (var k = i + 1; k < strengthExes.length; k++) {
-        if (!paired[k]) { partner = k; break; }
+        if (!paired[k] && pairLegal(strengthExes[i].name, strengthExes[k].name)) { partner = k; break; }
       }
     }
     if (partner >= 0) {
@@ -4894,10 +4953,16 @@ function resolveSpec(request, state) {
     var rpB = $("restPlus"); if (rpB) rpB.hidden = false;
     var rskB = $("restSkip"); if (rskB) rskB.textContent = "Skip";
     // Superset: the real next action during this rest is the paired exercise,
-    // not a random accessory. Route to the partner and suppress the filler;
-    // otherwise fall back to the optional filler suggestion.
+    // not a random accessory. Route to the partner and suppress the filler.
+    // Otherwise, fall back to the optional filler suggestion -- UNLESS this is
+    // the day's anchor (always exercises[0] for a strength session; never
+    // grouped, since assignSupersets never touches index 0). No coach fills
+    // dead time on the primary lift with an unrelated core/calf/band drill --
+    // it pre-fatigues the brace/grip right before the next heavy set. Filler
+    // stays exactly where it belongs: the rest of unpaired accessory work.
     var partner = supersetPartner(curSession(), ex);
-    if (partner) showSuperNext(partner); else showFiller(ex);
+    var isAnchor = !partner && curSession().exercises.indexOf(ex) === 0 && ex.type === "strength";
+    if (partner) showSuperNext(partner); else if (isAnchor) hideFiller(); else showFiller(ex);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
     tickRest();
