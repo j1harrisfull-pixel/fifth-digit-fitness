@@ -606,6 +606,14 @@ body.has-rest .list { padding-bottom: calc(env(safe-area-inset-bottom) + 116px);
 body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 @media (prefers-reduced-motion: reduce) { .resttimer, .resttimer.is-done { animation: none; } .resttimer__fill { transition: none; } }
 
+/* Pull-to-refresh: a live rubber-band on the home view (replaces the dead
+   overscroll) that re-syncs the day's reads. Position driven inline by JS. */
+.ptr { position: fixed; top: max(6px, env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -10px); z-index: 40; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line-strong); opacity: 0; pointer-events: none; }
+.ptr__spin { width: 18px; height: 18px; border: 2px solid var(--line-strong); border-top-color: var(--accent-ink); border-radius: 50%; }
+.ptr.is-refreshing .ptr__spin { animation: ptrSpin .7s linear infinite; }
+@keyframes ptrSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ptr.is-refreshing .ptr__spin { animation-duration: 1.4s; } }
+
 /* toast */
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 22px); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 11px 18px; border-radius: 0; font-size: 13px; font-weight: 600; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 60; max-width: 90%; text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -732,6 +740,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     } catch (e) {}
   })();
 </script>
+<div class="ptr" id="ptr" aria-hidden="true"><span class="ptr__spin"></span></div>
 <div class="app" id="app" data-view="week">
   <div class="appbar">
     <header class="topbar">
@@ -3357,13 +3366,21 @@ function resolveSpec(request, state) {
     var weekDone = nextIdx < 0 && wk.sessions.length > 0;
     return { nextIdx: nextIdx, weekDone: weekDone, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
   }
+  // True until the first time the user opens a session this launch -- lets the
+  // home hero greet a returning, named user with "Welcome back" on arrival,
+  // then settle to the plain time-of-day line once they've started moving.
+  var justOpened = true;
   // A quiet time-of-day greeting, named when we know a name. Re-derived on
   // every render (not cached) so it stays honest across a session left open
   // past a period boundary -- cheap enough that it isn't worth memoizing.
   function greetingLine() {
+    var name = state.userName;
+    // The arrival moment: a real "welcome back" for a returning user with a
+    // program already going -- not shown to a brand-new user (the intro greets
+    // them) or after they've opened a session this launch.
+    if (justOpened && name && hasProgram()) return "Welcome back, " + name;
     var h = new Date().getHours();
     var isLate = h < 5 || h >= 22;
-    var name = state.userName;
     if (isLate) return name ? "Still up, " + name + "?" : "Still up?";
     var period = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
     return name ? (period.charAt(0).toUpperCase() + period.slice(1) + ", " + name) : ("Good " + period);
@@ -4443,7 +4460,7 @@ function resolveSpec(request, state) {
     renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
     return true;
   }
-  function openDay(i) { hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); acquireWakeLock(); }
+  function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); acquireWakeLock(); }
   function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
@@ -4511,6 +4528,15 @@ function resolveSpec(request, state) {
     clearInterval(buildThinkInterval); buildThinkInterval = null;
     clearTimeout(buildThinkTimer); buildThinkTimer = null;
     var bb = $("buildBtn"); if (bb) { delete bb.dataset.thinking; bb.disabled = equipGateEmpty(); }
+  }
+  // Same "considered, not careless" beat for Just-Today. The regex parse is
+  // instant, so without this the session appears the moment you tap -- which
+  // read as janky. A separate timer/interval pair so it never collides with
+  // the week-build think chain above.
+  var todayThinkTimer = null, todayThinkInterval = null;
+  function cancelTodayThinking() {
+    clearInterval(todayThinkInterval); todayThinkInterval = null;
+    clearTimeout(todayThinkTimer); todayThinkTimer = null;
   }
   function buildRequest() {
     var unit = state.program.unit;
@@ -4837,11 +4863,17 @@ function resolveSpec(request, state) {
   function onBuildToday() {
     var text = $("todayText").value, pv = $("todayPreview");
     if (!text.trim()) { pv.innerHTML = '<div class="preview__error" role="alert">Type what you want to train, for example ‘chest and triceps, 40 min’.</div>'; pv.classList.remove("hidden"); return; }
-    // Show a brief "reading" state only when the LLM proxy is actually in play
-    // (the regex path is instant, so no spinner needed there).
-    if (parseEndpoint() && navigator.onLine) {
-      pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt">Reading your request…</span></div>';
+    cancelTodayThinking();
+    // A short thinking beat so the session feels considered, not careless --
+    // the LLM path shows "reading", the instant regex path still gets the beat.
+    // startedAt lets the render wait out a ~900ms floor without ever ADDING to
+    // an already-slow LLM parse (if it took longer, we render straight away).
+    var startedAt = Date.now(), thinking = !reduceMotion;
+    if (thinking) {
+      var reading = parseEndpoint() && navigator.onLine;
+      pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt" id="todayBuildingTxt">' + (reading ? "Reading your request…" : "Building your session…") + '</span></div>';
       pv.classList.remove("hidden");
+      if (!reading) { var tl = ["Reading your request…", "Selecting your lifts…", "Balancing the session…"], ti = 0; todayThinkInterval = setInterval(function () { var el = $("todayBuildingTxt"); if (el) el.textContent = tl[ti++ % tl.length]; }, 360); }
     }
     parseIntent(text, function (req) {
       // Absent explicitly-stated kit, honour the saved equipment profile instead
@@ -4888,15 +4920,22 @@ function resolveSpec(request, state) {
         : eqList.map(function (id) { return (EQUIP_LABELS[id] || id).toLowerCase(); }).join(" + ");
       var eqNote = eqFromText ? eqLbl : eqLbl + " (your saved kit)";
       var rows = todayRowsHtml(pendingToday.exercises);
-      pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
-        '<div class="preview__meta">Understood: ' + esc(req.summary) + ' · ' + esc(eqNote) + '</div>' +
-        banner +
-        '<div class="todaylist">' + rows + '</div>' +
-        '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">' + esc(confirmTodayLabel()) + '</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
-      pv.classList.remove("hidden");
-      $("confirmToday").addEventListener("click", addTodaySession);
-      $("retryToday").addEventListener("click", onBuildToday);
-      if (pendingTodayAnyway) $("buildAnywayToday").addEventListener("click", buildTodayAnyway);
+      // Render the finished preview, but not before the thinking floor has
+      // elapsed -- so the instant regex build still reads as considered.
+      function finish() {
+        cancelTodayThinking();
+        pv.innerHTML = '<div class="preview__title">' + esc(pendingToday.name) + '</div>' +
+          '<div class="preview__meta">Understood: ' + esc(req.summary) + ' · ' + esc(eqNote) + '</div>' +
+          banner +
+          '<div class="todaylist">' + rows + '</div>' +
+          '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">' + esc(confirmTodayLabel()) + '</button>' + anywayBtn + '<button class="btn" id="retryToday" type="button">Try again</button></div>';
+        pv.classList.remove("hidden");
+        $("confirmToday").addEventListener("click", addTodaySession);
+        $("retryToday").addEventListener("click", onBuildToday);
+        if (pendingTodayAnyway) $("buildAnywayToday").addEventListener("click", buildTodayAnyway);
+      }
+      var wait = thinking ? Math.max(0, 900 - (Date.now() - startedAt)) : 0;
+      if (wait > 0) todayThinkTimer = setTimeout(finish, wait); else finish();
     });
   }
   // The escape hatch: swaps the pending recovery suggestion for the session that
@@ -4964,7 +5003,7 @@ function resolveSpec(request, state) {
     state.activeSession = week.sessions.length - 1;
     pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added " + session.name);
   }
-  function closePlan() { cancelBuildThinking(); pendingSubstituteIdx = null; if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
+  function closePlan() { cancelBuildThinking(); cancelTodayThinking(); pendingSubstituteIdx = null; if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
     var text = $("reqText").value;
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -5530,7 +5569,51 @@ function resolveSpec(request, state) {
   document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
   document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
   document.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro();
+  // Pull-to-refresh on the HOME view only: the native overscroll is dead
+  // (overscroll-behavior:none), so a pull did nothing and read as unfinished.
+  // This gives the pull a real, honest job -- re-derive today's live reads
+  // (greeting to the current time, recovery, consistency, up-next). Never armed
+  // on the day view, so it can't fire mid-workout.
+  function initPullRefresh() {
+    var ptr = $("ptr"); if (!ptr) return;
+    var spin = ptr.querySelector(".ptr__spin");
+    var startY = 0, pulling = false, armed = false, refreshing = false, THRESH = 72, MAX = 120;
+    function atTop() { return (window.scrollY || document.documentElement.scrollTop || 0) <= 0; }
+    function setPull(px) {
+      ptr.style.transition = px ? "none" : "transform .2s ease, opacity .2s ease";
+      ptr.style.transform = "translate(-50%, " + (px - 10) + "px)";
+      ptr.style.opacity = String(Math.min(1, px / THRESH));
+      if (spin) spin.style.transform = "rotate(" + Math.round(px * 3) + "deg)";
+    }
+    function doRefresh() {
+      refreshing = true; ptr.classList.add("is-refreshing");
+      ptr.style.transition = "transform .2s ease"; ptr.style.transform = "translate(-50%, 46px)"; ptr.style.opacity = "1";
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+      setTimeout(function () {
+        // The pull settles the arrival "Welcome back" into the live time-of-day
+        // line and re-runs every home read from scratch.
+        justOpened = false;
+        if (state.view === "week") { renderHomeHero(); renderWeekList(); }
+        ptr.classList.remove("is-refreshing"); setPull(0); refreshing = false;
+      }, 650);
+    }
+    document.addEventListener("touchstart", function (e) {
+      if (refreshing || state.view !== "week" || e.touches.length !== 1 || !atTop()) { pulling = false; return; }
+      startY = e.touches[0].clientY; pulling = true; armed = false;
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (!pulling || refreshing) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy <= 0 || !atTop()) { pulling = false; setPull(0); return; }
+      e.preventDefault(); // own the gesture so the page doesn't rubber-band natively
+      var damped = Math.min(MAX, dy * 0.5); setPull(damped); armed = damped >= THRESH;
+    }, { passive: false });
+    document.addEventListener("touchend", function () {
+      if (!pulling) return; pulling = false;
+      if (armed && !refreshing) doRefresh(); else setPull(0);
+    }, { passive: true });
+  }
+  initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
   if (state.view === "day") { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
   if (quarantinedRaw) toast("Couldn't read your saved data. A recovery copy was kept on this device");
   if ("serviceWorker" in navigator) {
