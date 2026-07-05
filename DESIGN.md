@@ -2,15 +2,15 @@
 name: Fifth Digit Fitness
 description: Offline personal training log — the instrument you glance at mid-set, not a lifestyle app
 colors:
-  bg: "#0B0C0E"
-  surface: "#13151A"
-  surface-2: "#1A1D23"
-  ink: "#F4F5F6"
-  ink-dim: "#8B9098"
-  muted: "#8B9098"
+  bg: "#14110D"
+  surface: "#1C1915"
+  surface-2: "#262119"
+  ink: "#F6F1EA"
+  ink-dim: "#9C9287"
+  muted: "#9C9287"
   faint: "#565B62"
-  line: "#1E2126"
-  line-strong: "#343A44"
+  line: "#29241E"
+  line-strong: "#473F35"
   accent: "#FF4A1C"
   accent-tint: "rgba(255,74,28,.14)"
   ready-green: "#26C281"
@@ -99,14 +99,14 @@ system is ever colored except the three semantic status hues (ready-green, manag
   one element at a time.
 
 ### Neutral
-- **Void Black** (`#0B0C0E`): page background.
-- **Panel** (`#13151A`): card and container surfaces one step up from the void.
-- **Panel Raised** (`#1A1D23`): a second surface step for nested/hover states.
-- **Signal White** (`#F4F5F6`): primary text (ink).
-- **Dim Ink** (`#8B9098`): secondary text, captions, muted labels.
+- **Void Black** (`#14110D`): page background.
+- **Panel** (`#1C1915`): card and container surfaces one step up from the void.
+- **Panel Raised** (`#262119`): a second surface step for nested/hover states.
+- **Signal White** (`#F6F1EA`): primary text (ink).
+- **Dim Ink** (`#9C9287`): secondary text, captions, muted labels.
 - **Faint Ink** (`#565B62`): tertiary text, disabled/placeholder states.
-- **Hairline** (`#1E2126`): default border/divider.
-- **Hairline Strong** (`#343A44`): emphasized border (current-state cards, steppers).
+- **Hairline** (`#29241E`): default border/divider.
+- **Hairline Strong** (`#473F35`): emphasized border (current-state cards, steppers).
 
 ### Status (semantic, not decorative)
 - **Ready Green** (`#26C281`): recovery-ring fill, "done" tags, positive progression.

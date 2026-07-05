@@ -5,14 +5,14 @@
   "extensions": {
     "colorMeta": {
       "accent": { "role": "primary", "displayName": "Signal Orange", "canonical": "#FF4A1C" },
-      "bg": { "role": "neutral", "displayName": "Void Black", "canonical": "#0B0C0E" },
-      "surface": { "role": "neutral", "displayName": "Panel", "canonical": "#13151A" },
-      "surface-2": { "role": "neutral", "displayName": "Panel Raised", "canonical": "#1A1D23" },
-      "ink": { "role": "neutral", "displayName": "Signal White", "canonical": "#F4F5F6" },
-      "ink-dim": { "role": "neutral", "displayName": "Dim Ink", "canonical": "#8B9098" },
+      "bg": { "role": "neutral", "displayName": "Void Black", "canonical": "#14110D" },
+      "surface": { "role": "neutral", "displayName": "Panel", "canonical": "#1C1915" },
+      "surface-2": { "role": "neutral", "displayName": "Panel Raised", "canonical": "#262119" },
+      "ink": { "role": "neutral", "displayName": "Signal White", "canonical": "#F6F1EA" },
+      "ink-dim": { "role": "neutral", "displayName": "Dim Ink", "canonical": "#9C9287" },
       "faint": { "role": "neutral", "displayName": "Faint Ink", "canonical": "#565B62" },
-      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#1E2126" },
-      "line-strong": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "#343A44" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#29241E" },
+      "line-strong": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "#473F35" },
       "ready-green": { "role": "status", "displayName": "Ready Green", "canonical": "#26C281" },
       "manage-amber": { "role": "status", "displayName": "Manage Amber", "canonical": "#E8A23D" },
       "rough-red": { "role": "status", "displayName": "Rough Red", "canonical": "#FF6B52" }
@@ -38,7 +38,7 @@
       "refersTo": "button-primary",
       "description": "The single primary action per screen (START / LOG / Build). Zero radius plus a 45deg-clipped top-right corner, the one signature shape in the system.",
       "html": "<button class=\"ds-btn-primary\">Start training</button>",
-      "css": ".ds-btn-primary { background: #FF4A1C; color: #0B0C0E; border: 0; padding: 15px 32px 15px 15px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); transition: opacity .12s ease; } .ds-btn-primary:hover { opacity: .92; } .ds-btn-primary:focus-visible { outline: 2.5px solid #FF4A1C; outline-offset: 2px; }"
+      "css": ".ds-btn-primary { background: #FF4A1C; color: #14110D; border: 0; padding: 15px 32px 15px 15px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); transition: opacity .12s ease; } .ds-btn-primary:hover { opacity: .92; } .ds-btn-primary:focus-visible { outline: 2.5px solid #FF4A1C; outline-offset: 2px; }"
     },
     {
       "name": "Tag / Status Chip",
@@ -46,7 +46,7 @@
       "refersTo": "tag-outline",
       "description": "Neutral outline tag used for exercise type, week-day status (done/alt/skipped/next). Recolors border+text by state; never filled except the current row.",
       "html": "<span class=\"ds-tag ds-tag--next\">NEXT</span>",
-      "css": ".ds-tag { display: inline-flex; align-items: center; font-family: 'Spline Sans Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid #343A44; color: #8B9098; } .ds-tag--next { color: #FF4A1C; border-color: #FF4A1C; }"
+      "css": ".ds-tag { display: inline-flex; align-items: center; font-family: 'Spline Sans Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid #473F35; color: #9C9287; } .ds-tag--next { color: #FF4A1C; border-color: #FF4A1C; }"
     },
     {
       "name": "Card",
@@ -54,7 +54,7 @@
       "refersTo": "card",
       "description": "Base container: flat, zero radius, one tonal step above the page background, hairline border.",
       "html": "<div class=\"ds-card\">Incline Dumbbell Press</div>",
-      "css": ".ds-card { background: #13151A; border: 1px solid #1E2126; border-radius: 0; padding: 14px 14px 12px; }"
+      "css": ".ds-card { background: #1C1915; border: 1px solid #29241E; border-radius: 0; padding: 14px 14px 12px; }"
     },
     {
       "name": "Why-Block (Active, first-class)",
@@ -62,7 +62,7 @@
       "refersTo": "card-border",
       "description": "The promoted why-line for the current exercise on the Active screen. Full border on all sides, never a side-stripe accent.",
       "html": "<div class=\"ds-whyblock\">You cleared 57.5 kg every set last session at RPE 7. This is the next step up.</div>",
-      "css": ".ds-whyblock { display: block; box-sizing: border-box; padding: 8px 10px; border: 1px solid #343A44; background: #1A1D23; color: #F4F5F6; font-size: 13px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }"
+      "css": ".ds-whyblock { display: block; box-sizing: border-box; padding: 8px 10px; border: 1px solid #473F35; background: #262119; color: #F6F1EA; font-size: 13px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }"
     }
   ],
   "narrative": {

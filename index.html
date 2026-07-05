@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#FF4A1C">
+<meta name="theme-color" content="#14110D">
 <meta name="description" content="A personal offline strength and mobility training log with Claude-driven adaptive programs.">
 <title>Fifth Digit Fitness</title>
 
@@ -35,12 +35,12 @@
    WCAG AA for text + interactive colour pairs.
    ============================================================ */
 :root {
-  --bg: #0B0C0E; --grid: rgba(255,255,255,.035); --surface: #13151A; --surface-2: #1A1D23;
-  --ink: #F4F5F6; --ink-dim: #8B9098; --line: #1E2126; --line-strong: #343A44; --line-soft: #1E2126;
-  --accent: #FF4A1C; --accent-ink: #FF4A1C; --on-accent: #0B0C0E; --accent-tint: rgba(255,74,28,.14);
+  --bg: #14110D; --grid: rgba(255,235,214,.045); --surface: #1C1915; --surface-2: #262119;
+  --ink: #F6F1EA; --ink-dim: #9C9287; --line: #29241E; --line-strong: #473F35; --line-soft: #29241E;
+  --accent: #FF4A1C; --accent-ink: #FF4A1C; --on-accent: #14110D; --accent-tint: rgba(255,74,28,.14);
   --mob: #26C281; --danger: #FF6B52;
   --ready: #26C281; --ready-tint: rgba(38,194,129,.14); --manage: #E8A23D; --rough: #FF6B52;
-  --muted: #8B9098; --faint: #7A828C;
+  --muted: #9C9287; --faint: #877D71;
   --shadow: none;
   --radius: 0px; --tap: 48px; color-scheme: dark;
   /* Swap-ready type system: repoint these two to switch the whole app's
@@ -88,10 +88,17 @@ input, textarea { font: inherit; color: inherit; }
 .brand__name { display: flex; flex-direction: column; font-family: var(--font-display); font-weight: 800; font-size: 10.5px; line-height: 1.18; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); min-width: 0; }
 .brand__name span { white-space: nowrap; }
 .topbar__actions { display: flex; gap: 8px; }
-.icon-btn { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; transition: transform .12s ease, border-color .12s ease; }
-.icon-btn:hover { border-color: var(--line-strong); }
+/* Bare header icons: same 48px hit area, no boxed tile -- three bordered
+   squares next to the week pill made the header a row of boxes. The one box
+   that remains is Build (below), because it's the hero action. */
+.icon-btn { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; background: none; border: 0; border-radius: 0; color: var(--ink-dim); transition: transform .12s ease, color .12s ease; }
+.icon-btn:hover { color: var(--ink); }
 .icon-btn:active { transform: scale(.94); }
 .icon-btn svg { width: 22px; height: 22px; }
+/* Build: the hero action gets a label, not a mystery glyph. */
+.icon-btn--build { width: auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 700; }
+.icon-btn--build:hover { color: var(--ink); border-color: var(--ink); }
+.icon-btn--build svg { width: 16px; height: 16px; }
 .icon-btn.is-accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* week bar */
@@ -414,8 +421,20 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .today-card__sub { display: block; width: 100%; background: none; border: 0; padding: 10px 0 0; margin: 0; font-size: 12.5px; color: var(--ink-dim); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 .today-card__sub:hover { color: var(--ink); }
 .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; padding: 3px; gap: 3px; }
-.seg button { border: 0; background: none; padding: 9px 16px; border-radius: 0; font-size: 13px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, color .15s ease; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg button { border: 0; background: none; padding: 9px 16px; border-radius: 0; font-size: 13px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
+/* Quiet selected state: tonal cell + ink ring, not a solid near-white slab.
+   The old ink-filled selection was louder than the screen's primary CTA --
+   nine white blocks on one Build sheet inverted the hierarchy. Selection now
+   reads by text brightness + the ring; orange stays reserved for actions. */
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+/* The Build sheet's mode tabs are wayfinding, not a value choice -- they carry
+   the sheet's single small accent moment (an underline) instead of the ring. */
+#planMode button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 -2px 0 0 var(--accent); }
+/* GOAL is the decision that defines the whole build -- two-line cards with a
+   plain-language descriptor, visibly senior to the Adjust panel's controls. */
+.seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; }
+.seg__sub { font-size: 10.5px; font-weight: 500; color: var(--ink-dim); letter-spacing: .01em; }
+.adv--adjust .seg button { padding: 8px 12px; font-size: 12.5px; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn { flex: 1 1 auto; min-height: var(--tap); display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; padding: 0 16px; font-weight: 600; font-size: 14px; transition: transform .1s ease, border-color .12s ease; }
 .btn:hover { border-color: var(--accent-ink); }
@@ -471,10 +490,17 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .seg--full { display: flex; width: 100%; }
 .seg--full button { flex: 1 1 0; padding: 11px 6px; text-align: center; min-height: 44px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; padding: 0 18px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink); transition: background .15s ease, border-color .15s ease, color .15s ease; }
-.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.chip { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; padding: 0 18px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease; }
+/* Same quiet-selected language as .seg: ink ring + bright text, no white slab. */
+.chip[aria-pressed="true"] { background: var(--surface); border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); color: var(--ink); }
 .chip.is-locked { cursor: default; opacity: .92; }
 .chip.is-locked::after { content: "🔒"; font-size: 10px; margin-left: 6px; opacity: .85; }
+/* Equipment inversion: a full gym is the DEFAULT, so "on" is the quiet state
+   (plain tick) and "off" is the marked exception (dimmed) -- otherwise the
+   default renders as a wall of 7-9 highlighted chips shouting at once. */
+#bEquip .chip[aria-pressed="true"], #todayEquip .chip[aria-pressed="true"], #myEquip .chip[aria-pressed="true"] { background: var(--surface-2); border-color: var(--line-strong); box-shadow: none; color: var(--ink); }
+#bEquip .chip[aria-pressed="true"]::before, #todayEquip .chip[aria-pressed="true"]::before, #myEquip .chip[aria-pressed="true"]::before { content: "✓ "; color: var(--ink-dim); }
+#bEquip .chip[aria-pressed="false"], #todayEquip .chip[aria-pressed="false"], #myEquip .chip[aria-pressed="false"] { opacity: .45; }
 
 /* superset grouping (no side-stripe, no nested card) */
 .superrun { display: flex; flex-direction: column; gap: 6px; }
@@ -613,14 +639,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <span class="brand__name"><span>Fifth Digit</span><span>Fitness</span></span>
       </div>
       <div class="topbar__actions">
-        <button class="icon-btn" id="planBtn" title="Build or load a workout" aria-label="Get or load a workout from Claude" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5"/><path d="M5 8v8l7 5 7-5V8"/></svg>
+        <button class="icon-btn icon-btn--build" id="planBtn" title="Build or load a workout" aria-label="Build or load a workout" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Build</span>
         </button>
         <button class="icon-btn" id="historyBtn" title="Progress history" aria-label="Progress history" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
         </button>
         <button class="icon-btn" id="settingsBtn" aria-label="Settings and backup" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
     </header>
@@ -642,7 +668,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <button type="button" class="livebar__end" id="liveBarEnd">End</button>
     </div>
     <div class="daybar view-day">
-      <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
+      <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
       <span class="daybar__title" id="dayTitle"></span>
     </div>
   </div>
@@ -677,10 +703,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div id="modeWeek">
     <div class="bsect">
       <div class="blabel">Goal</div>
-      <div class="seg seg--full" id="bGoal" role="group" aria-label="Goal">
-        <button data-goal="hybrid" type="button">Hybrid</button>
-        <button data-goal="strength" type="button">Strength</button>
-        <button data-goal="endurance" type="button">Endurance</button>
+      <div class="seg seg--full seg--goal" id="bGoal" role="group" aria-label="Goal">
+        <button data-goal="hybrid" type="button">Hybrid<span class="seg__sub">Lift + conditioning</span></button>
+        <button data-goal="strength" type="button">Strength<span class="seg__sub">Heavy, low reps</span></button>
+        <button data-goal="endurance" type="button">Endurance<span class="seg__sub">Run-led week</span></button>
       </div>
     </div>
     <div class="bsect">
@@ -877,7 +903,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="filler" id="restFiller" hidden>
     <span class="filler__label">While you rest · optional</span>
     <div class="filler__row">
-      <span class="filler__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-7 4 14 2-7h4"/></svg></span>
+      <span class="filler__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-7 4 14 2-7h4"/></svg></span>
       <span class="filler__name"><span id="fillerName"></span><span class="filler__reps" id="fillerReps"></span></span>
       <button class="filler__swap" id="fillerSwap" type="button" aria-label="Swap for another move"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="filler__done" id="fillerDone" type="button" aria-pressed="false" aria-label="Mark filler done"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>
@@ -920,7 +946,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 <dialog class="sheet" id="completeSheet" aria-labelledby="completeTitle">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
-    <h2 class="complete__title" id="completeTitle"><svg class="complete__icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg><span id="completeTitleText">Session done</span></h2>
+    <h2 class="complete__title" id="completeTitle"><svg class="complete__icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg><span id="completeTitleText">Session done</span></h2>
     <p class="complete__summary" id="completeSummary"></p>
     <div id="completeRead"></div>
     <div class="btn-row">
