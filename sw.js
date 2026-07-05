@@ -4,7 +4,7 @@
    - Same-origin assets: cache-first with background fill
    Bump CACHE_VERSION to ship a new shell. */
 
-const CACHE_VERSION = "v64";
+const CACHE_VERSION = "v67";
 const SHELL_CACHE = `training-log-shell-${CACHE_VERSION}`;
 
 // Relative URLs so this works under any base path (e.g. GitHub Pages project page).
@@ -16,7 +16,11 @@ const SHELL_ASSETS = [
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
+  "./icon-192-maskable.png",
+  "./icon-512-maskable.png",
   "./apple-touch-icon.png",
+  "./favicon.png",
+  "./thumbprint.png",
   "./fonts/Geist-Regular.woff2",
   "./fonts/Geist-SemiBold.woff2",
   "./fonts/Geist-Bold.woff2",
