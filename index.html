@@ -179,14 +179,8 @@ input, textarea { font: inherit; color: inherit; }
 .weeknav__label b { font-family: "Spline Sans Mono", monospace; font-size: 16px; color: var(--ink); margin: 0 1px; }
 .weeknav__cap { text-transform: uppercase; letter-spacing: .1em; font-size: 10px; }
 
-/* Narrow phones: the column header already says REPS, so the per-row
-   "reps" unit label is duplicate ink -- dropping it keeps the row on one line
-   at 375px. (The width trims live in the base .setrow__* rules below, which
-   come later in source and would otherwise override an override here.) */
-@media (max-width: 400px) {
-  .card.is-current .runit { display: none; }
-  .rval { min-width: 16px; }
-}
+/* (The old narrow-phone .runit override is gone: the per-row unit label was
+   removed for ALL widths -- the column header labels Reps/Sec once. */
 
 /* One-time RPE / est-1RM explainer: pulled, dismissible, shown once. */
 .coachhint { margin: 0 14px 8px; padding: 12px 14px; border: 1px solid var(--line-strong); background: var(--surface); display: flex; align-items: flex-start; gap: 12px; }
@@ -291,14 +285,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .setshead__target { margin: 0 0 6px; font-size: 12px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
 /* Active-screen rebuild: a SET/PREV/KG/REPS/RPE column header, shown only
    above the current exercise's table (see .card.is-current .setcolhead). */
-.setcolhead { display: none; padding: 0 5px 4px; }
-.card.is-current .setcolhead { display: flex; align-items: center; gap: 3px; }
-.setcolhead span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; }
-.setcolhead .colhead__n { width: 20px; text-align: center; flex: none; }
-.setcolhead .colhead__prev { width: 52px; text-align: center; flex: none; }
-.setcolhead .colhead__wt { width: 90px; text-align: center; flex: none; }
-.setcolhead .colhead__reps { flex: 1; text-align: center; }
-.setcolhead .colhead__done { width: 44px; flex: none; }
+.setcolhead { display: none; padding: 0 9px 4px; }
+/* Header and rows share the SAME grid template (see .setcolhead,.setrow below),
+   so each label sits exactly over its column -- the old flex approximation with
+   its own widths drifted against the rows' actual geometry. */
+.card.is-current .setcolhead { display: grid; align-items: center; column-gap: 6px; }
+.setcolhead span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; text-align: center; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { min-width: 56px; min-height: var(--tap); padding: 6px 12px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; font-family: "Spline Sans Mono", monospace; transition: transform .12s ease, background .15s ease, border-color .15s ease, color .15s ease; }
 .pill__reps { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -309,49 +301,55 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .pill.is-done .pill__reps::before { content: "✓ "; }
 .pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
-.setlist { display: flex; flex-direction: column; gap: 3px; }
-.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 4px 5px; border: 1px solid var(--line); border-radius: 0; transition: background .14s ease, border-color .14s ease; }
-/* Secondary line: planned-vs-actual + the demoted RPE affordance, together on
-   their own row below the primary weight/reps/done controls. */
-.setrow__meta { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-left: 20px; margin-top: 1px; }
-.setrow__target { font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
+.setlist { display: flex; flex-direction: column; gap: 6px; }
+/* One shared grid: Set | Prev/RPE | Kg | Reps | Done. Six data columns don't
+   fit 375px, so Prev and RPE SHARE a track: a set shows last session's number
+   until you complete it, then the cell becomes the RPE chip -- you rate effort
+   after the set, exactly when the reference number has served its purpose.
+   The --noload variant drops the Kg track for rep-driven exercises. RPE lives
+   ON the main line -- the old flex-wrap layout pushed it to an accidental
+   second line, doubling every row's height with dead space. Every track except
+   Reps is a FIXED width: header and rows are separate grids, so a
+   content-sized (auto) track would resolve differently in each ("Kg" text vs
+   the 88px stepper cluster) and shear the columns apart. */
+.setcolhead, .setrow { grid-template-columns: 24px 54px 88px minmax(0, 1fr) 44px; }
+.setcolhead--noload, .setlist--noload .setrow { grid-template-columns: 24px 54px minmax(0, 1fr) 44px; }
+.setrow { display: grid; align-items: center; column-gap: 6px; min-height: 52px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 0; transition: background .14s ease, border-color .14s ease; }
+/* planned-vs-actual: a deliberate full-width second grid line (rendered only
+   when a real target exists), never an accidental wrap. */
+.setrow__target { grid-column: 1 / -1; padding: 0 0 2px 24px; font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
 .setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
 /* The one live set: a stronger border + full-ink set number so the row you're
    about to log is unmistakable and agrees with the sticky LOG bar. Neutral,
    not accent -- the LOG bar stays the single orange signal. */
 .setrow.is-next { border-color: var(--line-strong); }
 .setrow.is-next .setrow__n { color: var(--ink); font-weight: 600; }
-.setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); width: 20px; text-align: center; flex: none; }
+.setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); text-align: center; }
 /* PREV: last session's own weight x reps for this exact set index, straight
    from buildLastLogs -- an honest reference number, never editable. */
-.setrow__prev { width: 46px; flex: none; text-align: center; font-size: 12px; color: var(--faint); }
-.setrow__reps { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
-.rstep { position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
-.rstep:hover { border-color: var(--accent-ink); color: var(--ink); }
-/* Expand the thumb target to ~44px tall without changing the visual size or
-   stealing horizontal taps from the number between the steppers. */
-.rstep::after, .wtstep::after { content: ""; position: absolute; inset: -8px 0; }
+.setrow__prev { text-align: center; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setrow__reps { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 0; }
+/* Ghost steppers: identical hit areas (via the inset pseudo), but visually
+   quiet so the VALUES dominate the row instead of six equal boxes. */
+.rstep, .wtstep { position: relative; width: 20px; height: 36px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 0; font-size: 17px; color: var(--faint); transition: color .12s ease; }
+.rstep:hover, .wtstep:hover { color: var(--ink); }
+.rstep::after, .wtstep::after { content: ""; position: absolute; inset: -4px -5px; }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; color: var(--ink); }
-.runit { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
-/* Weight: always a typable field (never a tap-to-reveal button) flanked by flat
-   +/- 2.5 steppers -- widened so a 3-digit/decimal load like 142.5 is never
-   clipped. Dashed border = still inheriting the exercise's shared weight;
-   solid = this set has its own explicit value (same distinction the old
-   button-vs-input toggle carried, now just a border style on one control). */
-/* margin-right separates the weight-stepper group from the reps-stepper group
-   so the KG "+" and REPS "−" no longer read as one control cluster. */
-.setrow__wt { display: flex; align-items: center; gap: 2px; flex: none; margin-right: 6px; }
-.wtstep { position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-size: 15px; color: var(--ink-dim); transition: border-color .12s ease, color .12s ease; }
-.wtstep:hover { border-color: var(--accent-ink); color: var(--ink); }
-.setrow__wtinput { flex: none; width: 46px; box-sizing: border-box; min-height: 28px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: 0; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
+/* Weight: always a typable field (never a tap-to-reveal button) flanked by
+   ghost +/- steppers. Dashed border = still inheriting the exercise's shared
+   weight; solid = this set has its own explicit value (same distinction the
+   old button-vs-input toggle carried, now just a border style). The input is
+   the ONE box in the cluster, so the value owns the eye. */
+.setrow__wt { display: flex; align-items: center; gap: 2px; justify-self: center; }
+.setrow__wtinput { flex: none; width: 44px; box-sizing: border-box; min-height: 30px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: 0; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
 .setrow__wt.is-override .setrow__wtinput { border-style: solid; border-color: var(--accent-ink); }
-.setrow__rpe { position: relative; flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); background: none; border-radius: 0; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
-.setrow__rpe::after { content: ""; position: absolute; inset: -9px -2px; }
+.setrow__rpe { position: relative; justify-self: center; height: 28px; padding: 0 7px; border: 1px solid var(--line-strong); background: none; border-radius: 0; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); transition: border-color .12s ease, color .12s ease; }
+.setrow__rpe::after { content: ""; position: absolute; inset: -8px -2px; }
 .setrow__rpe.is-set { color: var(--accent-ink); border-color: var(--accent-ink); }
 /* Done: the one control that matters mid-set -- visibly tappable at rest (not
    transparent), fills ready-green on completion. Slightly larger than the
    other row controls so it reads as the primary action, not just another one. */
-.setrow__done { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done { width: 44px; height: 44px; justify-self: center; display: grid; place-items: center; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); border-radius: 50%; transition: background .14s ease, border-color .14s ease, color .14s ease; }
 .setrow__done:hover { border-color: var(--ready); color: var(--ink); }
 .setrow.is-done .setrow__done { background: var(--ready); border-color: var(--ready); color: var(--on-accent); }
 .setrow.pulse .setrow__done { animation: pulse .3s ease; }
@@ -3536,54 +3534,77 @@ function resolveSpec(request, state) {
     wrap.classList.toggle("is-unset", unset);
     var label = wrap.querySelector(".startweight__label"); if (label) label.textContent = unset ? "Set your weight" : "Start weight";
   }
-  function setRowsInner(e, lg, suppressCaption, lr, loadable) {
+  // Which optional grid tracks exist for this exercise's set table, shared by
+  // the column-header builder and setRowsInner so they always agree. Deriving
+  // loadable/lr HERE (instead of threading them as params) also fixes a real
+  // pre-existing bug: three live-refresh paths called setRowsInner without
+  // lr/loadable, silently dropping the KG cluster from every row after a
+  // start-weight or set-count change.
+  function rowTableMeta(e) {
+    var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
+    var lr = (lastLogs && lastLogs[String(e.name).toLowerCase()]) || null;
+    var hasPrev = false;
+    if (lr && Array.isArray(lr.reps)) {
+      for (var k = 0; k < e.sets; k++) {
+        var pr = lr.reps[k];
+        if (loadable ? (lr.weight > 0 && pr != null) : (pr != null)) { hasPrev = true; break; }
+      }
+    }
+    return { loadable: loadable, lr: lr, hasPrev: hasPrev };
+  }
+  function setRowsInner(e, lg, suppressCaption) {
     var html = "";
-    var unit = state.program.unit;
+    var meta = rowTableMeta(e), loadable = meta.loadable, lr = meta.lr;
     for (var k = 0; k < e.sets; k++) {
       var s = lg.sets[k], d = s.completed, rv = s.reps, rp = s.rpe;
-      // PREV column (Active-screen rebuild): last session's own result for this
-      // set index, straight from buildLastLogs -- never a fabricated number.
-      // Rep-driven (band/bodyweight) exercises show reps only, no phantom kg.
+      // PREV column: last session's own result for this set index, straight
+      // from buildLastLogs -- never a fabricated number. The whole column (and
+      // its header) is omitted when the exercise has no history yet, instead
+      // of burning a labelled track on a dash. Rep-driven exercises show reps
+      // only, no phantom kg.
       var prevReps = (lr && Array.isArray(lr.reps)) ? lr.reps[k] : null;
       var prevTxt = !loadable
         ? (prevReps != null ? (prevReps + " reps") : "–")
         : ((lr && lr.weight > 0 && prevReps != null) ? (roundW(lr.weight) + "×" + prevReps) : "–");
-      // Always a typable input (never a tap-to-reveal button) flanked by flat
+      // Always a typable input (never a tap-to-reveal button) flanked by ghost
       // +/- steppers -- dashed border while inheriting the exercise's shared
-      // weight, solid once this set has its own explicit value (same
-      // distinction the old button/input toggle carried). Omitted entirely for
-      // rep-driven exercises where a kg number is meaningless.
+      // weight, solid once this set has its own explicit value. Omitted
+      // entirely for rep-driven exercises where a kg number is meaningless.
       var wtCtrl = loadable ? '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '">' +
         '<button type="button" class="wtstep" data-act="wt-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Decrease weight, set ' + (k + 1) + '">−</button>' +
         '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight for set ' + (k + 1) + ', ' + s.weight + ' ' + esc(state.program.unit) + '">' +
         '<button type="button" class="wtstep" data-act="wt+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Increase weight, set ' + (k + 1) + '">+</button>' +
       '</div>' : '';
-      // RPE demoted to a compact secondary affordance (same tap-to-cycle
-      // interaction as before, just moved off the primary row) -- available
-      // every set, never competing with weight/reps/done for space.
+      // Prev and RPE share one grid cell (six columns don't fit 375px, and
+      // they never matter at the same moment): last session's number guides
+      // the set, then completion swaps it for the RPE chip to rate what you
+      // just did. No history -> the chip shows from the start. Same
+      // tap-to-cycle interaction. No per-row "reps"/"sec" text -- the column
+      // header labels the unit once for the whole table.
       var rpeBtn = '<button type="button" class="setrow__rpe' + (rp != null ? " is-set" : "") + '" data-act="rpe" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Effort for set ' + (k + 1) + (rp != null ? ": RPE " + rp : ", optional") + '">' + (rp != null ? "@" + rp : "RPE") + '</button>';
+      var prevRpeCell = (meta.hasPrev && !d)
+        ? '<span class="setrow__prev mono" aria-label="Previous session, set ' + (k + 1) + ': ' + esc(prevTxt) + '">' + esc(prevTxt) + '</span>'
+        : rpeBtn;
       // P0: no real planned weight/reps yet -> render nothing, not a
-      // misleading "planned 0kg x -" line.
+      // misleading "planned 0kg x -" line. When present it's a deliberate
+      // full-width second grid line, not a stray flex child.
       var showPlanned = !suppressCaption && (s.target_weight > 0 || s.target_reps != null);
-      // A ramp/wave set can have a real planned rep count before any weight is
-      // chosen (target_weight still 0) -- show just the reps then, not a
-      // misleading "0kg" figure that reads as a real prescribed load.
       var plannedWeightPart = s.target_weight > 0 ? esc(s.target_weight) + esc(state.program.unit) + " × " : "";
       var plannedRepsPart = esc(s.target_reps != null ? s.target_reps : "–") + (plannedWeightPart ? "" : " reps");
-      var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + plannedWeightPart + plannedRepsPart + '</span>' : '<span></span>';
+      var plannedSpan = showPlanned ? '<span class="setrow__target">planned ' + plannedWeightPart + plannedRepsPart + '</span>' : '';
       html += '<div class="setrow' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
         '<span class="setrow__n">' + (k + 1) + '</span>' +
-        '<span class="setrow__prev mono" aria-label="Previous session, set ' + (k + 1) + ': ' + esc(prevTxt) + '">' + esc(prevTxt) + '</span>' +
+        prevRpeCell +
         wtCtrl +
         '<div class="setrow__reps">' +
           '<button type="button" class="rstep" data-act="rep-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One fewer rep, set ' + (k + 1) + '">−</button>' +
-          '<span class="rval">' + rv + '</span><span class="runit">' + (exTimed(e.name) ? "sec" : "reps") + '</span>' +
+          '<span class="rval">' + rv + '</span>' +
           '<button type="button" class="rstep" data-act="rep+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One more rep, set ' + (k + 1) + '">+</button>' +
         '</div>' +
         // Done: the one control that matters mid-set -- larger, visibly
         // tappable at rest, fills ready-green on completion (see CSS).
         '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
-        '<div class="setrow__meta">' + plannedSpan + rpeBtn + '</div>' +
+        plannedSpan +
       '</div>';
     }
     return html;
@@ -3744,11 +3765,16 @@ function resolveSpec(request, state) {
           '<div class="swapbox' + (e.swapOpen ? " is-open" : "") + '" id="sw-' + e.id + '"><p class="swap-hint">Same effort, swap the kit:</p><div class="swap-opts">' + chips + '</div></div>';
       }
     }
+    // Header cells and variant classes must mirror rowTableMeta exactly --
+    // header and rows share one grid template, so a missing/extra cell on
+    // either side would shear every column. Timed work (carries) is labelled
+    // Sec, honest to what the number means.
+    var rtm = e.type === "strength" ? rowTableMeta(e) : null;
     var setColHead = e.type === "strength"
-      ? '<div class="setcolhead" aria-hidden="true"><span class="colhead__n">Set</span><span class="colhead__prev">Prev</span>' + (loadable ? '<span class="colhead__wt">' + esc(unit.charAt(0).toUpperCase() + unit.slice(1)) + '</span>' : '') + '<span class="colhead__reps">Reps</span><span class="colhead__done"></span></div>'
+      ? '<div class="setcolhead' + (loadable ? '' : ' setcolhead--noload') + '" aria-hidden="true"><span class="colhead__n">Set</span><span class="colhead__prev">' + (rtm.hasPrev ? 'Prev' : 'RPE') + '</span>' + (loadable ? '<span class="colhead__wt">' + esc(unit.charAt(0).toUpperCase() + unit.slice(1)) + '</span>' : '') + '<span class="colhead__reps">' + (exTimed(e.name) ? 'Sec' : 'Reps') + '</span><span class="colhead__done"></span></div>'
       : "";
     var setsContainer = e.type === "strength"
-      ? setColHead + '<div class="setlist' + (loadable ? '' : ' setlist--noload') + '" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget, lr, loadable) + '</div>'
+      ? setColHead + '<div class="setlist' + (loadable ? '' : ' setlist--noload') + '" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget) + '</div>'
       : '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>';
     var foot = "";
     if (e.type === "strength" && loadable) {
