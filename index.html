@@ -454,6 +454,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* GOAL is the decision that defines the whole build -- two-line cards with a
    plain-language descriptor, visibly senior to the Adjust panel's controls. */
 .seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; }
+/* [hidden] can't beat the display:flex above on its own -- this makes the
+   attribute actually hide a seg button (used to shelve Endurance until it's
+   built out; drop the button's `hidden` to bring it back). */
+.seg button[hidden] { display: none; }
 .seg__sub { font-size: 10.5px; font-weight: 500; color: var(--ink-dim); letter-spacing: .01em; }
 .adv--adjust .seg button { padding: 8px 12px; font-size: 12.5px; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -806,7 +810,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="seg seg--full seg--goal" id="bGoal" role="group" aria-label="Goal">
         <button data-goal="hybrid" type="button">Hybrid<span class="seg__sub">Lift + conditioning</span></button>
         <button data-goal="strength" type="button">Strength<span class="seg__sub">Heavy, low reps</span></button>
-        <button data-goal="endurance" type="button">Endurance<span class="seg__sub">Run-led week</span></button>
+        <!-- Endurance shelved until the run-week programming is built out -- hidden,
+             not deleted, so restoring it is just removing `hidden`. -->
+        <button data-goal="endurance" type="button" hidden>Endurance<span class="seg__sub">Run-led week</span></button>
       </div>
     </div>
     <div class="bsect">
@@ -4620,7 +4626,10 @@ function resolveSpec(request, state) {
   }
   function buildPrefs() {
     var p = (state.buildPrefs && typeof state.buildPrefs === "object") ? state.buildPrefs : {};
-    var goal = ["hybrid", "strength", "endurance"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
+    // Endurance is temporarily shelved (its button is hidden), so a stale saved
+    // "endurance" pref from a prior build falls back to hybrid rather than
+    // silently regenerating a run week no one can re-select.
+    var goal = ["hybrid", "strength"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
     var cardioGoal = goal === "hybrid" || goal === "endurance";
     var equip = Array.isArray(p.equipment) ? p.equipment.filter(function (x) { return EQUIP_ALL.indexOf(x) >= 0; }) : EQUIP_ALL.filter(function (x) { return x !== "sled"; });
     state.buildPrefs = {
