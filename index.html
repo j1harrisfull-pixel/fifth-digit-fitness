@@ -1765,18 +1765,31 @@ function splitLabel(roleList) {
 }
 var GOAL_TEXT = { hybrid: "Hybrid", strength: "Strength & muscle", endurance: "Endurance", hypertrophy: "Build muscle", conditioning: "Conditioning", general: "General fitness" };
 
-function splitForDays(days, goal) {
+// A Push/Pull/Legs split needs enough distinct back work to fill DEDICATED pull
+// days. A barbell- or dumbbell-only kit has ~2 rows and no vertical pull, which
+// can't stock two pull days -- the second came up as a lone plank. When the kit
+// can't support PPL, Upper/Lower is the honest choice: it spreads the limited
+// pulling across upper days where push work carries the session, so no day is
+// left hollow. (A world-class coach makes the same call: no bar, no PPL.)
+function kitSupportsPPL(allowed) {
+  var pulls = LIBRARY.filter(function (e) {
+    return e.type === "strength" && e.compound && (e.pattern === "hpull" || e.pattern === "vpull") && equipOk(e, allowed);
+  });
+  return pulls.length >= 4;
+}
+function splitForDays(days, goal, allowed) {
   days = Math.max(1, Math.min(7, days || 4));
+  var ppl = kitSupportsPPL(allowed);
   // Area-focused splits so days adapt to different areas instead of repeating
   // "Full Body". A 1-day plan is genuinely full-body; everything else is split.
   switch (days) {
     case 1: return ["full"];
     case 2: return ["upper", "lower"];
-    case 3: return ["push", "pull", "legs"];
+    case 3: return ppl ? ["push", "pull", "legs"] : ["upper", "lower", "full"];
     case 4: return ["upper", "lower", "upper", "lower"];
-    case 5: return ["push", "pull", "legs", "upper", "lower"];
-    case 6: return ["push", "pull", "legs", "push", "pull", "legs"];
-    default: return ["push", "pull", "legs", "upper", "lower", "push", "pull"];
+    case 5: return ppl ? ["push", "pull", "legs", "upper", "lower"] : ["upper", "lower", "upper", "lower", "full"];
+    case 6: return ppl ? ["push", "pull", "legs", "push", "pull", "legs"] : ["upper", "lower", "upper", "lower", "upper", "lower"];
+    default: return ppl ? ["push", "pull", "legs", "upper", "lower", "push", "pull"] : ["upper", "lower", "upper", "lower", "upper", "lower", "full"];
   }
 }
 
@@ -1812,6 +1825,19 @@ var ALL_PATTERNS = ["squat", "hinge", "lunge", "hpush", "vpush", "hpull", "vpull
 // The hip-hinge barbell/db lifts a lifter calls "a deadlift" — capped hard so they
 // never stack across the week (high axial fatigue + the user's explicit gripe).
 var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "romanian-deadlift", "dumbbell-rdl", "good-morning", "banded-deadlift"];
+// The lifts genuinely suited to a heavy 3-5 rep ramp-to-top-set: bilateral,
+// loadable, systemic compounds you can safely GRIND near-maximal. This is the
+// gate that stops an RDL, belt squat, single-arm KB row, or split squat being
+// prescribed as a maximal triple -- those are eccentric/unilateral/isolation
+// movements that belong at higher reps. A lead lift outside this set still
+// leads the day, just at a moderate strength scheme, never 3-5 + ramp.
+var RAMP_ANCHORS = {};
+["back-squat", "front-squat", "pause-squat", "hack-squat", "leg-press", "smith-squat", "banded-squat",
+ "bench-press", "pause-bench-press", "floor-press", "incline-bench-press", "banded-bench-press",
+ "overhead-press",
+ "deadlift", "deficit-deadlift", "trap-bar-deadlift", "banded-deadlift",
+ "barbell-row", "pendlay-row",
+ "pull-up", "chin-up"].forEach(function (id) { RAMP_ANCHORS[id] = 1; });
 // Low-level primitive: pick ONE exercise satisfying a slot, honouring equipment,
 // week-level dedup, pattern cap, and the deadlift-family cap, with a 4-level
 // pool-widening fallback so a slot is never left unfillable. opts (optional,
@@ -1913,6 +1939,15 @@ function selectComplementary(o) {
   var high = 0, mus = {}, acc = 0;
   var slots = [];
   for (var i = 0; i < o.count; i++) slots.push(o.baseSlots[i % o.baseSlots.length]);
+  // The day's own movement family: the union of every pattern its slots ask for.
+  // pickStrength's last-ditch widen to ALL_PATTERNS can grab a lift from a
+  // completely different family when the kit can't satisfy a slot (a barbell-
+  // only "Pull" day has no vertical pull, so the vpull slot fell through to a
+  // split squat and ANCHORED the day). Rejecting off-family picks keeps every
+  // lift on-theme -- and, since the first placed lift is the anchor, guarantees
+  // the day is led by a compound that actually belongs to it.
+  var roleFamily = {};
+  o.baseSlots.forEach(function (s) { (s.patterns || []).forEach(function (p) { roleFamily[p] = 1; }); });
   function ranker(slotCompound, seedForSlot) {
     return function (e) {
       var mp = e.movement_pattern || e.pattern, s = 0;
@@ -1941,6 +1976,7 @@ function selectComplementary(o) {
     var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
       { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK), unlocked: o.unlocked });
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
+    if (ex && !roleFamily[ex.pattern]) ex = null; // never an off-family lift (no split squat leading a pull day)
     // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
     // only candidates are high-axial; this drops such a slot once the budget is
     // spent, so no session ever exceeds it (never 3 heavy squat/hinge lifts).
@@ -2004,8 +2040,10 @@ function pickFunctional(kind, allowed, used, seed) {
   var match = kind === "carry"
     ? function (e) { return e.pattern === "carry"; }
     : function (e) { return e.movement_pattern === "anti_rotation" || e.pattern === "rotation"; };
+  // Honour `used`: this is an OPTIONAL finisher, so if the only matching move is
+  // already in the session (e.g. Bird Dog filled the core slot), return null and
+  // add nothing rather than re-adding a duplicate of it.
   var pool = LIBRARY.filter(function (e) { return e.type === "strength" && match(e) && equipOk(e, allowed) && !used[e.id]; });
-  if (!pool.length) pool = LIBRARY.filter(function (e) { return e.type === "strength" && match(e) && equipOk(e, allowed); });
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
 function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
@@ -2035,6 +2073,10 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
   var rirMap = { 1: "3 RIR · RPE 7", 2: "2 RIR · RPE 8", 3: "1 RIR · RPE 9", 4: "4 RIR · RPE 6" };
   var target = rirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "2 RIR · RPE 8";
   var anchor = ex.compound && isAnchor;
+  // Only a true strength anchor earns the maximal 3-5 rep top set. A compound
+  // that leads the day but isn't built for grinding (an RDL, goblet squat,
+  // single-arm row) still leads, at a moderate 6-8, never a bogus triple.
+  var rampAnchor = anchor && !!RAMP_ANCHORS[ex.id];
 
   var anchorSets, accSets;
   if (isDeload)        { anchorSets = 3; accSets = 2; }
@@ -2043,8 +2085,10 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
   else                 { anchorSets = 5; accSets = 4; }
 
   if (goal === "strength") {
-    return anchor
+    return rampAnchor
       ? { sets: anchorSets, reps: "3-5",   target: target, rest: "3 min" }
+      : anchor
+      ? { sets: anchorSets, reps: "6-8",   target: target, rest: "2-3 min" }
       : { sets: accSets,    reps: "8-10",  target: target, rest: "90 s" };
   }
   if (goal === "hypertrophy") {
@@ -2088,7 +2132,7 @@ function conditioningAlternatives(name, allowed) {
 function curveFor(ex, goal, isAnchor) {
   if (ex.type !== "strength") return "none";
   if (ex.movement_pattern === "power" || ex.progression_policy === "velocity_or_load") return "power";
-  if (goal === "strength" && isAnchor && ex.compound) return "ramp";
+  if (goal === "strength" && isAnchor && ex.compound && RAMP_ANCHORS[ex.id]) return "ramp";
   return "straight";
 }
 // Per-set plan: [{wpct, reps, rest}] length = sets. wpct is a fraction of the top/
@@ -2492,6 +2536,64 @@ function absoluteFloorExercises() {
     fx("Plank", 3, "30-45 sec", "Setup: forearms under shoulders, body in one line. Key: brace the abs and glutes, breathe. Fault: hips sagging or piking up.")
   ];
 }
+// Role-appropriate bodyweight staples to top up a THIN day (not just an empty
+// one). When the kit can't fill a role's compound slots -- e.g. bodyweight-only
+// has no barbell/pulldown, so an "Upper" day's push/pull slots come up short --
+// the off-family guard correctly refuses to pad it with unrelated lifts, which
+// can leave the day with 0-1 real strength moves. Rather than ship a hollow day,
+// fill it with movements that need no kit and belong to the role. (Bodyweight
+// back work genuinely needs a bar, so a pure-bodyweight pull day stays honestly
+// push/core-light -- the real fix there is a pull-up bar.)
+function roleFloorMoves(role) {
+  function fx(name, sets, reps, cue) {
+    return { name: name, type: "strength", equipment: "bodyweight", group: "",
+      sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
+      notes: cue, curve: "straight", setPlan: [], why: "Bodyweight work so the day isn't left short — no kit needed" };
+  }
+  var pushU = fx("Push-Up", 3, "8-15", "Setup: hands under shoulders, body in one line. Key: brace, lower the chest to the floor, press away. Fault: hips sagging or elbows flaring wide.");
+  var dip = fx("Bench Dip", 3, "10-15", "Setup: hands on a bench behind you, legs out. Key: lower until the elbows reach ~90 degrees, press back up. Fault: shrugging into the shoulders.");
+  var squat = fx("Bodyweight Squat", 3, "12-15", "Setup: feet shoulder-width, chest tall. Key: sit between the hips to depth, drive up through the whole foot. Fault: knees caving or heels lifting.");
+  var lunge = fx("Reverse Lunge", 3, "8-10 each", "Setup: tall stance, hands on hips. Key: step back, drop the back knee under control, drive through the front heel. Fault: leaning forward or the front knee caving.");
+  var bridge = fx("Glute Bridge", 3, "15-20", "Setup: on your back, knees bent, feet flat. Key: drive the hips up squeezing the glutes, ribs down. Fault: arching the low back instead of extending the hips.");
+  var plank = fx("Plank", 3, "30-45 sec", "Setup: forearms under shoulders, body in one line. Key: brace the abs and glutes, breathe. Fault: hips sagging or piking up.");
+  switch (role) {
+    case "push": return [pushU, dip, plank];
+    case "upper": return [pushU, dip, plank];
+    case "pull": return [plank]; // no true bodyweight pull without a bar
+    case "lower": case "legs": return [squat, lunge, bridge];
+    default: return [squat, pushU, bridge, plank];
+  }
+}
+// Top up a day with role-appropriate bodyweight moves when it came up short:
+// fewer than 2 strength moves at all, OR no move in the day's PRIMARY patterns
+// (a "Lower" day that filled with only core, say). Gets an on-role primary
+// movement in wherever the kit allows one -- a pure-bodyweight PULL day is the
+// one exception, since no bodyweight pull exists without a bar, so it stays
+// honestly core-light rather than faking a pull. Never a hollow shell. Mutates
+// in place. Skipped entirely for role-less (power / free-text) requests.
+var ROLE_PRIMARY = {
+  push: ["hpush", "vpush", "triceps"], upper: ["hpush", "vpush", "hpull", "vpull"],
+  pull: ["hpull", "vpull", "biceps"], lower: ["squat", "hinge", "lunge"],
+  legs: ["squat", "hinge", "lunge"], full: ["squat", "hinge", "hpush", "hpull"]
+};
+var FLOOR_PATTERN = { "Push-Up": "hpush", "Bench Dip": "triceps", "Bodyweight Squat": "squat", "Reverse Lunge": "lunge", "Glute Bridge": "hinge", "Plank": "core" };
+function topUpThinDay(strengthEx, role) {
+  var prim = ROLE_PRIMARY[role];
+  if (!prim) return; // no known role (power / free-text request) -> don't pad with off-theme moves
+  var libByName = {}; LIBRARY.forEach(function (e) { libByName[e.name.toLowerCase()] = e; });
+  var have = {}, primCount = 0;
+  strengthEx.forEach(function (e) {
+    have[e.name] = 1;
+    var lib = libByName[e.name.toLowerCase()], pat = lib ? lib.pattern : "";
+    if (prim.indexOf(pat) >= 0) primCount++;
+  });
+  var floor = roleFloorMoves(role);
+  for (var i = 0; i < floor.length && (strengthEx.length < 2 || primCount < 1); i++) {
+    if (have[floor[i].name]) continue;
+    strengthEx.push(floor[i]); have[floor[i].name] = 1;
+    if (prim.indexOf(FLOOR_PATTERN[floor[i].name]) >= 0) primCount++; // only a real on-role move counts
+  }
+}
 // Never-empty guarantee: a session with at least one exercise passes through; an
 // empty one (pathological spec that filled no slots) falls through to the floor.
 function guaranteeSession(session) {
@@ -2531,6 +2633,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
     debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null
   });
   picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease, picks.why && picks.why[k])); });
+  topUpThinDay(strengthEx, parsed.role);
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (includeMob) { var mob = pickByType("mobility", allowed, ctx.used, seed + 3); if (mob) { ctx.used[mob.id] = 1; extraEx.push(buildEx(mob, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (minutes <= 45) assignSupersets(strengthEx);
@@ -2608,7 +2711,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
   else if (isEnd)   strengthSlots = Math.max(0, Math.min(2, slotsTotal - 5)); // run-focused: a little optional runner strength
   else              strengthSlots = Math.max(2, Math.min(6, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
 
-  var roleList = splitForDays(days, goal);
+  var roleList = splitForDays(days, goal, allowed);
   var totalOf  = {};
   roleList.forEach(function (r) { totalOf[r] = (totalOf[r] || 0) + 1; });
 
@@ -2647,6 +2750,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
         debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null
       });
       picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs, false, picks.why && picks.why[k])); });
+      topUpThinDay(strengthEx, role);
 
       if (includeCon) {
         if (isEnd) {
