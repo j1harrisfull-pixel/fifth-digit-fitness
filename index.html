@@ -2121,14 +2121,20 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
     return { sets: 2, reps: ex.unit === "sec" ? "30s" : "8-10", target: "", rest: "" };
   }
   if (ex.type === "conditioning") {
+    var mins = minutes || 60;
     if (ex.intensity === "z2") {
-      var z = Math.max(20, Math.min(45, Math.round((minutes || 60) * 0.5)));
+      // Scale the finisher to the SESSION, not a flat 20-min floor: a 30-min
+      // session that a user chose because they have 30 minutes can't spend 20 of
+      // them on Zone 2 and still lift. ~a third of the budget, 10-40 min.
+      var z = Math.max(10, Math.min(40, Math.round(mins * 0.35)));
       return { sets: 1, reps: z + " min", target: "Zone 2 · conversational pace", rest: "" };
     }
     if (ex.intensity === "threshold") {
-      return { sets: 3, reps: "8 min", target: "Tempo · comfortably hard", rest: "3 min easy" };
+      return { sets: mins <= 35 ? 2 : 3, reps: "8 min", target: "Tempo · comfortably hard", rest: "3 min easy" };
     }
-    return { sets: 4, reps: "4 min", target: "~90-95% HRmax · near-max effort", rest: "3 min easy" };
+    // Intervals: fewer rounds on a short session so the finisher fits the budget
+    // instead of eating it whole (4x4min + rests was ~25 min inside a 30-min day).
+    return { sets: mins <= 35 ? 3 : 4, reps: mins <= 35 ? "3 min" : "4 min", target: "~90-95% HRmax · near-max effort", rest: "2-3 min easy" };
   }
 
   // Loaded carries are time/distance work, not rep work -- prescribe seconds per
