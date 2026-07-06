@@ -169,6 +169,12 @@ input, textarea { font: inherit; color: inherit; }
 .today-card__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin-bottom: 6px; }
 .today-card__name { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
 .today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
+.today-card__lifts { list-style: none; margin: 14px 0 2px; padding: 0; }
+.today-card__lift { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); }
+.today-card__lift:first-child { border-top: 0; }
+.today-card__lift-name { min-width: 0; }
+.today-card__lift-meta { flex: none; font-size: 12px; color: var(--faint); }
+.today-card__lift--more { color: var(--faint); font-size: 12px; justify-content: flex-start; }
 /* Week recap: real numbers, no chart -- three at most, so it reads at a
    glance instead of turning the hero into a dashboard. */
 .recap-stats { display: flex; gap: 20px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -3838,6 +3844,20 @@ function resolveSpec(request, state) {
       : started ? (heroFocus ? heroFocus + " · " + leftN + " left" : leftN + " exercises left")
       : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : ""));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
+    // A quiet preview of the session's lifts on the card itself, so you can see
+    // what's coming BEFORE opening it. (Opening is already a no-commit preview,
+    // but this surfaces the contents without leaving home.) Shown before and
+    // during a live session; the week recap takes this slot once the week's done.
+    var liftsHtml = "";
+    if (!weekDone && heroSes && heroSes.exercises.length) {
+      var MAXL = 6, exl = heroSes.exercises;
+      var rowsL = exl.slice(0, MAXL).map(function (ex) {
+        var meta = (ex.type === "strength" && ex.reps) ? '<span class="today-card__lift-meta mono">' + esc(ex.sets + "×" + ex.reps) + '</span>' : "";
+        return '<li class="today-card__lift"><span class="today-card__lift-name">' + esc(ex.name) + '</span>' + meta + '</li>';
+      }).join("");
+      if (exl.length > MAXL) rowsL += '<li class="today-card__lift today-card__lift--more">+' + (exl.length - MAXL) + ' more</li>';
+      liftsHtml = '<ul class="today-card__lifts">' + rowsL + '</ul>';
+    }
     // Week recap: only worth the extra weight once the week is actually done,
     // and only shows what's genuinely there -- volume is omitted entirely for
     // a bodyweight/band-only week rather than printing a hollow "0kg".
@@ -3878,6 +3898,7 @@ function resolveSpec(request, state) {
         '<div class="today-card__label">' + esc(label2) + '</div>' +
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
         subHtml +
+        liftsHtml +
         recapHtml +
         '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
         subLinkHtml +
@@ -5261,11 +5282,12 @@ function resolveSpec(request, state) {
         '<div class="btn-row"><button class="btn btn--primary" id="confirmBuild" type="button">Use this week</button><button class="btn" id="rebuildBtn" type="button">Try again</button></div>';
       pv.classList.remove("hidden");
       $("confirmBuild").addEventListener("click", confirmBuild);
-      $("rebuildBtn").addEventListener("click", function () { onBuild(false); });
+      $("rebuildBtn").addEventListener("click", function () { onBuild(true); });
     }
     // A short "thinking" beat so a generated week feels considered, not careless.
-    // Skipped on Try again and under reduced-motion. buildBtn is disabled for the
-    // duration so a double-tap can't start a second, overlapping timer chain.
+    // Replayed on Try again too (a re-build should feel like re-thinking, matching
+    // the Just-Today flow); skipped only under reduced-motion. buildBtn is disabled
+    // for the duration so a double-tap can't start a second, overlapping timer chain.
     if (showThinking === true && !reduceMotion) {
       var bb = $("buildBtn"); if (bb) { bb.dataset.thinking = "1"; bb.disabled = true; }
       pv.innerHTML = '<div class="building"><span class="building__spin" aria-hidden="true"></span><span class="building__txt" id="buildingTxt">Building your week…</span></div>';
