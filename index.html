@@ -644,7 +644,19 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 @keyframes restFlash { 0%, 100% { background: var(--surface); } 50% { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); } }
 body.has-rest .list { padding-bottom: calc(env(safe-area-inset-bottom) + 116px); }
 body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
-@media (prefers-reduced-motion: reduce) { .resttimer, .resttimer.is-done { animation: none; } .resttimer__fill { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Neutralise all non-essential motion. Elements that animate INTO view keep
+     their final state so nothing gets stuck hidden: the card reveal starts at
+     opacity:0 and depends on the animation to become visible, so force opacity:1
+     when the animation is removed. (Boot splash has its own guard above.) */
+  .list.reveal .card { opacity: 1; animation: none; }
+  .intro__card { animation: none; }
+  .setrow.pulse .setrow__done { animation: none; }
+  dialog.sheet[open] { animation: none; }
+  .resttimer, .resttimer.is-done { animation: none; }
+  .resttimer__fill { transition: none; }
+  .building__spin, .ptr.is-refreshing .ptr__spin { animation: none; }
+}
 
 /* Pull-to-refresh: a live rubber-band on the home view (replaces the dead
    overscroll) that re-syncs the day's reads. Position driven inline by JS. */
