@@ -541,6 +541,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .chip { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; padding: 0 18px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease; }
 /* Same quiet-selected language as .seg: ink ring + bright text, no white slab. */
 .chip[aria-pressed="true"] { background: var(--surface); border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); color: var(--ink); }
+/* Bodyweight-only is an either/or against the kit above, not another item in
+   the row -- drop it onto its own line with a hairline divider so the choice
+   reads as "a kit, OR nothing but my body". */
+.chip--bw { flex-basis: 100%; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
 .chip.is-locked { cursor: default; opacity: .92; }
 .chip.is-locked::after { content: "🔒"; font-size: 10px; margin-left: 6px; opacity: .85; }
 /* Equipment inversion: a full gym is the DEFAULT, so "on" is the quiet state
@@ -4723,11 +4727,17 @@ function resolveSpec(request, state) {
     ].join("\n");
   }
   var EQUIP_ALL = ["barbell", "dumbbell", "kettlebell", "cable", "machine", "band", "pullup-bar", "cardio", "sled"];
-  var EQUIP_LABELS = { barbell: "Barbell", dumbbell: "Dumbbells", kettlebell: "Kettlebells", cable: "Cable", machine: "Machines", band: "Bands", "pullup-bar": "Pull-up bar", cardio: "Cardio machine", sled: "Sled" };
+  var EQUIP_LABELS = { barbell: "Barbell", dumbbell: "Dumbbells", kettlebell: "Kettlebells", cable: "Cable", machine: "Machines", band: "Bands", "pullup-bar": "Pull-up bar", cardio: "Cardio machine", sled: "Sled", bodyweight: "Bodyweight only — no equipment" };
   // The equipment picker appears twice (build sheet + Settings). One markup
   // generator, one click handler, one sync helper keeps both in lockstep instead
   // of maintaining two copies of the same 9 chips.
-  function equipChipsHtml() { return EQUIP_ALL.map(function (id) { return '<button class="chip" data-eq="' + id + '" type="button">' + esc(EQUIP_LABELS[id]) + '</button>'; }).join(""); }
+  function equipChipsHtml() {
+    var kit = EQUIP_ALL.map(function (id) { return '<button class="chip" data-eq="' + id + '" type="button">' + esc(EQUIP_LABELS[id]) + '</button>'; }).join("");
+    // Appended on its own line: a deliberate no-equipment build (travel, hotel,
+    // living room). "bodyweight" always passes equipOk, so allowed=["bodyweight"]
+    // yields a pure bodyweight program instead of leaving Build gated on zero kit.
+    return kit + '<button class="chip chip--bw" data-eq="bodyweight" type="button">' + esc(EQUIP_LABELS.bodyweight) + '</button>';
+  }
   function syncEquipChips(id) { var eq = buildPrefs().equipment; document.querySelectorAll("#" + id + " button").forEach(function (b) { b.setAttribute("aria-pressed", eq.indexOf(b.getAttribute("data-eq")) >= 0); }); }
   // Single source for the equipment summary label, shared by the Just-Today
   // hint, the Adjust-panel hint, and the week-build preview meta line -- all
@@ -4738,6 +4748,7 @@ function resolveSpec(request, state) {
   function equipSummaryLabel(equip) {
     var n = equip.length;
     if (n === 0) return "Pick your kit";
+    if (n === 1 && equip[0] === "bodyweight") return "bodyweight only";
     if (n >= 8) return "full gym";
     return n + " kit";
   }
@@ -4769,8 +4780,18 @@ function resolveSpec(request, state) {
     el.innerHTML = equipChipsHtml();
     el.addEventListener("click", function (ev) {
       var b = ev.target.closest("[data-eq]"); if (!b) return;
-      var k = b.getAttribute("data-eq"), p = buildPrefs(), i = p.equipment.indexOf(k);
-      if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k);
+      var k = b.getAttribute("data-eq"), p = buildPrefs();
+      if (k === "bodyweight") {
+        // A whole-kit choice, mutually exclusive with the equipment above:
+        // selecting it clears everything to a no-equipment build; re-tapping
+        // clears back to the empty (gated) state.
+        p.equipment = (p.equipment.length === 1 && p.equipment[0] === "bodyweight") ? [] : ["bodyweight"];
+      } else {
+        // Picking any real equipment cancels a bodyweight-only selection.
+        var bw = p.equipment.indexOf("bodyweight"); if (bw >= 0) p.equipment.splice(bw, 1);
+        var i = p.equipment.indexOf(k);
+        if (i >= 0) p.equipment.splice(i, 1); else p.equipment.push(k);
+      }
       save(); syncAllEquipChips();
     });
   }
@@ -4809,7 +4830,7 @@ function resolveSpec(request, state) {
     // silently regenerating a run week no one can re-select.
     var goal = ["hybrid", "strength"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
     var cardioGoal = goal === "hybrid" || goal === "endurance";
-    var equip = Array.isArray(p.equipment) ? p.equipment.filter(function (x) { return EQUIP_ALL.indexOf(x) >= 0; }) : EQUIP_ALL.filter(function (x) { return x !== "sled"; });
+    var equip = Array.isArray(p.equipment) ? p.equipment.filter(function (x) { return x === "bodyweight" || EQUIP_ALL.indexOf(x) >= 0; }) : EQUIP_ALL.filter(function (x) { return x !== "sled"; });
     state.buildPrefs = {
       goal: goal,
       days: clampInt(p.days, 1, 7, 4),
@@ -5467,7 +5488,11 @@ function resolveSpec(request, state) {
     // stays exactly where it belongs: the rest of unpaired accessory work.
     var partner = supersetPartner(curSession(), ex);
     var isAnchor = !partner && curSession().exercises.indexOf(ex) === 0 && ex.type === "strength";
-    if (partner) showSuperNext(partner); else if (isAnchor) hideFiller(); else showFiller(ex);
+    // Clear both prompts first so neither a superset nor a filler from a prior
+    // exercise's rest can linger on a rest that shouldn't show one (e.g. the
+    // anchor, which gets no filler and no partner).
+    hideSuperNext(); hideFiller();
+    if (partner) showSuperNext(partner); else if (!isAnchor) showFiller(ex);
     showRestRpe(ex, setIdx);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
