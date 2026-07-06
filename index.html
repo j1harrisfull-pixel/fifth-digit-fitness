@@ -126,6 +126,8 @@ input, textarea { font: inherit; color: inherit; }
 .livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 0; cursor: pointer; }
 .livebar__end::after { content: ""; position: absolute; inset: -3px 0; }
 .livebar__end:hover { border-color: var(--ink); }
+.livebar__end--ready { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
+.livebar__end--ready:hover { border-color: var(--ink); opacity: .9; }
 /* Sticky bottom LOG button: the one primary action while training. Mirrors
    (never duplicates) the current exercise's next-incomplete setrow__done tap
    -- clicking it dispatches a click on that exact row control, so there is
@@ -4147,6 +4149,18 @@ function resolveSpec(request, state) {
     var live = sessionLive();
     if (bar) bar.classList.toggle("livebar--preview", !live);
     if (lbl) lbl.textContent = live ? ("LIVE · " + focus) : focus;
+    // The finish control is ALWAYS present so you can end early (injury, time,
+    // ran short) -- but it earns emphasis only when the work is actually done:
+    // a soft "End" while sets remain, a solid "Finish" once every non-skipped
+    // set is logged. Finishing is a deliberate tap now, never auto-fired on the
+    // last set, so the final set's inline Effort strip stays rateable in-flow.
+    var endBtn = $("liveBarEnd");
+    if (endBtn && ses) {
+      var pr = sessionProgress(sessionItemsFor(ses));
+      var complete = pr.total > 0 && pr.done === pr.total;
+      endBtn.textContent = complete ? "Finish" : "End";
+      endBtn.classList.toggle("livebar__end--ready", complete);
+    }
   }
   // Elapsed-time readout for the sticky live bar. The start TIMESTAMP is
   // persisted to its own tiny localStorage key (not the state blob -- it's an
@@ -4672,8 +4686,11 @@ function resolveSpec(request, state) {
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
       if (on) {
         unlockAudio(); ensureSessionLive();
+        // Logging the LAST set no longer auto-fires the receipt -- finishing is
+        // a deliberate tap on the LIVE bar. On completion: no rest (nothing's
+        // next), just flip the bar to a solid "Finish". Otherwise rest as usual.
         var pr1 = sessionProgress(sessionItemsFor(ses));
-        if (pr1.total > 0 && pr1.done === pr1.total) showSessionComplete(ses); else startRest(e, si);
+        if (pr1.total > 0 && pr1.done === pr1.total) renderDayBar(); else startRest(e, si);
       } else {
         hideRest(); // un-checking a set cancels the rest it started
       }
@@ -4712,10 +4729,9 @@ function resolveSpec(request, state) {
       // Set the exercise aside for today so the session can finish without it.
       var wSk = writeLog(ses, e); wSk.el.skipped = true; hideRest(); save();
       renderHead(); renderList(true);
-      // Skipping the last unresolved exercise can complete the session.
-      var prSk = sessionProgress(sessionItemsFor(ses));
-      if (prSk.total > 0 && prSk.done === prSk.total) showSessionComplete(ses);
-      else applyGlance();
+      // Skipping the last unresolved exercise can complete the session -- flip
+      // the bar to "Finish" rather than auto-firing the receipt.
+      renderDayBar(); applyGlance();
       toast(e.name + " skipped today");
     } else if (act === "unskipex") {
       var wUn = writeLog(ses, e); wUn.el.skipped = false; save();
@@ -4794,8 +4810,10 @@ function resolveSpec(request, state) {
       refreshFoot(dcard, e, ses);
       if (on2) {
         unlockAudio(); ensureSessionLive();
+        // See the checkbox path above: last set flips the bar to "Finish"
+        // rather than auto-firing the receipt.
         var pr2 = sessionProgress(sessionItemsFor(ses));
-        if (pr2.total > 0 && pr2.done === pr2.total) showSessionComplete(ses); else startRest(e, di);
+        if (pr2.total > 0 && pr2.done === pr2.total) renderDayBar(); else startRest(e, di);
       } else {
         // Un-checking a set (the most common logging fumble -- a mis-tap) should
         // cancel the rest it started, not leave a timer counting down for a set
