@@ -4047,7 +4047,7 @@ function resolveSpec(request, state) {
       '<div class="history__section"><p class="history__section-title">Progress · est. 1RM</p>' + liftsHtml + '</div>' +
       '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
     var dlg = $("historySheet");
-    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+    openSheetNoKb(dlg);
   }
   // Per-exercise history at the point of need: the lift's full dated est-1RM
   // series + its records, from the same buildHistoryData the History sheet
@@ -4086,7 +4086,7 @@ function resolveSpec(request, state) {
     var backHtml = fromList ? '<button type="button" class="history__back" data-act="histback"><span aria-hidden="true">‹</span> Progress</button>' : '';
     $("historyBody").innerHTML = backHtml + body;
     var dlg = $("historySheet");
-    if (!dlg.hasAttribute("open")) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); }
+    if (!dlg.hasAttribute("open")) { openSheetNoKb(dlg); }
   }
   var chevRight ='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
   var swapIcon = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>';
@@ -5258,6 +5258,21 @@ function resolveSpec(request, state) {
     if (bb) bb.classList.toggle("btn--primary", $("buildPreview").classList.contains("hidden"));
     if (tb) tb.classList.toggle("btn--primary", $("todayPreview").classList.contains("hidden"));
   }
+  // Open a <dialog> without letting its default auto-focus pop the mobile
+  // keyboard. showModal() focuses the first focusable descendant; when that's a
+  // text field, and the open happened inside a tap, iOS springs the keyboard. So
+  // right after opening, if the browser landed focus on a form field, drop it —
+  // the user taps the field themselves to type. No-op for input-free sheets.
+  function openSheetNoKb(dlg) {
+    if (!dlg) return;
+    if (dlg.showModal) {
+      dlg.showModal();
+      var a = document.activeElement;
+      if (a && a !== dlg && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) a.blur();
+    } else {
+      dlg.setAttribute("open", "");
+    }
+  }
   function openPlan() {
     pending = null; pendingBuild = null; pendingToday = null; pendingSubstituteIdx = null;
     $("loadPreview").classList.add("hidden"); $("loadText").value = "";
@@ -5273,7 +5288,7 @@ function resolveSpec(request, state) {
     // goes back to the normal collapsed default.
     var firstBuild = !hasProgram(), wa = $("weekAdjust"), ta = $("todayAdjust");
     if (wa) wa.open = firstBuild; if (ta) ta.open = firstBuild;
-    if (typeof planSheet.showModal === "function") planSheet.showModal(); else planSheet.setAttribute("open", "");
+    openSheetNoKb(planSheet);
   }
   // Entry point for the home hero's "Can't do X today? Substitute with Just
   // Today" link -- opens straight into Just-Today with the target day
@@ -5650,7 +5665,7 @@ function resolveSpec(request, state) {
 
   /* ===================== Settings sheet ===================== */
   var sheet = $("sheet");
-  function openSheet() { syncSegs(); refreshStorage(); if (typeof sheet.showModal === "function") sheet.showModal(); else sheet.setAttribute("open", ""); }
+  function openSheet() { syncSegs(); refreshStorage(); openSheetNoKb(sheet); }
   function closeSheet() { if (typeof sheet.close === "function") sheet.close(); else sheet.removeAttribute("open"); }
   function syncSegs() {
     var nameInput = $("settingsName"); if (nameInput && document.activeElement !== nameInput) nameInput.value = state.userName || "";
@@ -6098,7 +6113,7 @@ function resolveSpec(request, state) {
     } else {
       secondaryBtn.hidden = true; secondaryBtn.onclick = null;
     }
-    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+    openSheetNoKb(dlg);
   }
   // Ending a session: with work logged, show the honest receipt (complete or
   // ended variant); with nothing logged, it was only a preview -- just leave.
@@ -6190,7 +6205,7 @@ function resolveSpec(request, state) {
     // stays armed on the shared #confirmYes and fires on the NEXT confirm.
     function onClose() { cleanup(); }
     yes.addEventListener("click", onYes); no.addEventListener("click", onNo); dlg.addEventListener("close", onClose);
-    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+    openSheetNoKb(dlg);
   }
 
   function introShowStep(n) {
