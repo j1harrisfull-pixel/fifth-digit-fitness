@@ -2660,6 +2660,45 @@ var ROLE_PRIMARY = {
   legs: ["squat", "hinge", "lunge"], full: ["squat", "hinge", "hpush", "hpull"]
 };
 var FLOOR_PATTERN = { "Push-Up": "hpush", "Table Row": "hpull", "Bench Dip": "triceps", "Bodyweight Squat": "squat", "Reverse Lunge": "lunge", "Glute Bridge": "hinge", "Plank": "core" };
+// Even out strength volume across a role's paired days. The block blueprint fills
+// each day from a SHARED week-level context (so patterns/exercises don't repeat
+// across the week), which can starve a role's SECOND day: its pool is already
+// spent by the first, slots drop, and it ends up with (say) 2 lifts while its
+// partner has 5. Rather than pad the thin day with generic floor moves, move a
+// real accessory -- never the anchor -- from the fullest same-role day to the
+// thinnest until they differ by at most one. Both days share a role, so the
+// moved lift is already on-theme; the week's total volume and pattern spread are
+// unchanged, only which day carries the work. Operates on the blueprint before
+// the weeks are built, so the rebalance is frozen across the block too.
+function rebalanceRolePairs(blueprint) {
+  var byRole = {};
+  blueprint.forEach(function (bp, i) { (byRole[bp.role] = byRole[bp.role] || []).push(i); });
+  Object.keys(byRole).forEach(function (role) {
+    var idxs = byRole[role];
+    if (idxs.length < 2) return;
+    var guard = 0;
+    while (guard++ < 24) {
+      var full = idxs[0], thin = idxs[0];
+      idxs.forEach(function (i) {
+        if (blueprint[i].picks.length > blueprint[full].picks.length) full = i;
+        if (blueprint[i].picks.length < blueprint[thin].picks.length) thin = i;
+      });
+      var fp = blueprint[full].picks, tp = blueprint[thin].picks;
+      if (fp.length - tp.length <= 1) break;
+      var thinIds = {}; tp.forEach(function (e) { thinIds[e.id] = 1; });
+      // The last movable accessory (index >= 1, never the anchor) the thin day
+      // doesn't already have.
+      var moveAt = -1;
+      for (var k = fp.length - 1; k >= 1; k--) { if (!thinIds[fp[k].id]) { moveAt = k; break; } }
+      if (moveAt < 0) break; // nothing legal to move -> leave as-is rather than force it
+      var ex = fp.splice(moveAt, 1)[0];
+      var reason = (fp.why && fp.why.length > moveAt) ? fp.why.splice(moveAt, 1)[0] : "General accessory work";
+      tp.push(ex);
+      if (!tp.why) tp.why = [];
+      tp.why.push(reason);
+    }
+  });
+}
 function topUpThinDay(strengthEx, role) {
   var prim = ROLE_PRIMARY[role];
   if (!prim) return; // no known role (power / free-text request) -> don't pad with off-theme moves
@@ -2827,6 +2866,9 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
     });
     return { role: role, slots: slots, occ: occ, picks: picks };
   });
+  // Balance a role's paired days before freezing, so a starved second day gets a
+  // real accessory moved over from its overfull partner instead of ending thin.
+  rebalanceRolePairs(blueprint);
   // Ids the frozen strength selection occupies, so a rotating conditioning /
   // mobility / finisher pick can never collide with a main lift.
   var frozenIds = {};
