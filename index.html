@@ -4738,7 +4738,7 @@ function resolveSpec(request, state) {
     var wrap = card.querySelector(".startweight"); if (!wrap) return;
     var unset = !(weight > 0);
     wrap.classList.toggle("is-unset", unset);
-    var label = wrap.querySelector(".startweight__label"); if (label) label.textContent = unset ? "Set your weight" : "Start weight";
+    var label = wrap.querySelector(".startweight__label"); if (label) label.textContent = unset ? "Set your working weight" : "Working weight";
   }
   // Which optional grid tracks exist for this exercise's set table, shared by
   // the column-header builder and setRowsInner so they always agree. Deriving
@@ -4958,7 +4958,7 @@ function resolveSpec(request, state) {
     var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
     var weightUnset = loadable && !(lg.weight > 0);
     var weightCtrl = loadable
-      ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your weight" : "Start weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
+      ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your working weight" : "Working weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
       : e.type === "conditioning" ? ''
       : e.type === "strength"
         ? '<span class="weight-note">' + esc(EQ_LABEL[e.equipment] || "Bodyweight") + ' · progress by reps</span>'
