@@ -117,6 +117,10 @@ input, textarea { font: inherit; color: inherit; }
    context here just breaks the stick-to-viewport-top behavior). */
 .livebar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 12px) 14px 12px; border-bottom: 1px solid var(--line); }
 .livebar__dot { flex: none; width: 7px; height: 7px; background: var(--accent); }
+/* Preview (day opened, not yet started): no live dot, no ticking clock. The
+   label carries the focus; the End button reads 'Back' via JS. */
+.livebar--preview .livebar__dot, .livebar--preview .livebar__timer { display: none; }
+.livebar--preview .livebar__label { flex: 1; color: var(--ink); }
 .livebar__label { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--ink-dim); text-transform: uppercase; }
 .livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); }
 .livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 0; cursor: pointer; }
@@ -142,6 +146,10 @@ input, textarea { font: inherit; color: inherit; }
    when we know a name. Quiet by design: no icon, no card, just a sentence
    above whatever the hero is already showing. */
 .home-hero__greeting { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -.01em; color: var(--ink); margin: 0 0 12px; }
+.home-hero__win { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 11px 13px; border: 1px solid var(--ready); background: color-mix(in srgb, var(--ready) 9%, transparent); font-size: 14px; font-weight: 600; color: var(--ink); }
+.home-hero__win-check { flex: none; display: grid; place-items: center; color: var(--ready); }
+.home-hero__win-check svg { width: 17px; height: 17px; }
+.home-hero__win b { font-weight: 700; }
 /* Consistency strip: the last 14 days, filled purely on whether a session was
    logged. No red for a gap -- an untrained day and a scheduled rest day look
    identical, because the app has no opinion on your schedule, only a record. */
@@ -274,6 +282,15 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__collapsed-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.is-complete:not(.is-current) .card__collapsed-name { color: var(--faint); }
 .card__collapsed-meta { flex: none; font-size: 12px; color: var(--faint); }
+/* Skip: a quiet full-width action at the bottom of the edit block, and the
+   compact "skipped" strip the card collapses to once used. */
+.card__skipbtn { margin-top: 14px; width: 100%; min-height: 40px; background: none; border: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .01em; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
+.card__skipbtn:hover { border-color: var(--line-strong); color: var(--ink); }
+.card.is-skipped { opacity: .6; }
+.card.is-skipped .card__collapsed { display: flex; }
+.card__collapsed--skip .card__collapsed-name { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.card__skip-tag { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); padding: 1px 6px; }
+.card__unskip { flex: none; margin-left: auto; min-height: 40px; padding: 0 6px; background: none; border: 0; color: var(--accent-ink); font-size: 13px; font-weight: 700; cursor: pointer; }
 /* Superset member badge on a collapsed row, so a paired partner (A2) reads as
    part of the superset, not an unrelated upcoming exercise. */
 .card__collapsed-badge { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; padding: 1px 5px; background: var(--accent-tint); color: var(--accent-ink); }
@@ -637,6 +654,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .receipt-paper { background: var(--paper); color: var(--paper-ink); padding: 22px 20px 24px; margin: 4px 0 18px; box-shadow: 0 16px 40px rgba(0,0,0,.45); }
 .receipt-paper__ov { font-family: "Spline Sans Mono", monospace; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--paper-dim); margin: 0 0 8px; }
 .complete__title { font-family: var(--font-display); font-weight: 800; font-size: 24px; letter-spacing: -.01em; margin: 0 0 10px; color: var(--paper-ink); }
+.complete__earned { font-family: var(--font-display); font-weight: 800; font-size: 15px; color: var(--accent-ink); margin: 0 0 8px; }
 .complete__summary { font-size: 14px; line-height: 1.55; color: var(--paper-dim); margin: 0 0 16px; }
 /* The PR moment: promoted out of the honest-read sentence into its own line
    -- the one place on this one screen the accent is allowed a second job,
@@ -1106,8 +1124,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <div class="receipt-paper">
-      <p class="receipt-paper__ov">Session complete</p>
+      <p class="receipt-paper__ov" id="completeOverline">Session complete</p>
       <h2 class="complete__title" id="completeTitle"><span id="completeTitleText">Session done</span></h2>
+      <p class="complete__earned" id="completeEarned" hidden></p>
       <p class="complete__summary" id="completeSummary"></p>
       <p class="complete__pr-banner" id="completePrBanner" hidden></p>
       <div id="completeRead"></div>
@@ -1118,6 +1137,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <div class="btn-row">
       <button class="btn btn--primary" id="completeNext" type="button">Back to week</button>
+      <button class="btn" id="completeSecondary" type="button" hidden></button>
     </div>
   </div>
 </dialog>
@@ -1233,14 +1253,24 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   }
   function firstIncompleteId(items) {
     items = Array.isArray(items) ? items : [];
-    for (var i = 0; i < items.length; i++) { var it = items[i]; if (it && it.sets > 0 && (it.doneCount || 0) < it.sets) return it.id; }
+    for (var i = 0; i < items.length; i++) { var it = items[i]; if (it && !it.skipped && it.sets > 0 && (it.doneCount || 0) < it.sets) return it.id; }
     return null;
   }
+  // Skipped exercises are removed from the session's OBLIGATION: they count toward
+  // neither done nor total, so the session finishes once everything you didn't
+  // skip is logged. `skipped` = how many were deliberately passed (for honest
+  // reporting on the receipt). A session with nothing but skips has total 0 and
+  // never auto-completes -- you'd End it instead.
   function sessionProgress(items) {
     items = Array.isArray(items) ? items : [];
-    var done = 0;
-    items.forEach(function (it) { if (it && it.sets > 0 && (it.doneCount || 0) >= it.sets) done++; });
-    return { done: done, total: items.length };
+    var done = 0, total = 0, skipped = 0;
+    items.forEach(function (it) {
+      if (!it || it.sets <= 0) return;
+      if (it.skipped) { skipped++; return; }
+      total++;
+      if ((it.doneCount || 0) >= it.sets) done++;
+    });
+    return { done: done, total: total, skipped: skipped };
   }
   // RPE is captured per set but otherwise never read back. This gives it one job:
   // flag when logged effort this session is running high, so a non-deload week can
@@ -3455,8 +3485,9 @@ function resolveSpec(request, state) {
     if (el.sets.length > ex.sets) el.sets = el.sets.slice(0, ex.sets);
     return { sl: sl, el: el };
   }
+  function isSkipped(ses, exId) { var sl = state.log[ses.id]; return !!(sl && sl.ex && sl.ex[exId] && sl.ex[exId].skipped); }
   function sessionItemsFor(ses) {
-    return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.sets.filter(function (s) { return s.completed; }).length }; });
+    return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.sets.filter(function (s) { return s.completed; }).length, skipped: isSkipped(ses, e.id) }; });
   }
   function sessionItems() { return sessionItemsFor(curSession()); }
   function currentId() {
@@ -3780,7 +3811,21 @@ function resolveSpec(request, state) {
     // "Up next" is the first session in the CURRENT week that isn't fully done
     // yet -- not just whatever state.activeSession happens to be pointing at,
     // which used to leave this card stuck on a session you'd already finished.
+    // Hold today's win: if a session was finished TODAY and the week isn't over,
+    // lead the hero with what you just did before it asks for the next one -- so
+    // the home screen reflects the achievement back at you, not only "up next".
+    var doneThisWeek = 0, wonTodayName = "";
+    wk.sessions.forEach(function (s, idx) {
+      var pp = sessionProgress(sessionItemsFor(s));
+      if (!(pp.total > 0 && pp.done === pp.total)) return;
+      doneThisWeek++;
+      var sl = state.log[s.id];
+      if (sl && sl.date && String(sl.date).slice(0, 10) === todayStr()) wonTodayName = dayPositionLabel(wk.sessions, idx);
+    });
     var hi = heroInfo(wk), weekDone = hi.weekDone, heroIdx = hi.heroIdx;
+    var winHtml = (wonTodayName && !weekDone)
+      ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> — ' + doneThisWeek + ' of ' + wk.sessions.length + ' this week</span></div>'
+      : "";
     var heroSes = wk.sessions[heroIdx];
     var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
     var started = !weekDone && heroPr.done > 0;
@@ -3829,6 +3874,7 @@ function resolveSpec(request, state) {
     // control. That list is the one place to browse or jump to another day.
     el.innerHTML =
       greetHtml +
+      winHtml +
       readingHtml +
       '<div class="today-card">' +
         '<div class="today-card__label">' + esc(label2) + '</div>' +
@@ -4049,7 +4095,7 @@ function resolveSpec(request, state) {
       // skipped remain -- each is real per-day status, not a restatement.)
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
       else if (st.key === "done") tagHtml += '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + '</span>';
-      else if (st.key === "skipped") tagHtml += '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
+      else if (st.key === "skipped") tagHtml += '<span class="weekrow__tag weekrow__tag--skipped">NOT YET</span>';
       if (st.key === "done") progHtml = '<span class="weekrow__prog is-done">done</span>';
       else if (st.key !== "skipped" || pr.total > 0) progHtml = '<span class="weekrow__prog">' + pr.done + ' / ' + pr.total + '</span>';
       // No per-row delete: a destructive control shown on every row of the
@@ -4097,8 +4143,14 @@ function resolveSpec(request, state) {
   function renderDayBar() {
     var sessions = curWeek().sessions;
     $("dayTitle").textContent = dayPositionLabel(sessions, state.activeSession);
-    var lbl = $("liveBarLabel");
-    if (lbl) { var ses = curSession(); lbl.textContent = "LIVE · " + (ses ? (ses.focus || ses.name) : "").toUpperCase(); }
+    var lbl = $("liveBarLabel"), bar = $("liveBar"), ses = curSession();
+    var focus = (ses ? (ses.focus || ses.name) : "").toUpperCase();
+    // A day is a PREVIEW until you log your first working set -- opening it to
+    // read Wednesday's plan shouldn't start a live session with a ticking clock.
+    // sessionLive() flips true on the first logged set (ensureSessionLive).
+    var live = sessionLive();
+    if (bar) bar.classList.toggle("livebar--preview", !live);
+    if (lbl) lbl.textContent = live ? ("LIVE · " + focus) : focus;
   }
   // Elapsed-time readout for the sticky live bar. The start TIMESTAMP is
   // persisted to its own tiny localStorage key (not the state blob -- it's an
@@ -4126,6 +4178,14 @@ function resolveSpec(request, state) {
     if (liveTimerHandle) { clearInterval(liveTimerHandle); liveTimerHandle = null; }
     try { localStorage.removeItem(LIVE_KEY); } catch (e) {}
   }
+  // A live run exists once the timer has been started (its start stamp is in
+  // LIVE_KEY). Opening a day is a preview; the FIRST logged working set promotes
+  // it to live -- starts the clock, grabs the wake lock, flips the bar.
+  function sessionLive() { try { return !!localStorage.getItem(LIVE_KEY); } catch (e) { return false; } }
+  function ensureSessionLive() {
+    if (sessionLive()) return;
+    startLiveTimer(); acquireWakeLock(); renderDayBar();
+  }
   // Keep the screen awake during an active session (iOS 16.4+/Android
   // Chrome). The lock is auto-released by the OS on tab hide; re-acquire on
   // return. Failure is fine -- the app degrades to normal screen-dim rules.
@@ -4136,7 +4196,7 @@ function resolveSpec(request, state) {
   }
   function releaseWakeLock() { if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && state.view === "day") acquireWakeLock();
+    if (document.visibilityState === "visible" && state.view === "day" && sessionLive()) acquireWakeLock();
   });
   function renderHead() {
     var ses = curSession(), wk = curWeek(), p = sessionProgress(sessionItems());
@@ -4379,6 +4439,18 @@ function resolveSpec(request, state) {
   var GENERIC_WHY = { "general accessory work": 1, "mobility work": 1, "conditioning work": 1, "primary lift for today's session": 1 };
   function isInformativeWhy(w) { return !!(w && !GENERIC_WHY[String(w).toLowerCase().trim()]); }
   function buildCard(e, i, ses, badge) {
+    // Skipped today: the exercise is set aside so the session can still finish.
+    // Render a compact strip -- name, a quiet "skipped" tag, and Undo -- instead
+    // of the full logging UI. It's out of the way but never gone.
+    if (isSkipped(ses, e.id)) {
+      return '<article class="card is-skipped" data-ex="' + e.id + '" style="--i:' + i + '">' +
+        '<div class="card__collapsed card__collapsed--skip">' +
+        (badge ? '<span class="card__collapsed-badge">' + esc(badge) + '</span>' : '') +
+        '<span class="card__collapsed-name">' + esc(e.name) + '</span>' +
+        '<span class="card__skip-tag">skipped</span>' +
+        '<button type="button" class="card__unskip" data-act="unskipex" data-ex="' + e.id + '">Undo</button>' +
+        '</div></article>';
+    }
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.sets.filter(function (s) { return s.completed; }).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var total_ex = ses.exercises.length;
     var pills = pillsHtml(e, lg.sets.map(function (s) { return s.completed; }));
@@ -4509,6 +4581,7 @@ function resolveSpec(request, state) {
       metaBlock + notesCue +
       '<div class="scheme"><div class="scheme__item"><span class="field-label">Sets</span><div class="stepper"><button type="button" class="step" data-act="sets-" data-ex="' + e.id + '" aria-label="One fewer set">−</button><span class="stepper__val">' + total + '</span><button type="button" class="step" data-act="sets+" data-ex="' + e.id + '" aria-label="One more set">+</button></div></div>' +
       '<div class="scheme__item"><label class="field-label" for="reps-' + e.id + '">Reps target</label><input class="reps__input mono" id="reps-' + e.id + '" type="text" value="' + esc(e.reps) + '" data-act="reps" data-ex="' + e.id + '" aria-label="Reps target"></div></div>' +
+      '<button type="button" class="card__skipbtn" data-act="skipex" data-ex="' + e.id + '">Skip this exercise today</button>' +
       '</div></div>' +
       '</div></article>';
   }
@@ -4589,7 +4662,7 @@ function resolveSpec(request, state) {
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
       if (on) {
-        unlockAudio();
+        unlockAudio(); ensureSessionLive();
         var pr1 = sessionProgress(sessionItemsFor(ses));
         if (pr1.total > 0 && pr1.done === pr1.total) showSessionComplete(ses); else startRest(e, si);
       } else {
@@ -4626,6 +4699,18 @@ function resolveSpec(request, state) {
       if (!wwl.el.warm) wwl.el.warm = [];
       wwl.el.warm[wi] = !wwl.el.warm[wi]; save();
       btn.classList.toggle("is-done", wwl.el.warm[wi]); btn.setAttribute("aria-pressed", wwl.el.warm[wi]);
+    } else if (act === "skipex") {
+      // Set the exercise aside for today so the session can finish without it.
+      var wSk = writeLog(ses, e); wSk.el.skipped = true; hideRest(); save();
+      renderHead(); renderList(true);
+      // Skipping the last unresolved exercise can complete the session.
+      var prSk = sessionProgress(sessionItemsFor(ses));
+      if (prSk.total > 0 && prSk.done === prSk.total) showSessionComplete(ses);
+      else applyGlance();
+      toast(e.name + " skipped today");
+    } else if (act === "unskipex") {
+      var wUn = writeLog(ses, e); wUn.el.skipped = false; save();
+      renderHead(); renderList(true); selectExercise(e.id); applyGlance();
     } else if (act === "notes") {
       e.notesOpen = !e.notesOpen; save();
       btn.setAttribute("aria-expanded", e.notesOpen ? "true" : "false");
@@ -4699,7 +4784,7 @@ function resolveSpec(request, state) {
       dcard.classList.toggle("is-complete", e.sets > 0 && ddc === e.sets);
       refreshFoot(dcard, e, ses);
       if (on2) {
-        unlockAudio();
+        unlockAudio(); ensureSessionLive();
         var pr2 = sessionProgress(sessionItemsFor(ses));
         if (pr2.total > 0 && pr2.done === pr2.total) showSessionComplete(ses); else startRest(e, di);
       } else {
@@ -4791,7 +4876,10 @@ function resolveSpec(request, state) {
     renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
     return true;
   }
-  function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); acquireWakeLock(); }
+  // Opening a day no longer starts a live session -- it's a preview you can read.
+  // The timer + wake lock start on your first logged set (ensureSessionLive). If
+  // the day already has a live run going (resumed after reload), it stays live.
+  function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); if (sessionLive()) acquireWakeLock(); }
   function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload(); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
@@ -4803,7 +4891,7 @@ function resolveSpec(request, state) {
     if (open) openDay(parseInt(open.getAttribute("data-day"), 10));
   });
   $("backWeek").addEventListener("click", backToWeek);
-  $("liveBarEnd").addEventListener("click", backToWeek);
+  $("liveBarEnd").addEventListener("click", endSession);
   $("coachHintDismiss").addEventListener("click", function () {
     try { localStorage.setItem("tl:coachHintSeen", "1"); } catch (e) {}
     $("coachHint").hidden = true;
@@ -5405,7 +5493,13 @@ function resolveSpec(request, state) {
   planSheet.addEventListener("close", function () { cancelBuildThinking(); cancelTodayThinking(); pendingSubstituteIdx = null; });
   (function () {
     var cs = $("completeSheet");
-    cs.addEventListener("click", function (ev) { if (ev.target === cs) { if (cs.close) cs.close(); else cs.removeAttribute("open"); } });
+    // Backdrop tap or Escape dismisses the receipt = you're done -> route to the
+    // week for a real pause, never back inside the finished/ended session. The
+    // buttons own their own navigation (primary -> week, Keep going -> stay,
+    // Start next -> next day).
+    function leaveToWeek() { if (cs.close) cs.close(); else cs.removeAttribute("open"); if (state.view === "day") backToWeek(); }
+    cs.addEventListener("click", function (ev) { if (ev.target === cs) leaveToWeek(); });
+    cs.addEventListener("cancel", function (ev) { ev.preventDefault(); leaveToWeek(); }); // Escape
   })();
   $("historyBtn").addEventListener("click", openHistory);
   $("historyBody").addEventListener("click", function (ev) {
@@ -5797,24 +5891,53 @@ function resolveSpec(request, state) {
     if (!rows.length) return { html: "", prs: prs };
     return { html: '<p class="complete__read-title">The honest read</p>' + rows.join(""), prs: prs };
   }
-  function showSessionComplete(ses) {
+  function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  // The one closure moment every session exit routes through -- a genuine finish
+  // (all non-skipped exercises logged) OR ending early with work done (opts.ended).
+  // The receipt is honest either way: 'complete' celebrates, 'ended' acknowledges
+  // exactly what WAS done with no fake completion stamp.
+  function showSessionComplete(ses, opts) {
+    opts = opts || {};
+    var ended = !!opts.ended;
     hideRest();
     var setsDone = 0, readyCount = 0, unit = state.program.unit;
     ses.exercises.forEach(function (e) {
-      if (e.type !== "strength") { var lg0 = readLog(ses, e); setsDone += lg0.sets.filter(function (s) { return s.completed; }).length; return; }
       var lg = readLog(ses, e);
       setsDone += lg.sets.filter(function (s) { return s.completed; }).length;
-      if (strengthFoot(e, lg, unit).ready) readyCount++;
+      if (e.type === "strength" && strengthFoot(e, lg, unit).ready) readyCount++;
     });
+    var prog = sessionProgress(sessionItemsFor(ses));
     var wk = curWeek(), nextIdx = -1;
     for (var i = 0; i < wk.sessions.length; i++) {
+      if (i === state.activeSession) continue; // never offer the one just finished
       var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
       if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
     }
+    var sessionsDone = 0;
+    wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
+
+    $("completeOverline").textContent = ended ? "Session ended" : "Session complete";
+    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · ended" : " done");
     var summary = setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged" +
-      (readyCount ? " · ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts") : "");
-    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + " done";
+      (prog.skipped ? " · " + prog.skipped + " skipped" : "") +
+      (!ended && readyCount ? " · ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts") : "");
     $("completeSummary").textContent = summary;
+
+    // One unconditional earned line, above the honest read -- so the emotional
+    // peak leads with a win, not an audit of flat/down lifts.
+    var earnedEl = $("completeEarned");
+    if (earnedEl) {
+      var earnedTxt = "";
+      if (!ended && sessionsDone > 0) {
+        earnedTxt = (sessionsDone >= wk.sessions.length)
+          ? "Week complete — all " + wk.sessions.length + " done"
+          : "That's your " + ordinal(sessionsDone) + " session this week";
+      } else if (ended && setsDone > 0) {
+        earnedTxt = "Banked — every set still counts";
+      }
+      earnedEl.textContent = earnedTxt; earnedEl.hidden = !earnedTxt;
+    }
+
     var honestRead = buildHonestRead(ses);
     $("completeRead").innerHTML = honestRead.html;
     // The PR moment: promoted out of the honest-read list into its own line,
@@ -5848,11 +5971,38 @@ function resolveSpec(request, state) {
       }
       sigLine.textContent = fmtDate(new Date().toISOString()) + (mins != null ? " · " + mins + " min" : "");
     }
-    var nextBtn = $("completeNext"), dlg = $("completeSheet");
+    // CTA: "Back to week" is ALWAYS the primary -- the finish deserves a pause,
+    // not an immediate next obligation. The secondary is contextual and opt-in:
+    // 'Keep going' when ended early (stay in the session), or a quiet 'Start
+    // <next day>' when finished. Dismissing the sheet any way (primary, backdrop,
+    // Escape) routes to the week via the sheet's close handler.
+    var primaryBtn = $("completeNext"), secondaryBtn = $("completeSecondary"), dlg = $("completeSheet");
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
-    nextBtn.textContent = nextIdx >= 0 ? "Next: " + dayPositionLabel(wk.sessions, nextIdx) : "Back to week";
-    nextBtn.onclick = function () { closeDlg(); if (nextIdx >= 0) openDay(nextIdx); else backToWeek(); };
+    primaryBtn.textContent = "Back to week";
+    // Route explicitly here (and in the backdrop/Escape handlers) rather than on
+    // the dialog 'close' event -- close() doesn't reliably fire 'close' for this
+    // sheet in every engine, so the button owns its navigation.
+    primaryBtn.onclick = function () { closeDlg(); backToWeek(); };
+    if (ended) {
+      secondaryBtn.hidden = false; secondaryBtn.textContent = "Keep going";
+      secondaryBtn.onclick = function () { closeDlg(); }; // stay in the session
+    } else if (nextIdx >= 0) {
+      secondaryBtn.hidden = false; secondaryBtn.textContent = "Start " + dayPositionLabel(wk.sessions, nextIdx) + " →";
+      secondaryBtn.onclick = function () { closeDlg(); openDay(nextIdx); };
+    } else {
+      secondaryBtn.hidden = true; secondaryBtn.onclick = null;
+    }
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+  // Ending a session: with work logged, show the honest receipt (complete or
+  // ended variant); with nothing logged, it was only a preview -- just leave.
+  function endSession() {
+    var ses = curSession(), setsLogged = 0;
+    ses.exercises.forEach(function (e) { setsLogged += readLog(ses, e).sets.filter(function (s) { return s.completed; }).length; });
+    if (setsLogged > 0) {
+      var pr = sessionProgress(sessionItemsFor(ses));
+      showSessionComplete(ses, { ended: !(pr.total > 0 && pr.done === pr.total) });
+    } else { backToWeek(); }
   }
   function initRest() {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill"); restRpeEl = $("restRpe");
@@ -6044,7 +6194,10 @@ function resolveSpec(request, state) {
     }, { passive: true });
   }
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
-  if (state.view === "day") { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
+  // Resume a LIVE run only if one was actually going (LIVE_KEY present) -- a day
+  // reopened in preview mode stays a preview, no phantom clock. renderDayBar (via
+  // renderAll above) already reflects sessionLive(); this just restarts the tick.
+  if (state.view === "day") { if (sessionLive()) { startLiveTimer(true); acquireWakeLock(); } resumeRest(); }
   if (quarantinedRaw) toast("Couldn't read your saved data. A recovery copy was kept on this device");
   // A newly deployed SW takes over on its own (skipWaiting + claim). Applying it
   // means reloading the page -- but NEVER out from under an active workout: a
