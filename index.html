@@ -663,6 +663,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .history__lift:first-child { border-top: 0; }
 .history__lift:hover .history__lift-name { color: var(--accent-ink); }
 /* Per-exercise drill-down (openExerciseHistory) */
+.history__back { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; margin: -4px 0 8px; padding: 0; background: none; border: 0; color: var(--ink-dim); font-size: 14px; font-weight: 600; cursor: pointer; }
+.history__back:hover { color: var(--ink); }
+.history__back span { font-size: 18px; line-height: 1; }
 .exhist__record { margin: 0 0 10px; font-size: 14px; color: var(--ink-dim); }
 .exhist__record b { color: var(--ink); font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; }
 .exhist__chart { display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px; }
@@ -3912,7 +3915,7 @@ function resolveSpec(request, state) {
   // series + its records, from the same buildHistoryData the History sheet
   // uses -- one source of truth for "what did this lift do". Reuses the
   // History sheet dialog; opening from an exercise card swaps its body.
-  function openExerciseHistory(name) {
+  function openExerciseHistory(name, fromList) {
     var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
     var pts = data.lifts[name] || [];
     var body;
@@ -3938,7 +3941,12 @@ function resolveSpec(request, state) {
       body = recordHtml + chart + '<div class="history__section"><p class="history__section-title">Sessions</p>' + rows + '</div>';
     }
     $("historyTitle").textContent = name;
-    $("historyBody").innerHTML = body;
+    // Opened from the Progress list, this view REPLACES the list in the same
+    // sheet -- so give it a way back to the overview it came from, instead of
+    // forcing a full close via Done. Opened from an exercise card's "History",
+    // there's no list to return to, so no back link.
+    var backHtml = fromList ? '<button type="button" class="history__back" data-act="histback"><span aria-hidden="true">‹</span> Progress</button>' : '';
+    $("historyBody").innerHTML = backHtml + body;
     var dlg = $("historySheet");
     if (!dlg.hasAttribute("open")) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); }
   }
@@ -4430,7 +4438,7 @@ function resolveSpec(request, state) {
       formNotes +
       weightCtrl +
       warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
-      '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Details</button>' +
+      '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Edit sets &amp; swap</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + notesCue +
       '<div class="scheme"><div class="scheme__item"><span class="field-label">Sets</span><div class="stepper"><button type="button" class="step" data-act="sets-" data-ex="' + e.id + '" aria-label="One fewer set">−</button><span class="stepper__val">' + total + '</span><button type="button" class="step" data-act="sets+" data-ex="' + e.id + '" aria-label="One more set">+</button></div></div>' +
@@ -5303,8 +5311,9 @@ function resolveSpec(request, state) {
   })();
   $("historyBtn").addEventListener("click", openHistory);
   $("historyBody").addEventListener("click", function (ev) {
+    if (ev.target.closest('[data-act="histback"]')) { openHistory(); return; }
     var row = ev.target.closest("[data-lift]"); if (!row) return;
-    openExerciseHistory(row.getAttribute("data-lift"));
+    openExerciseHistory(row.getAttribute("data-lift"), true); // from the Progress list -> offer a way back
   });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
   $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
