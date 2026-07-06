@@ -572,6 +572,11 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* Superset partner prompt: during a superset's rest, the real next action is
    the paired exercise, not a random filler. A full-width tap jumps to it. */
 .supernext { margin-top: 11px; width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--accent-ink); background: var(--accent-tint); color: var(--ink); cursor: pointer; text-align: left; }
+/* The `display: flex` above overrides the plain [hidden] attribute (author style
+   beats the UA display:none), so hideSuperNext() set .hidden=true but the prompt
+   stayed on screen -- the real cause of the lingering "Superset · next up". Make
+   the hidden attribute actually hide it. */
+.supernext[hidden] { display: none; }
 .supernext__label { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); }
 .supernext__name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .supernext__go { flex: none; font-size: 13px; font-weight: 600; color: var(--accent-ink); }
@@ -3458,7 +3463,14 @@ function resolveSpec(request, state) {
   }
   function selectExercise(id) {
     if (!id || state.activeExerciseId === id) return;
-    state.activeExerciseId = id; save(); applyGlance();
+    state.activeExerciseId = id; save();
+    // The rest bar's superset / filler "next up" prompt belongs to the exercise
+    // whose set you just logged. Switching to a DIFFERENT exercise leaves it
+    // pointing at unrelated work (e.g. a "Superset · Lateral Raise" prompt
+    // lingering over the ungrouped anchor you tapped back to) -- so clear it on
+    // navigation. The rest TIMER is global and keeps running.
+    hideSuperNext(); hideFiller();
+    applyGlance();
   }
   function applyGlance() {
     var items = sessionItems(), cid = currentId(), p = sessionProgress(items);
