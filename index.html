@@ -191,15 +191,15 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; }
 .weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--line-strong); color: var(--ink-dim); }
 .weekrow__tag--alt { color: var(--accent-ink); border-color: var(--accent-ink); }
-.weekrow__tag--done { padding: 2px 5px; color: var(--ready); border-color: var(--ready); }
-.weekrow__tag--skipped { color: var(--faint); border-style: dashed; }
+.weekrow__tag--done { color: var(--ready); border-color: var(--ready); }
+.weekrow__tag--prog { color: var(--ink-dim); border-color: var(--line-strong); }
+.weekrow__tag--skipped { color: var(--manage); border-color: var(--manage); border-style: dashed; }
+.weekrow__tag--pending { color: var(--faint); border-color: var(--line); }
 .weekrow__tag--today { color: var(--ready); border-color: var(--ready); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
 .weekrow__focus { font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; }
 .weekrow.is-current .weekrow__name { color: var(--ink); }
-.weekrow__prog { font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); flex: none; }
-.weekrow__prog.is-done { color: var(--mob); }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
 /* Quiet "Remove this day" at the foot of a day; faint until pressed. */
 .day-remove { display: block; margin: 8px auto 0; padding: 10px 14px; background: none; border: 0; color: var(--faint); font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -792,7 +792,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <span class="brand__name">Fitness</span>
       </div>
       <div class="topbar__actions">
-        <button class="icon-btn icon-btn--build" id="planBtn" title="Build or load a workout" aria-label="Build or load a workout" aria-haspopup="dialog">
+        <button class="icon-btn icon-btn--build" id="planBtn" title="Build or load a program" aria-label="Build or load a program" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Build</span>
         </button>
         <button class="icon-btn" id="historyBtn" title="Progress history" aria-label="Progress history" aria-haspopup="dialog">
@@ -832,7 +832,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
     <div class="coachhint view-day" id="coachHint" hidden>
-      <p class="coachhint__body"><b>RPE</b> (optional) is how hard a set felt: 6 easy, 10 all-out. <b>Est. 1RM</b> is your estimated one-rep max, worked out from the weight and reps you log.</p>
+      <p class="coachhint__body"><b>Effort</b> (optional) is how hard a set felt: 6 easy, 10 all-out (some call it RPE). <b>Est. 1RM</b> is your estimated one-rep max, worked out from the weight and reps you log.</p>
       <button type="button" class="coachhint__dismiss" id="coachHintDismiss">Got it</button>
     </div>
     <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
@@ -843,7 +843,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 </div>
 
 <!-- Plan sheet -->
-<dialog class="sheet" id="planSheet" aria-label="Build or load a workout">
+<dialog class="sheet" id="planSheet" aria-label="Build or load a program">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <h2>Build my week</h2>
@@ -958,8 +958,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
       <div class="sect">
         <div class="sect__step"><span class="sect__num">2</span><span class="sect__label" style="margin:0">Paste Claude's reply</span></div>
-        <textarea class="pastebox" id="loadText" placeholder="Paste the workout Claude gave you…" aria-label="Paste Claude's workout"></textarea>
-        <div class="btn-row" style="margin-top:10px"><button class="btn" id="loadBtn" type="button">Load workout</button></div>
+        <textarea class="pastebox" id="loadText" placeholder="Paste the program Claude gave you…" aria-label="Paste Claude's program"></textarea>
+        <div class="btn-row" style="margin-top:10px"><button class="btn" id="loadBtn" type="button">Load program</button></div>
         <div class="preview hidden" id="loadPreview"></div>
       </div>
     </details>
@@ -1013,7 +1013,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="sect">
       <div class="sect__label">My equipment</div>
       <div class="chips" id="myEquip" role="group" aria-label="Equipment I have"></div>
-      <p class="sect__hint" style="margin-top:8px">Saved for every workout you build; bodyweight is always included.</p>
+      <p class="sect__hint" style="margin-top:8px">Saved for every program you build; bodyweight is always included.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Advanced moves I can do</div>
@@ -1182,17 +1182,17 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     return null;
   }
   function parseProgramText(text) {
-    if (text == null || String(text).trim() === "") throw new Error("Nothing to load. Paste the workout Claude gave you.");
+    if (text == null || String(text).trim() === "") throw new Error("Nothing to load. Paste the program Claude gave you.");
     var s = String(text).trim();
     var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) s = fence[1].trim();
     var blob = extractFirstJsonObject(s);
-    if (blob == null) throw new Error("That doesn't look like a Fifth Digit Fitness workout. Paste the whole block, including the { … }.");
-    try { return JSON.parse(blob); } catch (e) { throw new Error("Couldn't read that as a valid workout. Make sure you copied the whole { … } block."); }
+    if (blob == null) throw new Error("That doesn't look like a Fifth Digit Fitness program. Paste the whole block, including the { … }.");
+    try { return JSON.parse(blob); } catch (e) { throw new Error("Couldn't read that as a valid program. Make sure you copied the whole { … } block."); }
   }
   function validateProgram(obj) {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return { ok: false, error: "That isn't a workout in the right format." };
-    if (!Array.isArray(obj.weeks) || obj.weeks.length === 0) return { ok: false, error: "No weeks found: a workout needs at least one week." };
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return { ok: false, error: "That isn't a program in the right format." };
+    if (!Array.isArray(obj.weeks) || obj.weeks.length === 0) return { ok: false, error: "No weeks found: a program needs at least one week." };
     for (var w = 0; w < obj.weeks.length; w++) {
       var wk = obj.weeks[w];
       if (!wk || !Array.isArray(wk.sessions) || wk.sessions.length === 0) return { ok: false, error: "Week " + (w + 1) + " has no sessions." };
@@ -1309,7 +1309,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         ses = ses && typeof ses === "object" ? ses : {};
         var sid = "wk" + wi + "_s" + si;
         var exIn = Array.isArray(ses.exercises) ? ses.exercises : [];
-        return { id: sid, name: str(ses.name, "Day " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, sid + "_e" + ei); }) };
+        return { id: sid, name: str(ses.name, "Session " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, sid + "_e" + ei); }) };
       });
       return { week: clampInt(wk.week, 1, 999, wi + 1), focus: str(wk.focus, ""), deload: !!wk.deload, sessions: sessions };
     });
@@ -1319,7 +1319,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     var trainDays = Array.isArray(obj.trainDays)
       ? obj.trainDays.filter(function (d) { return typeof d === "number" && d >= 0 && d <= 6; })
       : null;
-    var out = { schema: "training-log/program@1", title: str(obj.title, "Workout"), goal: str(obj.goal, ""), unit: obj.unit === "lb" ? "lb" : "kg", weeks: weeks };
+    var out = { schema: "training-log/program@1", title: str(obj.title, "Training"), goal: str(obj.goal, ""), unit: obj.unit === "lb" ? "lb" : "kg", weeks: weeks };
     if (trainDays && trainDays.length) out.trainDays = trainDays;
     return out;
   }
@@ -1422,7 +1422,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           var hit = el && Array.isArray(el.sets) ? el.sets.filter(function (s) { return s.completed; }).length : 0;
           var ww = el && el.weight != null ? el.weight : ex.weight;
           if (hit > 0) anyDone = true;
-          exLines.push("    " + ex.name + ": " + hit + "/" + ex.sets + " sets @ " + ww + unit + " (target " + ex.sets + "×" + ex.reps + (ex.target ? ", " + ex.target : "") + ")");
+          exLines.push("    " + ex.name + ": " + hit + "/" + ex.sets + " sets @ " + ww + unit + " (target " + ex.sets + "×" + ex.reps + (ex.target ? ", " + effortifyTarget(ex.target) : "") + ")");
         });
         if (anyDone) { logged = true; wkLines.push("  " + ses.name + (slog && slog.date ? " · " + String(slog.date).slice(0, 10) : "") + ":"); exLines.forEach(function (l) { wkLines.push(l); }); }
       });
@@ -2191,8 +2191,8 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
     return { sets: isDeload ? 2 : 3, reps: "3-5/side", target: "Slow and deliberate, stack the joints", rest: "90s" };
   }
 
-  var rirMap = { 1: "3 RIR · RPE 7", 2: "2 RIR · RPE 8", 3: "1 RIR · RPE 9", 4: "4 RIR · RPE 6" };
-  var target = rirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "2 RIR · RPE 8";
+  var rirMap = { 1: "Effort 7 · 3 reps left", 2: "Effort 8 · 2 reps left", 3: "Effort 9 · 1 rep left", 4: "Effort 6 · 4 reps left" };
+  var target = rirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "Effort 8 · 2 reps left";
   var anchor = ex.compound && isAnchor;
   // Only a true strength anchor earns the maximal 3-5 rep top set. A compound
   // that leads the day but isn't built for grinding (an RDL, goblet squat,
@@ -2304,7 +2304,7 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   // prescription by one set instead of blindly repeating the fixed schedule.
   var lr = lastLogs && lastLogs[canonicalExName(ex.name)];
   if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
-    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high RPE last time)", rest: p.rest };
+    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high effort last time)", rest: p.rest };
   }
   // Phase 7 (2.1b): reactive easing from TODAY's manual readiness tap or the fatigue
   // sensing layer (amber band) -- same mechanism as the per-exercise RPE ease above,
@@ -2410,7 +2410,7 @@ function nameStrengthSessions(sessions) {
   var byRole = {};
   sessions.forEach(function (s, i) { if (s && s._nmeta) (byRole[s._nmeta.role] = byRole[s._nmeta.role] || []).push(i); });
   Object.keys(byRole).forEach(function (role) {
-    var idxs = byRole[role], base = ROLE_NAME[role] || "Day";
+    var idxs = byRole[role], base = ROLE_NAME[role] || "Session";
     if (idxs.length === 1) { sessions[idxs[0]].name = base; return; }
     var emphs = idxs.map(function (i) { return sessions[i]._nmeta.emph; });
     var distinct = emphs.every(function (e) { return !!e; }) && (new Set(emphs)).size === emphs.length;
@@ -2874,10 +2874,10 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
   roleList.forEach(function (r) { totalOf[r] = (totalOf[r] || 0) + 1; });
 
   function phaseLabel(wn, deload) {
-    if (deload)    return "Deload: consolidate, 50% volume, RPE 6";
-    if (wn === 1)  return "Accumulation: build work capacity, 3 RIR";
-    if (wn === 2)  return "Accumulation: volume increasing, 2 RIR";
-    return                "Intensification: peak volume, 1 RIR, push the ceiling";
+    if (deload)    return "Deload: consolidate, 50% volume, Effort 6";
+    if (wn === 1)  return "Accumulation: build work capacity, 3 reps in reserve";
+    if (wn === 2)  return "Accumulation: volume increasing, 2 reps in reserve";
+    return                "Intensification: peak volume, 1 rep in reserve, push the ceiling";
   }
 
   // === Block blueprint: the STRENGTH selection is chosen once and frozen for the
@@ -2982,7 +2982,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
         // week is built, so a role's two days can be compared and named by their
         // real lead emphasis ("Upper · Bench" / "Upper · Pull-up") -- or fall
         // back together to letters if their leads don't actually differ.
-        dayName = ROLE_NAME[role] || "Day";
+        dayName = ROLE_NAME[role] || "Session";
         dayFocus = ROLE_FOCUS[role] || "";
         nmeta = { role: role, emph: repeated ? leadEmphasis(strengthEx) : "" };
       }
@@ -3003,7 +3003,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
   // as a named program, not a bare category tag. Week count stays in the week nav
   // ("of 4") and day count in the visible list, so neither is restated here.
   return normalizeProgram({
-    title: (GOAL_TEXT[goal] || "Workout") + " · " + splitLabel(roleList),
+    title: (GOAL_TEXT[goal] || "Training") + " · " + splitLabel(roleList),
     goal:  GOAL_TEXT[goal] || "",
     unit:  intake.unit === "lb" ? "lb" : "kg",
     weeks: weeks
@@ -3822,7 +3822,7 @@ function resolveSpec(request, state) {
     });
     var hi = heroInfo(wk), weekDone = hi.weekDone, heroIdx = hi.heroIdx;
     var winHtml = (wonTodayName && !weekDone)
-      ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> — ' + doneThisWeek + ' of ' + wk.sessions.length + ' this week</span></div>'
+      ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> · ' + ordinal(doneThisWeek) + ' of ' + wk.sessions.length + ' done this week</span></div>'
       : "";
     var heroSes = wk.sessions[heroIdx];
     var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
@@ -4082,20 +4082,23 @@ function resolveSpec(request, state) {
       // the week is done the hero is a summary, so nothing is omitted.
       if (!hi.weekDone && i === hi.nextIdx) return "";
       var st = weekDayStatus(sessions, i), pr = st.pr;
-      var tagHtml = "", progHtml = "";
-      // "Today" is a neutral when-marker, distinct from the accent NEXT
-      // what's-up-next tag; only shown for a scheduled program, and not on a
-      // day already finished (nothing left to do there today).
+      var tagHtml = "";
+      // "Today" is a neutral when-marker, on its own axis (scheduling), so it
+      // stays inline by the name; only shown for a scheduled program, and not
+      // on a day already finished (nothing left to do there today).
       if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">TODAY</span>';
-      // No NEXT tag: the home hero directly above already names the next
-      // session in display type with the accent Continue button, so a tag
-      // here just repeats the biggest element on the screen. (done / alt /
-      // skipped remain -- each is real per-day status, not a restatement.)
+      // ALT marks a swapped-in alternate session -- a content-origin marker on
+      // its own axis, so it also sits inline by the name.
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
-      else if (st.key === "done") tagHtml += '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + '</span>';
-      else if (st.key === "skipped") tagHtml += '<span class="weekrow__tag weekrow__tag--skipped">NOT YET</span>';
-      if (st.key === "done") progHtml = '<span class="weekrow__prog is-done">done</span>';
-      else if (st.key !== "skipped" || pr.total > 0) progHtml = '<span class="weekrow__prog">' + pr.done + ' / ' + pr.total + '</span>';
+      // Completion status: ONE consistent tag per row on the right, same chrome,
+      // colour-coded -- DONE / a live N/M count / SKIPPED (moved past) / NOT YET
+      // (upcoming). Replaces the old mix of a check tag, a lowercase "done"
+      // word, and a bare fraction that each spoke a different visual language.
+      var statHtml;
+      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' DONE</span>';
+      else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
+      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
+      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">NOT YET</span>';
       // No per-row delete: a destructive control shown on every row of the
       // most-visited screen, for an action taken maybe once a program. It now
       // lives quietly inside the day itself (see the "Remove this day" control
@@ -4107,7 +4110,7 @@ function resolveSpec(request, state) {
       return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
         '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(dayPositionLabel(sessions, i)) + '">' +
         '<span class="weekrow__main"><span class="weekrow__name">' + esc(dayPositionLabel(sessions, i)) + tagHtml + '</span>' + focusHtml + '</span>' +
-        progHtml +
+        statHtml +
         '<span class="weekrow__chev">' + chevRight + '</span>' +
         '</button>' +
         '</div>';
@@ -4263,6 +4266,20 @@ function resolveSpec(request, state) {
     }
     if (!(w0 > 0) && r0 == null) return null; // P0: nothing real to show either way
     return { weight: w0, reps: r0 };
+  }
+  // Normalise legacy prescription phrasing to the current "Effort" vocabulary
+  // at DISPLAY time. A program's target strings are baked in when it's built,
+  // so one generated before the Effort rename still carries "N RIR · RPE M";
+  // rewrite it on the way to the screen so every program reads consistently.
+  // New builds already emit "Effort M · N reps left", which passes through.
+  function effortifyTarget(s) {
+    if (!s) return s;
+    return String(s)
+      .replace(/(\d+)\s*RIR\s*·\s*RPE\s*(\d+)/gi, function (_, rir, rpe) {
+        return "Effort " + rpe + " · " + rir + " rep" + (rir === "1" ? "" : "s") + " left";
+      })
+      .replace(/\bhigh RPE\b/gi, "high effort")
+      .replace(/\bRPE\s*(\d+)/gi, "Effort $1");
   }
   function targetLineHtml(uniformTarget, unit) {
     if (!uniformTarget) return "";
@@ -4520,7 +4537,7 @@ function resolveSpec(request, state) {
     // keep their real per-row differences instead (see computeUniformTarget).
     var uniformTarget = e.type === "strength" ? computeUniformTarget(lg) : null;
     var targetLine = targetLineHtml(uniformTarget, unit);
-    var cueInner = (e.target ? '<span>target <b>' + esc(e.target) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
+    var cueInner = (e.target ? '<span>target <b>' + esc(effortifyTarget(e.target)) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
     // Conditioning: target IS the prescription, keep it on the card face. Strength/mobility:
     // target/rest is reference, so demote it into Form notes and keep the face glanceable.
     var faceCue = (e.type === "conditioning" && cueInner) ? '<div class="cue">' + cueInner + '</div>' : "";
@@ -4631,7 +4648,7 @@ function resolveSpec(request, state) {
     });
     // Quiet, out-of-the-way home for the rare "delete this day" action, at the
     // very end of the day so it's off the hot path (undo-backed, like before).
-    html += '<button type="button" class="day-remove" id="dayRemove">Remove this day</button>';
+    html += '<button type="button" class="day-remove" id="dayRemove">Remove this session</button>';
     listEl.classList.toggle("reveal", !!animate);
     listEl.innerHTML = html;
     applyGlance();
@@ -5012,7 +5029,7 @@ function resolveSpec(request, state) {
       '  "weeks": [',
       '    { "week": 1, "focus": "...", "deload": false, "sessions": [',
       '      { "name": "Lower A", "exercises": [',
-      '        { "name": "DB Bench Press", "type": "strength", "equipment": "dumbbell", "group": "A", "sets": 3, "reps": "8-10", "weight": 24, "target": "RPE 8", "rest": "90 s", "notes": "cue" }',
+      '        { "name": "DB Bench Press", "type": "strength", "equipment": "dumbbell", "group": "A", "sets": 3, "reps": "8-10", "weight": 24, "target": "Effort 8", "rest": "90 s", "notes": "cue" }',
       '      ]}',
       '    ]}',
       '  ]',
@@ -5034,7 +5051,7 @@ function resolveSpec(request, state) {
     ].join("\n");
   }
   var EQUIP_ALL = ["barbell", "dumbbell", "kettlebell", "cable", "machine", "band", "pullup-bar", "cardio", "sled"];
-  var EQUIP_LABELS = { barbell: "Barbell", dumbbell: "Dumbbells", kettlebell: "Kettlebells", cable: "Cable", machine: "Machines", band: "Bands", "pullup-bar": "Pull-up bar", cardio: "Cardio machine", sled: "Sled", bodyweight: "Bodyweight only — no equipment" };
+  var EQUIP_LABELS = { barbell: "Barbell", dumbbell: "Dumbbells", kettlebell: "Kettlebells", cable: "Cable", machine: "Machines", band: "Bands", "pullup-bar": "Pull-up bar", cardio: "Cardio machine", sled: "Sled", bodyweight: "Bodyweight only · no equipment" };
   // The equipment picker appears twice (build sheet + Settings). One markup
   // generator, one click handler, one sync helper keeps both in lockstep instead
   // of maintaining two copies of the same 9 chips.
@@ -5509,7 +5526,7 @@ function resolveSpec(request, state) {
     var pv = $("loadPreview");
     pv.innerHTML = '<div class="preview__title">' + esc(pending.title) + '</div>' +
       '<div class="preview__meta">' + pending.weeks.length + ' week' + (pending.weeks.length > 1 ? "s" : "") + ' · up to ' + days + ' day' + (days > 1 ? "s" : "") + '/week · ' + esc(pending.unit) + ' · replaces current program (history kept)</div>' +
-      '<div class="btn-row"><button class="btn btn--primary" id="confirmLoad" type="button">Load this program</button><button class="btn" id="cancelLoad" type="button">Cancel</button></div>';
+      '<div class="btn-row"><button class="btn btn--primary" id="confirmLoad" type="button">Use this program</button><button class="btn" id="cancelLoad" type="button">Cancel</button></div>';
     pv.classList.remove("hidden");
     $("confirmLoad").addEventListener("click", confirmLoad);
     $("cancelLoad").addEventListener("click", function () { pending = null; pv.classList.add("hidden"); });
@@ -5968,10 +5985,10 @@ function resolveSpec(request, state) {
       var earnedTxt = "";
       if (!ended && sessionsDone > 0) {
         earnedTxt = (sessionsDone >= wk.sessions.length)
-          ? "Week complete — all " + wk.sessions.length + " done"
+          ? "Week complete · all " + wk.sessions.length + " done"
           : "That's your " + ordinal(sessionsDone) + " session this week";
       } else if (ended && setsDone > 0) {
-        earnedTxt = "Banked — every set still counts";
+        earnedTxt = "Banked · every set still counts";
       }
       earnedEl.textContent = earnedTxt; earnedEl.hidden = !earnedTxt;
     }
