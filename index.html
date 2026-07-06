@@ -591,6 +591,13 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .supertag { font-family: "Spline Sans Mono", monospace; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); }
 .superhint { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; }
 .ex-badge { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 0; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-ink); }
+/* Gold-standard Phase A: quiet session-phase headers (Warm-up/Strength/
+   Conditioning/Cool-down). No accent -- the one orange per screen stays spent
+   on the LOG button; this is structural information, not a call to action. */
+.phasehead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 4px 6px; }
+.phasehead:first-child { padding-top: 4px; }
+.phasehead__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; }
+.phasehead__min { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .weight-wrap { display: flex; flex-direction: column; gap: 4px; }
 .loadnote { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; padding-left: 2px; }
 
@@ -1186,6 +1193,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch (e) { return "—"; } }
   var EX_TYPES = ["strength", "mobility", "conditioning"];
   var EQUIPMENTS = ["barbell", "dumbbell", "machine", "cable", "kettlebell", "bodyweight", "band", "smith", "pullup-bar", "cardio", "sled"];
+  // Gold-standard Phase A: the four session phases (arrive/prepare/work/condition/
+  // down-shift). Both the per-exercise `block` tag and the session-level `blocks`
+  // time-budget summary must survive normalizeProgram -- it's a WHITELIST
+  // reconstruction (every field it doesn't explicitly copy gets dropped), and
+  // generateProgram's own return value passes through it, so without this the
+  // freshly-attached blocks would be wiped before a build ever reaches the screen.
+  var BLOCK_KINDS = ["warmup", "strength", "conditioning", "cooldown"];
+  function normalizeSessionBlocks(blocks) {
+    if (!Array.isArray(blocks) || !blocks.length) return undefined;
+    var out = blocks.filter(function (b) { return b && BLOCK_KINDS.indexOf(b.kind) >= 0 && typeof b.minutes === "number" && b.minutes >= 0; })
+      .map(function (b) { return { kind: b.kind, minutes: Math.round(b.minutes) }; });
+    return out.length ? out : undefined;
+  }
 
   function extractFirstJsonObject(s) {
     var start = s.indexOf("{"); if (start < 0) return null;
@@ -1235,7 +1255,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           reps: s.reps == null ? null : clampInt(s.reps, 0, 100, 0),
           rest: s.rest == null ? null : (typeof s.rest === "number" ? s.rest : str(s.rest, ""))
         };
-      }) : [], why: str(e.why, "") };
+      }) : [], why: str(e.why, ""),
+      block: BLOCK_KINDS.indexOf(e.block) >= 0 ? e.block : undefined };
   }
   function parseRestSeconds(v) {
     if (v == null) return 0;
@@ -1327,7 +1348,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         ses = ses && typeof ses === "object" ? ses : {};
         var sid = "wk" + wi + "_s" + si;
         var exIn = Array.isArray(ses.exercises) ? ses.exercises : [];
-        return { id: sid, name: str(ses.name, "Session " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, sid + "_e" + ei); }) };
+        var out = { id: sid, name: str(ses.name, "Session " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, sid + "_e" + ei); }) };
+        var blocks = normalizeSessionBlocks(ses.blocks);
+        if (blocks) out.blocks = blocks;
+        return out;
       });
       return { week: clampInt(wk.week, 1, 999, wi + 1), focus: str(wk.focus, ""), deload: !!wk.deload, sessions: sessions };
     });
@@ -2798,15 +2822,82 @@ function topUpThinDay(strengthEx, role) {
     if (prim.indexOf(FLOOR_PATTERN[floor[i].name]) >= 0) primCount++; // only a real on-role move counts
   }
 }
+// ===================== Gold-Standard Phase A: session architecture =====================
+// A generated session is not just a flat exercise list -- it's four TIME-BUDGETED
+// phases (arrive -> prepare -> work -> condition -> down-shift): warm-up, strength,
+// conditioning, cool-down. The anchor points below are the coach's judgement call
+// for how a session's minutes should split at three reference durations; other
+// durations interpolate/extrapolate linearly between them. Phase B adds REAL
+// warm-up content; until then the warm-up minutes fold into whichever block
+// actually has content (see attachBlocks below), so a header is never shown over
+// an empty section -- an honest partial rollout beats a fabricated one.
+var BLOCK_BUDGET_ANCHORS = [
+  { minutes: 30, warmup: 4, strength: 16, conditioning: 7, cooldown: 3 },
+  { minutes: 45, warmup: 5, strength: 25, conditioning: 10, cooldown: 5 },
+  { minutes: 60, warmup: 6, strength: 34, conditioning: 14, cooldown: 6 }
+];
+function computeBlockBudgets(minutes) {
+  var A = BLOCK_BUDGET_ANCHORS, kinds = ["warmup", "strength", "conditioning", "cooldown"];
+  var lo = A[0], hi = A[A.length - 1];
+  if (minutes <= A[0].minutes) { lo = A[0]; hi = A[1]; }
+  else if (minutes >= A[A.length - 1].minutes) { lo = A[A.length - 2]; hi = A[A.length - 1]; }
+  else { for (var i = 0; i < A.length - 1; i++) if (minutes >= A[i].minutes && minutes <= A[i + 1].minutes) { lo = A[i]; hi = A[i + 1]; break; } }
+  var span = hi.minutes - lo.minutes, t = span > 0 ? (minutes - lo.minutes) / span : 0;
+  var raw = {};
+  kinds.forEach(function (k) { raw[k] = lo[k] + (hi[k] - lo[k]) * t; });
+  // Normalise so the four buckets sum EXACTLY to the requested minutes (linear
+  // interpolation/extrapolation can drift a little at the extremes).
+  var rawTotal = kinds.reduce(function (s, k) { return s + raw[k]; }, 0);
+  var scale = rawTotal > 0 ? minutes / rawTotal : 1;
+  var out = {}, used = 0;
+  kinds.forEach(function (k, idx) {
+    if (idx === kinds.length - 1) { out[k] = Math.max(0, minutes - used); } // last bucket absorbs rounding
+    else { var v = Math.max(0, Math.round(raw[k] * scale)); out[k] = v; used += v; }
+  });
+  return out;
+}
+// Tags every exercise with which phase it belongs to (by its existing `type` --
+// no selection change), and attaches the session's blocks[] summary (kind +
+// minutes) in DISPLAY ORDER, but only for kinds that actually have content -- a
+// block with nothing in it never gets a header (never advertise structure that
+// isn't there). Any budget that would've gone to an empty kind (warm-up, before
+// Phase B ships real content; or conditioning/cool-down on a kit/goal that
+// skipped them) is folded into the first non-empty kind in priority order
+// [strength, conditioning, cooldown, warmup], so the displayed minutes always
+// sum to the session's real duration. A no-op when `minutes` isn't supplied.
+var BLOCK_KIND_BY_TYPE = { strength: "strength", conditioning: "conditioning", mobility: "cooldown" };
+function attachBlocks(session, minutes) {
+  if (!session || !Array.isArray(session.exercises) || !session.exercises.length || !(minutes > 0)) return session;
+  session.exercises.forEach(function (e) { e.block = BLOCK_KIND_BY_TYPE[e.type] || "strength"; });
+  var budgets = computeBlockBudgets(minutes);
+  var displayOrder = ["warmup", "strength", "conditioning", "cooldown"];
+  var absorbOrder = ["strength", "conditioning", "cooldown", "warmup"];
+  var present = {};
+  displayOrder.forEach(function (k) { present[k] = session.exercises.some(function (e) { return e.block === k; }); });
+  var leftover = 0;
+  displayOrder.forEach(function (k) { if (!present[k]) { leftover += budgets[k]; budgets[k] = 0; } });
+  if (leftover > 0) {
+    var absorber = absorbOrder.filter(function (k) { return present[k]; })[0];
+    if (absorber) budgets[absorber] += leftover;
+  }
+  session.blocks = displayOrder.filter(function (k) { return present[k]; }).map(function (k) { return { kind: k, minutes: budgets[k] }; });
+  return session;
+}
 // Never-empty guarantee: a session with at least one exercise passes through; an
 // empty one (pathological spec that filled no slots) falls through to the floor.
-function guaranteeSession(session) {
-  if (session && Array.isArray(session.exercises) && session.exercises.length > 0) return session;
-  return {
-    name: (session && session.name) || "Session",
-    focus: "Minimum effective dose · bodyweight, no equipment needed",
-    exercises: absoluteFloorExercises()
-  };
+// `minutes`, when supplied, also attaches the Phase-A block/time-budget summary;
+// omitted (or a session with no exercises even after the floor) leaves the
+// session exactly as before -- the day view feature-detects `ses.blocks` and
+// renders the old flat-list style whenever it's absent, so nothing regresses.
+function guaranteeSession(session, minutes) {
+  if (!(session && Array.isArray(session.exercises) && session.exercises.length > 0)) {
+    session = {
+      name: (session && session.name) || "Session",
+      focus: "Minimum effective dose · bodyweight, no equipment needed",
+      exercises: absoluteFloorExercises()
+    };
+  }
+  return attachBlocks(session, minutes);
 }
 function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
@@ -2853,7 +2944,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   // here lets the existing UI fallback show the exercise count instead, which is
   // genuinely different information rather than an echo.
   var focus = parsed.role ? (ROLE_FOCUS[parsed.role] || "") : "";
-  return guaranteeSession({ name: name, focus: focus, exercises: strengthEx.concat(extraEx) });
+  return guaranteeSession({ name: name, focus: focus, exercises: strengthEx.concat(extraEx) }, minutes);
 }
 // Real run-workout structures for the Endurance goal: easy / long / tempo / intervals,
 // polarized across the week, run as the day's focus. Emitted as conditioning so the
@@ -3036,7 +3127,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
         name: dayName,
         focus: dayFocus,
         exercises: leadEx.concat(strengthEx).concat(extraEx)
-      });
+      }, minutes);
       if (nmeta) built._nmeta = nmeta;
       return built;
     });
@@ -3302,7 +3393,7 @@ function recoverySession(allowed, seed) {
   }
   var extra = [], con = pickConditioning("z2", allowed, used, seed + 20);
   if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {}, false, "Active recovery, easy effort only")); }
-  return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) });
+  return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) }, 30);
 }
 // Resolve: RequestObject + user state -> a Session Spec. Weekly debt, fatigue, and
 // readiness are now real; block-week remains a stub until Phase 9.
@@ -4690,6 +4781,30 @@ function resolveSpec(request, state) {
       '</div></div>' +
       '</div></article>';
   }
+  // Renders one contiguous run of exercises (superset chrome + card markup),
+  // continuing the card entrance-stagger index across calls. Shared by both the
+  // legacy flat render and the Phase-A per-block render below, so superset
+  // handling is defined exactly once.
+  function renderCardRun(items, ses, i) {
+    var html = "";
+    groupExercises(items).forEach(function (grp) {
+      var sup = grp.group && grp.items.length > 1;
+      if (sup) {
+        html += '<div class="superrun" role="group" aria-label="Superset ' + esc(grp.group) + '">' +
+          '<div class="superhead"><span class="supertag">Superset ' + esc(grp.group) + '</span><span class="superhint">alternate, rest after each round</span></div>';
+        grp.items.forEach(function (e, j) { html += buildCard(e, i++, ses, grp.group + (j + 1)); });
+        html += '</div>';
+      } else {
+        grp.items.forEach(function (e) { html += buildCard(e, i++, ses, null); });
+      }
+    });
+    return { html: html, i: i };
+  }
+  var PHASE_LABEL = { warmup: "Warm-up", strength: "Strength", conditioning: "Conditioning", cooldown: "Cool-down" };
+  function phaseHeaderHtml(kind, minutes) {
+    return '<div class="phasehead"><span class="phasehead__label">' + esc(PHASE_LABEL[kind] || kind) +
+      '</span><span class="phasehead__min mono">' + minutes + ' min</span></div>';
+  }
   function renderList(animate) {
     var ses = curSession();
     lastWeights = (typeof buildWeightMap === "function") ? buildWeightMap(state) : {};
@@ -4699,18 +4814,23 @@ function resolveSpec(request, state) {
       listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap Build up top to build a week, or add today\'s session.</p></div>';
       return;
     }
-    var blocks = groupExercises(ses.exercises), html = "", i = 0;
-    blocks.forEach(function (block) {
-      var sup = block.group && block.items.length > 1;
-      if (sup) {
-        html += '<div class="superrun" role="group" aria-label="Superset ' + esc(block.group) + '">' +
-          '<div class="superhead"><span class="supertag">Superset ' + esc(block.group) + '</span><span class="superhint">alternate, rest after each round</span></div>';
-        block.items.forEach(function (e, j) { html += buildCard(e, i++, ses, block.group + (j + 1)); });
-        html += '</div>';
-      } else {
-        block.items.forEach(function (e) { html += buildCard(e, i++, ses, null); });
-      }
-    });
+    var html = "", i = 0;
+    // Gold-standard Phase A: a session built with the new engine carries
+    // ses.blocks (four time-budgeted phases). Older stored/imported programs
+    // don't -- feature-detect and fall back to the exact legacy flat render, so
+    // nothing already saved ever regresses.
+    if (Array.isArray(ses.blocks) && ses.blocks.length) {
+      var byBlock = {};
+      ses.exercises.forEach(function (e) { var k = e.block || "strength"; (byBlock[k] = byBlock[k] || []).push(e); });
+      ses.blocks.forEach(function (b) {
+        var items = byBlock[b.kind] || [];
+        if (!items.length) return; // blocks[] only lists non-empty kinds, but stay defensive
+        html += phaseHeaderHtml(b.kind, b.minutes);
+        var r = renderCardRun(items, ses, i); html += r.html; i = r.i;
+      });
+    } else {
+      var r2 = renderCardRun(ses.exercises, ses, i); html = r2.html; i = r2.i;
+    }
     // Quiet, out-of-the-way home for the rare "delete this day" action, at the
     // very end of the day so it's off the hot path (undo-backed, like before).
     html += '<button type="button" class="day-remove" id="dayRemove">Remove this session</button>';
@@ -5566,8 +5686,13 @@ function resolveSpec(request, state) {
     if (!week) return;
     var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
-      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [] };
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block };
     }) };
+    // Gold-standard Phase A: carry the block/time-budget summary through too --
+    // pendingToday came from generateSession/guaranteeSession, which already
+    // attached it; this hand-rolled reconstruction (like normalizeExercise
+    // elsewhere) would otherwise silently drop it, same class of bug.
+    if (Array.isArray(pendingToday.blocks) && pendingToday.blocks.length) session.blocks = pendingToday.blocks;
     // Substitution (BUILD-SPEC §6): if this build came from the home hero's
     // "Fancy a different session?" link, it REPLACES that specific day's slot --
     // same array position, so the week's day count and every other day's index
