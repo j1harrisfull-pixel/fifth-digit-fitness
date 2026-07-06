@@ -320,15 +320,6 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    its own widths drifted against the rows' actual geometry. */
 .card.is-current .setcolhead { display: grid; align-items: center; column-gap: 6px; }
 .setcolhead span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; text-align: center; }
-.pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.pill { min-width: 56px; min-height: var(--tap); padding: 6px 12px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0; font-family: "Spline Sans Mono", monospace; transition: transform .12s ease, background .15s ease, border-color .15s ease, color .15s ease; }
-.pill__reps { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.pill__lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
-.pill:hover { border-color: var(--accent-ink); }
-.pill.is-done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.pill.is-done .pill__lbl { color: color-mix(in srgb, var(--on-accent) 80%, transparent); }
-.pill.is-done .pill__reps::before { content: "✓ "; }
-.pill.pulse { animation: pulse .3s ease; }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .setlist { display: flex; flex-direction: column; gap: 6px; }
 /* One shared grid: Set | Prev/RPE | Kg | Reps | Done. Six data columns don't
@@ -344,6 +335,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .setcolhead, .setrow { grid-template-columns: 24px 54px 88px minmax(0, 1fr) 44px; }
 .setcolhead--noload, .setlist--noload .setrow { grid-template-columns: 24px 54px minmax(0, 1fr) 44px; }
 .setrow { display: grid; align-items: center; column-gap: 6px; min-height: 52px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 0; transition: background .14s ease, border-color .14s ease; }
+/* Non-strength sets share the strength setrow language (numbered row + circle
+   tick); this variant collapses the grid to set-number / prescription / tick,
+   since there's no prev/weight/reps stepper on timed or mobility work. Must sit
+   AFTER the base .setrow template rules to win the cascade. */
+.setrow.setrow--simple { grid-template-columns: 24px minmax(0, 1fr) 44px; }
+.setrow__rx { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 /* planned-vs-actual: a deliberate full-width second grid line (rendered only
    when a real target exists), never an accidental wrap. */
 .setrow__target { grid-column: 1 / -1; padding: 0 0 2px 24px; font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
@@ -3520,14 +3517,8 @@ function resolveSpec(request, state) {
       btn.onclick = function () { var d = nextRow.querySelector(".setrow__done"); if (d) d.click(); };
       return;
     }
-    var nextPill = card.querySelector(".pill:not(.is-done)");
-    if (nextPill) {
-      btn.textContent = "Log set";
-      btn.disabled = false; btn.classList.remove("is-muted");
-      bar.hidden = false;
-      btn.onclick = function () { nextPill.click(); };
-      return;
-    }
+    // (Non-strength sets now render as .setrow too, so the branch above covers
+    // every exercise type -- the old .pill fallback is gone with the pills.)
     // This exercise's own sets are all logged -- offer to advance rather than
     // showing a dead button (or hiding the bar entirely, which would read as
     // "nothing left to do" even when other exercises in the session aren't done).
@@ -4169,11 +4160,20 @@ function resolveSpec(request, state) {
       '<button class="reset-btn" id="resetBtn" type="button" aria-label="Reset all sets for this session"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Reset</button>';
     $("resetBtn").addEventListener("click", resetDay);
   }
+  // Non-strength sets (conditioning, mobility, timed holds) use the SAME visual
+  // language as strength sets: a numbered row with the circle-tick on the right.
+  // They used to be tap-the-whole-pill buttons with their own orange done state
+  // and a text "✓" -- a second completion vocabulary for the same action. One
+  // row shape, one green tick, everywhere.
   function pillsHtml(e, doneArr) {
     var total = e.sets, html = "";
     for (var k = 0; k < total; k++) {
       var d = !!doneArr[k];
-      html += '<button type="button" class="pill' + (d ? " is-done" : "") + '" data-act="set" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Set ' + (k + 1) + ' of ' + total + (d ? ", done" : "") + '"><span class="pill__reps">' + esc(e.reps) + '</span>' + (exTimed(e.name) ? '' : '<span class="pill__lbl">reps</span>') + '</button>';
+      html += '<div class="setrow setrow--simple' + (d ? " is-done" : "") + '" data-set="' + k + '">' +
+        '<span class="setrow__n">' + (k + 1) + '</span>' +
+        '<span class="setrow__rx mono">' + esc(e.reps) + (exTimed(e.name) || /min|sec|\ds\b/.test(String(e.reps)) ? '' : ' reps') + '</span>' +
+        '<button type="button" class="setrow__done" data-act="set" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + total + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
+        '</div>';
     }
     return html;
   }
@@ -4371,7 +4371,7 @@ function resolveSpec(request, state) {
     var warm = readLog(ses, e).warm || [];
     var html = warmupRowHtml(e, weight, unit, warm, full);
     if (existing) { if (html) existing.outerHTML = html; else existing.remove(); }
-    else if (html) { var anchor = card.querySelector(".setshead") || card.querySelector(".pills"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
+    else if (html) { var anchor = card.querySelector(".setshead") || card.querySelector(".setlist"); if (anchor) anchor.insertAdjacentHTML("beforebegin", html); }
   }
   // Generic fallback why-strings that restate what's already on screen (the
   // type tag, the NOW chip, the exercise position). An informative why comes
@@ -4449,7 +4449,7 @@ function resolveSpec(request, state) {
       : "";
     var setsContainer = e.type === "strength"
       ? setColHead + '<div class="setlist' + (loadable ? '' : ' setlist--noload') + '" role="group" aria-label="Working sets: set reps, then tap the circle to log">' + setRowsInner(e, lg, !!uniformTarget) + '</div>'
-      : '<div class="pills" role="group" aria-label="Working sets, tap to log">' + pills + '</div>';
+      : '<div class="setlist setlist--simple" role="group" aria-label="Working sets: tap the circle to log">' + pills + '</div>';
     var foot = "";
     if (e.type === "strength" && loadable) {
       var fd = strengthFoot(e, lg, unit);
@@ -4579,9 +4579,12 @@ function resolveSpec(request, state) {
       if (!w.sl.date && sset.completed) w.sl.date = new Date().toISOString();
       save();
       var on = sset.completed;
-      btn.classList.toggle("is-done", on); btn.setAttribute("aria-pressed", on);
-      btn.setAttribute("aria-label", "Set " + (si + 1) + " of " + e.sets + (on ? ", done" : ""));
-      btn.classList.remove("pulse"); void btn.offsetWidth; btn.classList.add("pulse");
+      // Same visual grammar as the strength setdone path: the ROW carries the
+      // done/pulse state and the circle-tick carries the pressed state.
+      var srow = btn.closest(".setrow");
+      if (srow) { srow.classList.toggle("is-done", on); srow.classList.remove("pulse"); void srow.offsetWidth; srow.classList.add("pulse"); }
+      btn.setAttribute("aria-pressed", on);
+      btn.setAttribute("aria-label", "Complete set " + (si + 1) + " of " + e.sets + (on ? ", done" : ""));
       var card = btn.closest(".card"), dc = w.el.sets.filter(function (s) { return s.completed; }).length;
       card.querySelector(".setcount__done").textContent = dc;
       card.classList.toggle("is-complete", e.sets > 0 && dc === e.sets);
@@ -4665,7 +4668,7 @@ function resolveSpec(request, state) {
       e.sets = ns; writeLog(ses, e); save();
       var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.sets.filter(function (s) { return s.completed; }).length;
       if (e.type === "strength") { var ut2 = refreshTargetLine(card2, lg2, state.program.unit); card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2, !!ut2); refreshFoot(card2, e, ses); }
-      else card2.querySelector(".pills").innerHTML = pillsHtml(e, lg2.sets.map(function (s) { return s.completed; }));
+      else card2.querySelector(".setlist--simple").innerHTML = pillsHtml(e, lg2.sets.map(function (s) { return s.completed; }));
       card2.querySelector(".setcount__total").textContent = e.sets;
       card2.querySelector(".setcount__done").textContent = dc2;
       var sv = card2.querySelector(".stepper__val"); if (sv) sv.textContent = e.sets;
@@ -4738,7 +4741,7 @@ function resolveSpec(request, state) {
       refreshFoot(el.closest(".card"), e, ses);
     } else if (act === "reps") {
       e.reps = el.value; saveSoon();
-      el.closest(".card").querySelectorAll(".pill__reps").forEach(function (r) { r.textContent = e.reps; });
+      el.closest(".card").querySelectorAll(".setrow__rx").forEach(function (r) { r.textContent = e.reps; });
     }
   }
   function resetDay() {
