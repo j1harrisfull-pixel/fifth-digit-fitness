@@ -795,8 +795,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
     <div class="coachhint view-day" id="coachHint" hidden>
-      <p class="coachhint__body"><b>RPE</b> is how hard a set felt: 6 easy, 10 all-out (optional). <b>Est. 1RM</b> is your estimated one-rep max, worked out from the weight and reps you log.</p>
-      <button type="button" class="coachhint__dismiss" id="coachHintDismiss" aria-label="Dismiss">Got it</button>
+      <p class="coachhint__body"><b>RPE</b> (optional) is how hard a set felt: 6 easy, 10 all-out. <b>Est. 1RM</b> is your estimated one-rep max, worked out from the weight and reps you log.</p>
+      <button type="button" class="coachhint__dismiss" id="coachHintDismiss">Got it</button>
     </div>
     <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
   </main>
@@ -806,7 +806,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 </div>
 
 <!-- Plan sheet -->
-<dialog class="sheet" id="planSheet" aria-label="Get or load a workout">
+<dialog class="sheet" id="planSheet" aria-label="Build or load a workout">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <h2>Build my week</h2>
@@ -859,8 +859,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           </div>
         </div>
         <div class="bsect">
-          <div class="blabel">Programme length</div>
-          <div class="seg seg--full" id="bWeeks" role="group" aria-label="Programme length">
+          <div class="blabel">Program length</div>
+          <div class="seg seg--full" id="bWeeks" role="group" aria-label="Program length">
             <button data-weeks="1" type="button">Single week</button>
             <button data-weeks="4" type="button">4-week block</button>
           </div>
@@ -967,8 +967,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
     </div>
     <div class="sect">
-      <div class="sect__label">Rest-period accessories</div>
-      <div class="seg" id="fillerSeg" role="group" aria-label="Rest-period accessories">
+      <div class="sect__label">While-you-rest moves</div>
+      <div class="seg" id="fillerSeg" role="group" aria-label="While-you-rest moves">
         <button data-filler-val="on" type="button">On</button>
         <button data-filler-val="off" type="button">Off</button>
       </div>
@@ -2612,7 +2612,7 @@ function roleFloorMoves(role) {
   function fx(name, sets, reps, cue) {
     return { name: name, type: "strength", equipment: "bodyweight", group: "",
       sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
-      notes: cue, curve: "straight", setPlan: [], why: "Bodyweight work so the day isn't left short — no kit needed" };
+      notes: cue, curve: "straight", setPlan: [], why: "Bodyweight work so the day isn't left short · no kit needed" };
   }
   var pushU = fx("Push-Up", 3, "8-15", "Setup: hands under shoulders, body in one line. Key: brace, lower the chest to the floor, press away. Fault: hips sagging or elbows flaring wide.");
   var dip = fx("Bench Dip", 3, "10-15", "Setup: hands on a bench behind you, legs out. Key: lower until the elbows reach ~90 degrees, press back up. Fault: shrugging into the shoulders.");
@@ -3529,6 +3529,10 @@ function resolveSpec(request, state) {
     $("weekTotal").textContent = p.weeks.length;
     $("weekPrev").disabled = state.activeWeek <= 0;
     $("weekNext").disabled = state.activeWeek >= p.weeks.length - 1;
+    // A single-week program (Just-Today or a one-week build) has nothing to
+    // page through -- "Week 1 of 1" with two dead arrows is pure noise, so hide
+    // the whole nav in that case.
+    var wnav = $("weekNav"); if (wnav) wnav.hidden = p.weeks.length <= 1;
     // A deload week used to look identical to every other week from this
     // screen -- the tag only ever showed once you were already inside a day.
     $("weekDeload").hidden = !wk.deload;
@@ -3737,7 +3741,7 @@ function resolveSpec(request, state) {
           recap.prs.map(function (p) { return '<p class="recap-prs__row">' + esc(p.name) + ' <b class="mono">' + p.orm + esc(runit) + '</b></p>'; }).join('') +
           '</div>' : '');
     }
-    var ctaLabel = weekDone ? "Plan next week" : started ? "Continue" : "Start training";
+    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Start training";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.
@@ -3951,7 +3955,7 @@ function resolveSpec(request, state) {
   }
   function renderWeekList() {
     var sessions = curWeek().sessions;
-    if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No workouts yet</p><p class="empty__hint">Tap the program button up top to build your week.</p></div>'; return; }
+    if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No sessions yet</p><p class="empty__hint">Tap Build up top to build your week.</p></div>'; return; }
     var todayIdx = todaySessionIdx(sessions);
     var hi = heroInfo(curWeek());
     weekListEl.innerHTML = sessions.map(function (s, i) {
@@ -4431,7 +4435,7 @@ function resolveSpec(request, state) {
     lastLogs = (typeof buildLastLogs === "function") ? buildLastLogs(state) : {};
     warmFirstUsed = false;
     if (!ses || !ses.exercises || !ses.exercises.length) {
-      listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap the program button up top to build a week, or add today\'s session.</p></div>';
+      listEl.innerHTML = '<div class="empty"><p class="empty__title">Nothing here yet</p><p class="empty__hint">Tap Build up top to build a week, or add today\'s session.</p></div>';
       return;
     }
     var blocks = groupExercises(ses.exercises), html = "", i = 0;
@@ -5385,6 +5389,7 @@ function resolveSpec(request, state) {
         title: "Switch to " + nu + "?",
         message: "Your numbers keep their values and only the label changes: 75 stays 75. Nothing is converted.",
         confirmLabel: "Switch to " + nu,
+        danger: false,
         onConfirm: apply
       });
     } else apply();
@@ -5621,7 +5626,7 @@ function resolveSpec(request, state) {
   // session states outright that it carries no progression read at all,
   // rather than comparing it against a plan it was never trying to follow.
   function buildHonestRead(ses) {
-    if (ses.origin === "alternate") return { html: '<p class="complete__read-off">Just Today session · off plan, no progression read.</p>', prs: [] };
+    if (ses.origin === "alternate") return { html: '<p class="complete__read-off">Just today session · off plan, no progression read.</p>', prs: [] };
     var data = buildHistoryData(state), unit = state.program.unit, rows = [], prs = [];
     ses.exercises.forEach(function (e) {
       if (e.type !== "strength") return;
@@ -5647,7 +5652,7 @@ function resolveSpec(request, state) {
         detail = "Pulled back from an est. " + prev + unit + " to " + cur + unit + ", logged as-is."
           + (holdAt > 0 ? " Next session holds " + roundW(holdAt) + unit + ": bank clean reps before adding." : "");
       }
-      else { icon = "—"; cls = "is-flat"; detail = "Flat at an est. " + cur + unit + "."; }
+      else { icon = "→"; cls = "is-flat"; detail = "Flat at an est. " + cur + unit + "."; }
       var prBadge = isPR ? ' <span class="complete__pr-badge">New best</span>' : '';
       rows.push('<div class="complete__read-row"><span class="complete__read-icon ' + cls + '">' + icon + '</span><div><p class="complete__read-name">' + esc(e.name) + prBadge + '</p><p class="complete__read-detail">' + esc(detail) + '</p></div></div>');
     });
@@ -5762,6 +5767,15 @@ function resolveSpec(request, state) {
     $("confirmTitleText").textContent = opts.title || "Are you sure?";
     $("confirmMsg").textContent = opts.message || "";
     yes.textContent = opts.confirmLabel || "Confirm";
+    // The dialog defaults to a destructive costume (red button + warning icon)
+    // because most confirms here really are destructive. A caller can pass
+    // danger:false for a reversible action (e.g. relabelling kg->lb loses
+    // nothing) so the styling doesn't contradict a message that says so.
+    var danger = opts.danger !== false;
+    yes.classList.toggle("btn--danger", danger);
+    yes.classList.toggle("btn--primary", !danger);
+    var icon = $("confirmTitle") && $("confirmTitle").querySelector(".confirm__icon");
+    if (icon) icon.style.display = danger ? "" : "none";
     function cleanup() { yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); dlg.removeEventListener("close", onClose); }
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); cleanup(); }
     function onYes() { closeDlg(); if (opts.onConfirm) opts.onConfirm(); }
