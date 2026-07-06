@@ -2229,12 +2229,12 @@ function defaultWhy(ex) {
 }
 function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
-  var w = weightMap[ex.name.toLowerCase()];
+  var w = weightMap[canonicalExName(ex.name)];
   // Per-exercise autoregulation: real RPE-based autoregulation responds to what
   // actually happened, not just the calendar. If the last logged session for
   // THIS exercise was rated consistently near-max (RPE 9.5+), ease this
   // prescription by one set instead of blindly repeating the fixed schedule.
-  var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
+  var lr = lastLogs && lastLogs[canonicalExName(ex.name)];
   if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
     p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high RPE last time)", rest: p.rest };
   }
@@ -3269,7 +3269,7 @@ function resolveSpec(request, state) {
   // one increment if you earned it last time, else repeated. Falls back to the
   // program's generated weight when there's no history.
   function suggestedWeight(ex) {
-    var lr = lastLogs && lastLogs[String(ex.name).toLowerCase()];
+    var lr = lastLogs && lastLogs[canonicalExName(ex.name)];
     // A legitimately logged weight of 0 (bodyweight) is real history, not "no
     // data" -- so a bodyweight lift that's ready still progresses, by adding a
     // small increment of external load rather than being stuck at 0 forever.
@@ -3281,7 +3281,7 @@ function resolveSpec(request, state) {
   // exercise-level default unless that specific set carries its own override.
   function readLog(ses, ex) {
     var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null;
-    var lr = (lastLogs && lastLogs[String(ex.name).toLowerCase()]) || null, lo = repsLow(ex);
+    var lr = (lastLogs && lastLogs[canonicalExName(ex.name)]) || null, lo = repsLow(ex);
     var dfltWeight = el && el.weight != null ? el.weight : suggestedWeight(ex);
     var raw = (el && Array.isArray(el.sets)) ? el.sets : [];
     var plan = Array.isArray(ex.setPlan) ? ex.setPlan : [];
@@ -3531,12 +3531,27 @@ function resolveSpec(request, state) {
   // A quiet time-of-day greeting, named when we know a name. Re-derived on
   // every render (not cached) so it stays honest across a session left open
   // past a period boundary -- cheap enough that it isn't worth memoizing.
+  // "Welcome back" is only honest if they have ACTUALLY been away and back --
+  // i.e. trained before. A user who just finished onboarding 20s ago has a name
+  // and a program but has never logged a thing, so the plain time-of-day
+  // greeting fits; "welcome back" would be a lie on first run. Cheap scan: any
+  // completed set in the live log, or any archived block.
+  function everTrained() {
+    if (state.archive && state.archive.length) return true;
+    var log = state.log || {};
+    for (var k in log) {
+      if (!Object.prototype.hasOwnProperty.call(log, k)) continue;
+      var sets = log[k] && log[k].sets;
+      if (Array.isArray(sets) && sets.some(function (s) { return s && s.completed; })) return true;
+    }
+    return false;
+  }
   function greetingLine() {
     var name = state.userName;
-    // The arrival moment: a real "welcome back" for a returning user with a
-    // program already going -- not shown to a brand-new user (the intro greets
-    // them) or after they've opened a session this launch.
-    if (justOpened && name && hasProgram()) return "Welcome back, " + name;
+    // The arrival moment: a real "welcome back" for a returning user who has
+    // trained before -- not a brand-new user fresh out of the intro (the intro
+    // greeted them), and not after they've opened a session this launch.
+    if (justOpened && name && hasProgram() && everTrained()) return "Welcome back, " + name;
     var h = new Date().getHours();
     var isLate = h < 5 || h >= 22;
     if (isLate) return name ? "Still up, " + name + "?" : "Still up?";
@@ -4092,7 +4107,7 @@ function resolveSpec(request, state) {
   // start-weight or set-count change.
   function rowTableMeta(e) {
     var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
-    var lr = (lastLogs && lastLogs[String(e.name).toLowerCase()]) || null;
+    var lr = (lastLogs && lastLogs[canonicalExName(e.name)]) || null;
     return { loadable: loadable, lr: lr };
   }
   function setRowsInner(e, lg, suppressCaption) {
@@ -4245,8 +4260,8 @@ function resolveSpec(request, state) {
     var lg = readLog(ses, e), total = e.sets, doneCount = lg.sets.filter(function (s) { return s.completed; }).length, complete = total > 0 && doneCount === total, unit = state.program.unit, ln = loadNote(e.equipment);
     var total_ex = ses.exercises.length;
     var pills = pillsHtml(e, lg.sets.map(function (s) { return s.completed; }));
-    var lastW = lastWeights[e.name.toLowerCase()];
-    var lr = lastLogs[e.name.toLowerCase()];
+    var lastW = lastWeights[canonicalExName(e.name)];
+    var lr = lastLogs[canonicalExName(e.name)];
     // The engine already pre-fills an EARNED step-up (suggestedWeight adds
     // STEP when every working set hit the top of the range last time).
     // Surface that as the why beside the number -- "35 → 37.5 earned" -- so
@@ -4586,7 +4601,11 @@ function resolveSpec(request, state) {
       // Refreshes only the foot (est-1RM), never the setlist -- re-rendering it
       // here would destroy the input the user is actively typing into mid-edit.
       var wsi = parseInt(el.getAttribute("data-set"), 10), w2 = writeLog(ses, e);
-      w2.el.sets[wsi].actual_weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
+      // Empty field CLEARS the per-set override (re-inherits the exercise weight)
+      // rather than pinning the set to 0 kg -- a blank input means "no override",
+      // a typed 0 still means a real 0 kg (bodyweight) override.
+      var rawWt = String(el.value).trim();
+      w2.el.sets[wsi].actual_weight = rawWt === "" ? null : roundW(Math.max(0, numOr(rawWt, 0))); saveSoon();
       refreshFoot(el.closest(".card"), e, ses);
     } else if (act === "reps") {
       e.reps = el.value; saveSoon();
@@ -4675,6 +4694,12 @@ function resolveSpec(request, state) {
 
   /* ===================== Plan sheet (Claude loop) ===================== */
   var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null, pendingTodayAnyway = null;
+  // Monotonic id for each Just-Today build request. parseIntent may resolve
+  // async (LLM parse), so a later tap must invalidate an earlier in-flight one:
+  // the callback bails unless its captured id is still current AND the sheet is
+  // still open, preventing a stale response from clobbering a newer preview or
+  // rendering into a closed dialog.
+  var todayReqSeq = 0;
   // Set only via openPlanForSubstitute (the home hero's "Can't do X today?"
   // link) -- the array index of the day a Just-Today build will REPLACE on
   // confirm, rather than being appended as an extra session. null means the
@@ -5050,7 +5075,11 @@ function resolveSpec(request, state) {
       pv.classList.remove("hidden");
       if (!reading) { var tl = ["Reading your request…", "Selecting your lifts…", "Balancing the session…"], ti = 0; todayThinkInterval = setInterval(function () { var el = $("todayBuildingTxt"); if (el) el.textContent = tl[ti++ % tl.length]; }, 360); }
     }
+    var mySeq = ++todayReqSeq;
     parseIntent(text, function (req) {
+      // A newer build superseded this one, or the sheet was dismissed mid-parse:
+      // drop this stale response rather than overwrite the current preview.
+      if (mySeq !== todayReqSeq || !planSheet.open) return;
       // Absent explicitly-stated kit, honour the saved equipment profile instead
       // of assuming full gym access (same rule the regex path always used).
       // Track whether the kit came from the text vs. this fallback, so the
@@ -5209,13 +5238,17 @@ function resolveSpec(request, state) {
     if (!pending) return;
     hideRest();
     if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
-    state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {};
+    state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
     pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast("Loaded " + state.program.title);
   }
   $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
-  planSheet.addEventListener("close", cancelBuildThinking); // covers Escape, which bypasses closePlan()
+  // Escape bypasses closePlan(), so mirror its full cleanup here: kill BOTH
+  // thinking chains (a Just-Today timer left running would call finish() and
+  // wire confirm handlers inside the now-closed sheet) and clear any pending
+  // substitution index so it can't leak into the next open.
+  planSheet.addEventListener("close", function () { cancelBuildThinking(); cancelTodayThinking(); pendingSubstituteIdx = null; });
   (function () {
     var cs = $("completeSheet");
     cs.addEventListener("click", function (ev) { if (ev.target === cs) { if (cs.close) cs.close(); else cs.removeAttribute("open"); } });
@@ -5359,7 +5392,22 @@ function resolveSpec(request, state) {
       title: "Erase everything and start over?",
       message: "Your current program and all logged history will be erased. This can't be undone. Export a backup first if you want to keep it.",
       confirmLabel: "Erase everything",
-      onConfirm: function () { hideRest(); state = freshState(emptyProgram()); try { localStorage.removeItem("tl:splashSeen"); } catch (e) {} save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); refreshWelcome(); toast("Cleared"); }
+      onConfirm: function () {
+        hideRest(); state = freshState(emptyProgram());
+        // "Erase everything" must mean everything: sweep every tl:* device key
+        // (splash-seen, coach-hint-seen, live/rest timer stamps, parse endpoint)
+        // and the legacy + quarantine blobs, not just the splash flag. Otherwise
+        // a "start over" quietly keeps old history and suppressed one-time hints.
+        try {
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var key = localStorage.key(i);
+            if (key && key.indexOf("tl:") === 0) localStorage.removeItem(key);
+          }
+          localStorage.removeItem(STORE_V1);
+          localStorage.removeItem(STORE + ":quarantine");
+        } catch (e) {}
+        save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); refreshWelcome(); toast("Erased");
+      }
     });
   });
 
@@ -5679,10 +5727,15 @@ function resolveSpec(request, state) {
     $("confirmTitleText").textContent = opts.title || "Are you sure?";
     $("confirmMsg").textContent = opts.message || "";
     yes.textContent = opts.confirmLabel || "Confirm";
-    function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); }
+    function cleanup() { yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); dlg.removeEventListener("close", onClose); }
+    function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); cleanup(); }
     function onYes() { closeDlg(); if (opts.onConfirm) opts.onConfirm(); }
     function onNo() { closeDlg(); }
-    yes.addEventListener("click", onYes); no.addEventListener("click", onNo);
+    // Escape (or any native dialog dismissal) fires `close` without routing
+    // through a button -- tear the handlers down there too, or a stale onYes
+    // stays armed on the shared #confirmYes and fires on the NEXT confirm.
+    function onClose() { cleanup(); }
+    yes.addEventListener("click", onYes); no.addEventListener("click", onNo); dlg.addEventListener("close", onClose);
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
   }
 
