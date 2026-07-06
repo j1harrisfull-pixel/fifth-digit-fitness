@@ -8,7 +8,7 @@ colors:
   ink: "#F6F1EA"
   ink-dim: "#9C9287"
   muted: "#9C9287"
-  faint: "#565B62"
+  faint: "#877D71"
   line: "#29241E"
   line-strong: "#473F35"
   accent: "#FF4A1C"
@@ -104,7 +104,7 @@ system is ever colored except the three semantic status hues (ready-green, manag
 - **Panel Raised** (`#262119`): a second surface step for nested/hover states.
 - **Signal White** (`#F6F1EA`): primary text (ink).
 - **Dim Ink** (`#9C9287`): secondary text, captions, muted labels.
-- **Faint Ink** (`#565B62`): tertiary text, disabled/placeholder states.
+- **Faint Ink** (`#877D71`): tertiary text, disabled/placeholder states.
 - **Hairline** (`#29241E`): default border/divider.
 - **Hairline Strong** (`#473F35`): emphasized border (current-state cards, steppers).
 

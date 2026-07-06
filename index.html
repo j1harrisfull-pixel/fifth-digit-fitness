@@ -3628,7 +3628,11 @@ function resolveSpec(request, state) {
   }
   function renderWeekBar() {
     var p = state.program, wk = curWeek();
-    $("progTitle").textContent = p.title;
+    // Header shows just the split ("Upper/Lower"), not the goal-prefixed full
+    // title ("Hybrid · Upper/Lower") which truncated hard in the narrow header.
+    // The goal is implied elsewhere; the full title stays intact on the receipt.
+    var sep = p.title.indexOf(" · ");
+    $("progTitle").textContent = sep >= 0 ? p.title.slice(sep + 3) : p.title;
     $("weekNo").textContent = wk.week;
     $("weekTotal").textContent = p.weeks.length;
     $("weekPrev").disabled = state.activeWeek <= 0;
@@ -5233,11 +5237,21 @@ function resolveSpec(request, state) {
     syncDayOfWeekChips();
     syncAllEquipChips();
   }
+  // Accent discipline: the top "Build my week" / "Build today's session" button is
+  // the orange primary ONLY until a preview exists. Once a preview is on screen its
+  // own "Use this…" button owns the primary, so demote the now-stale top CTA to a
+  // secondary — never two orange 45°-clipped primaries competing on one screen.
+  function syncBuildCtaEmphasis() {
+    var bb = $("buildBtn"), tb = $("todayBtn");
+    if (bb) bb.classList.toggle("btn--primary", $("buildPreview").classList.contains("hidden"));
+    if (tb) tb.classList.toggle("btn--primary", $("todayPreview").classList.contains("hidden"));
+  }
   function openPlan() {
     pending = null; pendingBuild = null; pendingToday = null; pendingSubstituteIdx = null;
     $("loadPreview").classList.add("hidden"); $("loadText").value = "";
     $("buildPreview").classList.add("hidden");
     $("todayPreview").classList.add("hidden");
+    syncBuildCtaEmphasis();
     syncSubBanner(); // clears any stale banner if the sheet was last left open on Just-Today
     syncBuild();
     syncEquipChips("todayEquip"); syncTodayEquipHint(); syncReadinessChips();
@@ -5283,6 +5297,7 @@ function resolveSpec(request, state) {
       pv.classList.remove("hidden");
       $("confirmBuild").addEventListener("click", confirmBuild);
       $("rebuildBtn").addEventListener("click", function () { onBuild(true); });
+      syncBuildCtaEmphasis(); // preview now owns the primary; demote the top CTA
     }
     // A short "thinking" beat so a generated week feels considered, not careless.
     // Replayed on Try again too (a re-build should feel like re-thinking, matching
@@ -5456,6 +5471,7 @@ function resolveSpec(request, state) {
         $("confirmToday").addEventListener("click", addTodaySession);
         $("retryToday").addEventListener("click", onBuildToday);
         if (pendingTodayAnyway) $("buildAnywayToday").addEventListener("click", buildTodayAnyway);
+        syncBuildCtaEmphasis(); // preview now owns the primary; demote the top CTA
       }
       var wait = thinking ? Math.max(0, 900 - (Date.now() - startedAt)) : 0;
       if (wait > 0) todayThinkTimer = setTimeout(finish, wait); else finish();
@@ -5478,6 +5494,7 @@ function resolveSpec(request, state) {
       '<div class="btn-row" style="margin-top:14px"><button class="btn btn--primary" id="confirmToday" type="button">' + esc(confirmTodayLabel()) + '</button><button class="btn" id="retryToday" type="button">Try again</button></div>';
     $("confirmToday").addEventListener("click", addTodaySession);
     $("retryToday").addEventListener("click", onBuildToday);
+    syncBuildCtaEmphasis(); // preview now owns the primary; demote the top CTA
   }
   // "Add to my week" is honest for the generic, non-slot-specific build, but
   // this session will actually REPLACE a day when it came from the "Can't do
