@@ -5602,6 +5602,10 @@ function resolveSpec(request, state) {
     }
     return null;
   }
+  function completedSetCount(ses, ex) {
+    var lg = readLog(ses, ex);
+    return lg.sets.filter(function (s) { return s.completed; }).length;
+  }
   var superNextTargetId = null;
   function showSuperNext(partner) {
     var el = $("superNext"), fb = $("restFiller"); if (!el) return;
@@ -5639,6 +5643,20 @@ function resolveSpec(request, state) {
     }
     if (!secs) secs = parseRestSeconds(ex.rest);
     if (!secs) return;
+    // Superset handoff: a superset is "alternate, rest after each ROUND", so the
+    // first move of a round gets NO rest -- you go straight to the partner and
+    // rest only once the pair is done. Detect the first move as: the partner is a
+    // set behind (fewer completed sets than this exercise now has). Skip the
+    // timer entirely and advance to the partner. (If the partner is already
+    // finished, supersetPartner returns null and this falls through to a normal
+    // rest -- the honest behaviour for the last unpaired set.)
+    var ssPartner = supersetPartner(curSession(), ex);
+    if (ssPartner && completedSetCount(curSession(), ssPartner) < completedSetCount(curSession(), ex)) {
+      hideRest(); // no rest between the paired moves; clear any prior rest bar
+      selectExercise(ssPartner.id);
+      toast("Superset · " + ssPartner.name + " next");
+      return;
+    }
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
     persistRest();
     document.body.classList.add("has-rest");
