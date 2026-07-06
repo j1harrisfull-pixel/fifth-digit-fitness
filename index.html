@@ -598,6 +598,23 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .phasehead:first-child { padding-top: 4px; }
 .phasehead__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; }
 .phasehead__min { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+/* Phase C: EMOM/AMRAP density block card -- a movement list + one rounds
+   count, logged once for the whole block instead of per exercise/per set. */
+.dc__format { margin: 2px 0 14px; font-size: 13px; color: var(--ink-dim); }
+.dc__list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.dc__move { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.dc__move:last-child { border-bottom: none; padding-bottom: 0; }
+.dc__name { font-size: 14px; font-weight: 600; }
+.dc__meta { font-size: 12px; color: var(--faint); flex: none; }
+.dc__timerbtn { width: 100%; padding: 10px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; }
+.dc__timer { margin-bottom: 14px; text-align: center; padding: 14px; background: var(--surface-2); border: 1px solid var(--line-strong); }
+.dc__timerclock { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -.01em; }
+.dc__timersub { margin: 4px 0 0; font-size: 12px; color: var(--faint); }
+.dc__timerdone { margin: 0; font-size: 14px; font-weight: 600; color: var(--ready); }
+.dc__rounds { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.dc__roundslabel { font-size: 13px; color: var(--ink-dim); }
+.dc__done { width: 100%; padding: 12px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 14px; font-weight: 700; }
+.dc__done.is-done { background: var(--ready); border-color: var(--ready); color: var(--bg); }
 .weight-wrap { display: flex; flex-direction: column; gap: 4px; }
 .loadnote { font-size: 11px; color: var(--ink-dim); letter-spacing: .02em; padding-left: 2px; }
 
@@ -1200,10 +1217,22 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   // generateProgram's own return value passes through it, so without this the
   // freshly-attached blocks would be wiped before a build ever reaches the screen.
   var BLOCK_KINDS = ["warmup", "strength", "conditioning", "cooldown"];
+  // Phase C: a block's format. Absent/"straight" = ordinary per-set logging
+  // (everything before this phase). "emom"/"amrap" mark a 30-min density block
+  // -- rendered as one rounds-counter card, not per-exercise set rows. `rounds`
+  // is only meaningful for "emom" (the target round count the alternating pair
+  // is built for); AMRAP's round count is whatever the user actually logs, so
+  // it's never fabricated into the generated structure.
+  var BLOCK_MODES = ["straight", "emom", "amrap"];
   function normalizeSessionBlocks(blocks) {
     if (!Array.isArray(blocks) || !blocks.length) return undefined;
     var out = blocks.filter(function (b) { return b && BLOCK_KINDS.indexOf(b.kind) >= 0 && typeof b.minutes === "number" && b.minutes >= 0; })
-      .map(function (b) { return { kind: b.kind, minutes: Math.round(b.minutes) }; });
+      .map(function (b) {
+        var o = { kind: b.kind, minutes: Math.round(b.minutes) };
+        if (BLOCK_MODES.indexOf(b.mode) > 0) o.mode = b.mode; // index 0 is "straight" == default, omit it
+        if (o.mode === "emom" && typeof b.rounds === "number" && b.rounds > 0) o.rounds = Math.round(b.rounds);
+        return o;
+      });
     return out.length ? out : undefined;
   }
 
@@ -1256,7 +1285,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           rest: s.rest == null ? null : (typeof s.rest === "number" ? s.rest : str(s.rest, ""))
         };
       }) : [], why: str(e.why, ""),
-      block: BLOCK_KINDS.indexOf(e.block) >= 0 ? e.block : undefined };
+      block: BLOCK_KINDS.indexOf(e.block) >= 0 ? e.block : undefined,
+      densityMode: (e.densityMode === "emom" || e.densityMode === "amrap") ? e.densityMode : undefined };
   }
   function parseRestSeconds(v) {
     if (v == null) return 0;
@@ -3000,6 +3030,72 @@ function attachBlocks(session, minutes) {
   session.blocks = displayOrder.filter(function (k) { return present[k]; }).map(function (k) { return { kind: k, minutes: budgets[k] }; });
   return session;
 }
+// Phase C: a 30-min hybrid session (both a strength AND a conditioning block
+// present) is time-thin for straight sets -- the reference session that
+// started the gold-standard rebuild used an EMOM strength pairing + AMRAP
+// conditioning finisher precisely because that's what makes a genuinely short
+// session potent rather than a rushed, watered-down version of a 45/60-min one.
+// 45/60-min sessions are UNCHANGED by design (plan explicitly says do not
+// default longer sessions into density formats).
+//
+// Only converts when there's real pairable content (>=2 strength exercises,
+// >=1 conditioning exercise) -- a constrained-kit build that only produced one
+// strength move has nothing to alternate with, so it honestly stays straight
+// rather than faking a pairing. Excess exercises beyond the pairing/AMRAP trio
+// are dropped (not renamed/hidden) since the block's time cap, not exercise
+// count, is what defines an EMOM/AMRAP -- the dropped picks were accessory
+// depth that a density format has no slot for.
+var DENSITY_MAX_MINUTES = 30;
+// Which 2 of the day's strength picks become the EMOM pair. Slot 0 (the
+// anchor) always leads. For the partner, naive slice(0,2) would sometimes keep
+// whatever happened to be 2nd in selection order -- e.g. a core hold -- while
+// silently dropping the ONE other compound that gave this day real pattern
+// coverage (a real regression this exact case caught: a "Full Body" day
+// collapsing to Split Squat + Plank once a covering Bodyweight Squat picked at
+// slot 2 got trimmed away). Prefer a genuinely complementary compound with a
+// DIFFERENT pattern than the anchor -- matching the plan's own "anchor + one
+// complementary non-competing pattern" -- falling back to slot 1 only when no
+// such compound exists among the candidates.
+function pickEmomPair(strengthEx) {
+  if (strengthEx.length <= 2) return strengthEx.slice(0, 2);
+  var anchor = strengthEx[0];
+  var anchorLib = LIBRARY.filter(function (l) { return l.name === anchor.name; })[0];
+  var anchorPattern = anchorLib && anchorLib.pattern;
+  var rest = strengthEx.slice(1);
+  var partner = rest.filter(function (e) {
+    var l = LIBRARY.filter(function (l2) { return l2.name === e.name; })[0];
+    return l && l.compound && l.pattern !== anchorPattern;
+  })[0] || rest[0];
+  return [anchor, partner];
+}
+function applyDensityFormat(session, minutes) {
+  if (!(minutes > 0) || minutes > DENSITY_MAX_MINUTES) return session;
+  if (!session || !Array.isArray(session.blocks) || !session.blocks.length) return session;
+  var hasStrength = session.blocks.some(function (b) { return b.kind === "strength"; });
+  var hasCon = session.blocks.some(function (b) { return b.kind === "conditioning"; });
+  if (!hasStrength || !hasCon) return session;
+  var strengthEx = session.exercises.filter(function (e) { return e.block === "strength"; });
+  var conEx = session.exercises.filter(function (e) { return e.block === "conditioning"; });
+  if (strengthEx.length < 2 || conEx.length < 1) return session;
+  var keepStrength = pickEmomPair(strengthEx), keepCon = conEx.slice(0, 3);
+  // Reference identity, NOT e.id: this runs inside guaranteeSession, called from
+  // generateSession/generateProgram BEFORE exercise ids are assigned (that
+  // happens later, in normalizeExercise or addTodaySession) -- every exercise's
+  // `.id` is still undefined here, so keying by id would collapse every
+  // exercise into the same "undefined" bucket and keep all of them.
+  var keepSet = keepStrength.concat(keepCon);
+  session.exercises = session.exercises.filter(function (e) { return (e.block !== "strength" && e.block !== "conditioning") || keepSet.indexOf(e) >= 0; });
+  // EMOM/AMRAP replace supersets with their own alternate-minute/round pairing --
+  // clear any leftover superset group tag so the old chrome doesn't also render.
+  keepStrength.forEach(function (e) { e.densityMode = "emom"; e.group = ""; });
+  keepCon.forEach(function (e) { e.densityMode = "amrap"; e.group = ""; });
+  session.blocks = session.blocks.map(function (b) {
+    if (b.kind === "strength") return { kind: b.kind, minutes: b.minutes, mode: "emom", rounds: Math.max(1, Math.round(b.minutes / 2)) };
+    if (b.kind === "conditioning") return { kind: b.kind, minutes: b.minutes, mode: "amrap" };
+    return b;
+  });
+  return session;
+}
 // Never-empty guarantee: a session with at least one exercise passes through; an
 // empty one (pathological spec that filled no slots) falls through to the floor.
 // `minutes`, when supplied, also attaches the Phase-A block/time-budget summary;
@@ -3014,7 +3110,8 @@ function guaranteeSession(session, minutes) {
       exercises: absoluteFloorExercises()
     };
   }
-  return attachBlocks(session, minutes);
+  session = attachBlocks(session, minutes);
+  return applyDensityFormat(session, minutes);
 }
 function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
@@ -3753,9 +3850,46 @@ function resolveSpec(request, state) {
     if (el.sets.length > ex.sets) el.sets = el.sets.slice(0, ex.sets);
     return { sl: sl, el: el };
   }
+  // Phase C: an EMOM/AMRAP block is logged once, as a round count, not per
+  // exercise/per set -- a completely separate small store (`sl.blocks[kind]`)
+  // alongside the existing per-exercise `sl.ex`. Untouched by migrateLogToSets
+  // (that function only rewrites `sl.ex[id]` entries in place), so it survives
+  // save/reload/archive round-trips for free.
+  function blockPseudoId(kind) { return "blk_" + kind; }
+  function readBlockLog(ses, kind) {
+    var sl = state.log[ses.id], bl = sl && sl.blocks ? sl.blocks[kind] : null;
+    return { rounds: (bl && typeof bl.rounds === "number") ? bl.rounds : 0, completed: !!(bl && bl.completed) };
+  }
+  function writeBlockLog(ses, kind, patch) {
+    var sl = state.log[ses.id]; if (!sl) { sl = { date: null, ex: {} }; state.log[ses.id] = sl; }
+    if (!sl.blocks) sl.blocks = {};
+    var bl = sl.blocks[kind]; if (!bl) { bl = { rounds: 0, completed: false }; sl.blocks[kind] = bl; }
+    if (patch.rounds != null) bl.rounds = Math.max(0, patch.rounds | 0);
+    if (patch.completed != null) bl.completed = !!patch.completed;
+    return bl;
+  }
   function isSkipped(ses, exId) { var sl = state.log[ses.id]; return !!(sl && sl.ex && sl.ex[exId] && sl.ex[exId].skipped); }
+  // Density-mode exercises collapse into ONE pseudo-item per block (id
+  // "blk_<kind>") instead of one item per exercise -- the whole EMOM/AMRAP
+  // block is a single logging unit (a round count), so session progress
+  // ("x/y exercises"), firstIncompleteId, and currentId all treat it as one
+  // thing to complete, exactly like any other item, with no changes to that
+  // shared logic.
   function sessionItemsFor(ses) {
-    return ses.exercises.map(function (e) { var lg = readLog(ses, e); return { id: e.id, sets: e.sets, doneCount: lg.sets.filter(function (s) { return s.completed; }).length, skipped: isSkipped(ses, e.id) }; });
+    var items = [], seenBlock = {};
+    ses.exercises.forEach(function (e) {
+      if (e.densityMode) {
+        var bid = blockPseudoId(e.block);
+        if (seenBlock[bid]) return;
+        seenBlock[bid] = 1;
+        var bl = readBlockLog(ses, e.block);
+        items.push({ id: bid, sets: 1, doneCount: bl.completed ? 1 : 0, skipped: false });
+        return;
+      }
+      var lg = readLog(ses, e);
+      items.push({ id: e.id, sets: e.sets, doneCount: lg.sets.filter(function (s) { return s.completed; }).length, skipped: isSkipped(ses, e.id) });
+    });
+    return items;
   }
   function sessionItems() { return sessionItemsFor(curSession()); }
   function currentId() {
@@ -4934,9 +5068,50 @@ function resolveSpec(request, state) {
     return { html: html, i: i };
   }
   var PHASE_LABEL = { warmup: "Warm-up", strength: "Strength", conditioning: "Conditioning", cooldown: "Cool-down" };
-  function phaseHeaderHtml(kind, minutes) {
-    return '<div class="phasehead"><span class="phasehead__label">' + esc(PHASE_LABEL[kind] || kind) +
+  var BLOCK_MODE_LABEL = { emom: "EMOM", amrap: "AMRAP" };
+  function phaseHeaderHtml(kind, minutes, mode) {
+    var label = BLOCK_MODE_LABEL[mode] ? PHASE_LABEL[kind] + " · " + BLOCK_MODE_LABEL[mode] : (PHASE_LABEL[kind] || kind);
+    return '<div class="phasehead"><span class="phasehead__label">' + esc(label) +
       '</span><span class="phasehead__min mono">' + minutes + ' min</span></div>';
+  }
+  // Phase C: an EMOM/AMRAP block renders as ONE card -- a movement list (what
+  // each minute/round asks for) and a single rounds-completed count -- instead
+  // of per-exercise set rows, matching how these formats are actually logged in
+  // a gym (nobody counts "sets" in an EMOM, they count rounds). Same
+  // collapsed/expanded shell as buildCard (`.card:not(.is-current)` hides
+  // `.card__full` and shows `.card__collapsed` via shared CSS) so it sits in
+  // the same one-exercise-at-a-time flow as every other card.
+  function buildDensityCard(items, ses, block, i) {
+    var kind = block.kind, mode = block.mode, bid = blockPseudoId(kind), unit = state.program.unit;
+    var bl = readBlockLog(ses, kind);
+    var moves = items.map(function (e) {
+      var lg = readLog(ses, e);
+      var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
+      var loadTxt = loadable && lg.weight > 0 ? (roundW(lg.weight) + " " + unit + " · ") : "";
+      var repsTxt = e.reps ? (e.reps + (exTimed(e.name) ? "s" : " reps")) : "";
+      return '<li class="dc__move"><span class="dc__name">' + esc(e.name) + '</span><span class="dc__meta mono">' + esc(loadTxt + repsTxt) + '</span></li>';
+    }).join("");
+    var targetRounds = block.rounds || Math.max(1, Math.round(block.minutes / 2));
+    var formatLine = mode === "emom"
+      ? "Alternate every minute · target " + targetRounds + " rounds of both moves"
+      : "As many rounds as possible in " + block.minutes + " min";
+    var done = !!bl.completed;
+    var collapsedMeta = mode === "emom" ? bl.rounds + "/" + targetRounds + " rounds" : bl.rounds + " round" + (bl.rounds === 1 ? "" : "s");
+    return '<article class="card card--density' + (done ? " is-complete" : "") + '" data-ex="' + bid + '" style="--i:' + i + '">' +
+      '<div class="card__collapsed">' +
+      '<span class="card__collapsed-check' + (done ? " is-done" : "") + '" aria-hidden="true">' + (done ? checkIcon : "") + '</span>' +
+      '<span class="card__collapsed-name">' + esc(BLOCK_MODE_LABEL[mode] || mode) + '</span>' +
+      '<span class="card__collapsed-meta mono">' + esc(collapsedMeta) + '</span>' +
+      '</div>' +
+      '<div class="card__full">' +
+      '<header class="card__head"><h3 class="card__name">' + esc(BLOCK_MODE_LABEL[mode] || mode) + '</h3></header>' +
+      '<p class="dc__format">' + esc(formatLine) + '</p>' +
+      '<ul class="dc__list">' + moves + '</ul>' +
+      '<div class="dc__timer" data-blk="' + kind + '" hidden></div>' +
+      '<button type="button" class="dc__timerbtn" data-act="blktimer" data-blk="' + kind + '" data-mode="' + mode + '" data-min="' + block.minutes + '">Start timer</button>' +
+      '<div class="dc__rounds"><span class="dc__roundslabel">Rounds completed</span><div class="stepper" role="group" aria-label="Rounds completed"><button type="button" class="step" data-act="blkrounds-" data-blk="' + kind + '" aria-label="One fewer round">−</button><span class="stepper__val mono" id="blkrounds-' + kind + '">' + bl.rounds + '</span><button type="button" class="step" data-act="blkrounds+" data-blk="' + kind + '" aria-label="One more round">+</button></div></div>' +
+      '<button type="button" class="dc__done' + (done ? " is-done" : "") + '" data-act="blkdone" data-blk="' + kind + '">' + (done ? "Done ✓" : "Mark block done") + '</button>' +
+      '</div></article>';
   }
   function renderList(animate) {
     var ses = curSession();
@@ -4958,8 +5133,9 @@ function resolveSpec(request, state) {
       ses.blocks.forEach(function (b) {
         var items = byBlock[b.kind] || [];
         if (!items.length) return; // blocks[] only lists non-empty kinds, but stay defensive
-        html += phaseHeaderHtml(b.kind, b.minutes);
-        var r = renderCardRun(items, ses, i); html += r.html; i = r.i;
+        html += phaseHeaderHtml(b.kind, b.minutes, b.mode);
+        if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i); i++; }
+        else { var r = renderCardRun(items, ses, i); html += r.html; i = r.i; }
       });
     } else {
       var r2 = renderCardRun(ses.exercises, ses, i); html = r2.html; i = r2.i;
@@ -4983,7 +5159,7 @@ function resolveSpec(request, state) {
     // program exists; once one does, the hero CTA carries the accent instead.
     var pb = $("planBtn"); if (pb) pb.classList.toggle("is-accent", !hasProgram());
     renderWeekBar();
-    if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); maybeShowCoachHint(); if (animate) scrollToCurrent(); }
+    if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); maybeShowCoachHint(); resumeDensityTimer(); if (animate) scrollToCurrent(); }
     else { renderHomeHero(); renderWeekList(); }
   }
   // The RPE/1RM explainer shows once (until dismissed), and only on a day that
@@ -4996,12 +5172,40 @@ function resolveSpec(request, state) {
     el.hidden = seen || !hasStrength;
   }
 
+  // Phase C: the three density-card controls (rounds stepper, mark-done, start
+  // timer) all key off `data-blk` (a block kind), not `data-ex` (an exercise
+  // id) -- handled here, before onListClick's normal per-exercise dispatch,
+  // since there's no single `e` to resolve for a whole block.
+  function onDensityAct(act, kind, btn) {
+    var ses = curSession();
+    if (act === "blkrounds-" || act === "blkrounds+") {
+      var next = Math.max(0, readBlockLog(ses, kind).rounds + (act === "blkrounds+" ? 1 : -1));
+      writeBlockLog(ses, kind, { rounds: next }); save();
+      renderList(false); applyGlance();
+      return;
+    }
+    if (act === "blkdone") {
+      var bl = readBlockLog(ses, kind);
+      writeBlockLog(ses, kind, { completed: !bl.completed }); save();
+      renderList(false); applyGlance();
+      var pr = sessionProgress(sessionItemsFor(ses));
+      if (pr.total > 0 && pr.done === pr.total) renderDayBar();
+      return;
+    }
+    if (act === "blktimer") {
+      var mode = btn.getAttribute("data-mode"), minutes = parseInt(btn.getAttribute("data-min"), 10);
+      startDensityTimer(kind, mode, minutes);
+      return;
+    }
+  }
   /* ===================== Interactions ===================== */
   function onListClick(ev) {
     if (ev.target.closest("#dayRemove")) { removeCurrentDay(); return; }
     var cardEl = ev.target.closest(".card");
     if (cardEl) selectExercise(cardEl.getAttribute("data-ex"));
     var btn = ev.target.closest("[data-act]"); if (!btn) return;
+    var blk = btn.getAttribute("data-blk");
+    if (blk) { onDensityAct(btn.getAttribute("data-act"), blk, btn); return; }
     var act = btn.getAttribute("data-act"), id = btn.getAttribute("data-ex"), e = findEx(id); if (!e) return;
     var ses = curSession();
     if (act === "set") {
@@ -5819,7 +6023,7 @@ function resolveSpec(request, state) {
     if (!week) return;
     var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
-      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block };
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block, densityMode: e.densityMode };
     }) };
     // Gold-standard Phase A: carry the block/time-budget summary through too --
     // pendingToday came from generateSession/guaranteeSession, which already
@@ -6097,6 +6301,67 @@ function resolveSpec(request, state) {
     } catch (e) {}
   }
   function fmtClock(sec) { sec = Math.max(0, sec); var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  // Phase C: EMOM/AMRAP timer for a density block -- same timestamp-based,
+  // survives-lock/reload persistence pattern as the set-rest timer above, but
+  // counts a whole block instead of one rest. AMRAP is a single countdown of
+  // the block's minutes. EMOM is a repeating 60s cadence (beep + vibrate at
+  // each minute boundary) until the block's minutes elapse, then it stops.
+  // Unlike #restTimer (a static element outside listEl), the block's `.dc__timer`
+  // host lives INSIDE the card list and is destroyed on every renderList() --
+  // resumeDensityTimer() re-finds it and repaints, called after every render
+  // of the day view (see renderAll), not just once at boot.
+  var DENSITY_TIMER_KEY = "tl:densitytimer";
+  var densityTimerState = { kind: null, mode: null, minutes: 0, startAt: 0, timer: null };
+  function persistDensityTimer() { try { localStorage.setItem(DENSITY_TIMER_KEY, JSON.stringify({ kind: densityTimerState.kind, mode: densityTimerState.mode, minutes: densityTimerState.minutes, startAt: densityTimerState.startAt })); } catch (e) {} }
+  function clearDensityTimerPersist() { try { localStorage.removeItem(DENSITY_TIMER_KEY); } catch (e) {} }
+  function densityTimerHost(kind) { return listEl ? listEl.querySelector('.dc__timer[data-blk="' + kind + '"]') : null; }
+  function densityTimerBtn(kind) { return listEl ? listEl.querySelector('.dc__timerbtn[data-blk="' + kind + '"]') : null; }
+  function startDensityTimer(kind, mode, minutes) {
+    if (!(minutes > 0)) return;
+    clearInterval(densityTimerState.timer);
+    densityTimerState = { kind: kind, mode: mode, minutes: minutes, startAt: Date.now(), timer: null };
+    persistDensityTimer();
+    unlockAudio(); acquireWakeLock();
+    var btn = densityTimerBtn(kind); if (btn) btn.hidden = true;
+    var host = densityTimerHost(kind); if (host) host.hidden = false;
+    tickDensityTimer();
+    densityTimerState.timer = setInterval(tickDensityTimer, 250);
+  }
+  function tickDensityTimer() {
+    var host = densityTimerHost(densityTimerState.kind);
+    var totalMs = densityTimerState.minutes * 60000, elapsed = Date.now() - densityTimerState.startAt;
+    var overallRem = Math.max(0, totalMs - elapsed);
+    if (overallRem <= 0) {
+      clearInterval(densityTimerState.timer); densityTimerState.timer = null;
+      clearDensityTimerPersist(); releaseWakeLock();
+      if (host) host.innerHTML = '<p class="dc__timerdone">Time’s up · log your rounds</p>';
+      beep(); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]); } catch (e) {}
+      return;
+    }
+    if (!host) return;
+    if (densityTimerState.mode === "emom") {
+      var cycleMs = elapsed % 60000, cycleRem = Math.ceil((60000 - cycleMs) / 1000);
+      // A fresh minute just started (cycleMs just wrapped to ~0) -- signal the switch.
+      if (cycleMs < 260 && elapsed > 260) { beep(); try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {} }
+      host.innerHTML = '<p class="dc__timerclock mono">' + fmtClock(cycleRem) + '</p><p class="dc__timersub">this minute · ' + fmtClock(Math.ceil(overallRem / 1000)) + ' left overall</p>';
+    } else {
+      host.innerHTML = '<p class="dc__timerclock mono">' + fmtClock(Math.ceil(overallRem / 1000)) + '</p><p class="dc__timersub">remaining</p>';
+    }
+  }
+  function resumeDensityTimer() {
+    if (state.view !== "day") { clearDensityTimerPersist(); return; }
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(DENSITY_TIMER_KEY)); } catch (e) {}
+    if (!saved || !(saved.startAt > 0) || !(saved.minutes > 0)) { clearDensityTimerPersist(); return; }
+    if (Date.now() - saved.startAt >= saved.minutes * 60000) { clearDensityTimerPersist(); return; }
+    var host = densityTimerHost(saved.kind); if (!host) return; // this block isn't on the current day's render
+    clearInterval(densityTimerState.timer);
+    densityTimerState = { kind: saved.kind, mode: saved.mode, minutes: saved.minutes, startAt: saved.startAt, timer: null };
+    var btn = densityTimerBtn(saved.kind); if (btn) btn.hidden = true;
+    host.hidden = false;
+    tickDensityTimer();
+    densityTimerState.timer = setInterval(tickDensityTimer, 250);
+  }
   // Optional accessory ("filler") suggested during a main lift's rest: a low-fatigue
   // move (mobility, core, calf, or a band isolation) that won't tax the lift you just
   // did. Only on strength sets with real rest (>=90s), and only if the toggle is on.
