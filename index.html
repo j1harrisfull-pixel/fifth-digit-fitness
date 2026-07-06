@@ -4789,7 +4789,7 @@ function resolveSpec(request, state) {
     return true;
   }
   function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); startLiveTimer(); acquireWakeLock(); }
-  function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); }
+  function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload(); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
     if (ni < 0 || ni >= state.program.weeks.length) return;
@@ -6032,19 +6032,26 @@ function resolveSpec(request, state) {
   initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
   if (state.view === "day") { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
   if (quarantinedRaw) toast("Couldn't read your saved data. A recovery copy was kept on this device");
+  // A newly deployed SW takes over on its own (skipWaiting + claim). Applying it
+  // means reloading the page -- but NEVER out from under an active workout: a
+  // mid-set reload is the one interruption the app must not cause. So a
+  // controllerchange that lands while you're in the day view is DEFERRED and
+  // applied the moment you leave the session (backToWeek). Off the day view, it
+  // applies right away, same as before.
+  var swReloadPending = false, swReloadDone = false;
+  function applySwReload() {
+    if (!swReloadPending || swReloadDone) return;
+    swReloadDone = true;
+    toast("Updating to the latest version…");
+    setTimeout(function () { window.location.reload(); }, 500);
+  }
   if ("serviceWorker" in navigator) {
-    // Auto-update. The SW skipWaits + claims, so a newly deployed version becomes
-    // the controller on its own. If this page was already controlled when it loaded,
-    // a controllerchange means that fresh version just took over — reload once to
-    // swap it in (no more "open it twice"). The controller guard skips the very
-    // first install so a first-ever visit never reloads itself.
     if (navigator.serviceWorker.controller) {
-      var swRefreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", function () {
-        if (swRefreshing) return;
-        swRefreshing = true;
-        toast("Updating to the latest version…");
-        setTimeout(function () { window.location.reload(); }, 600);
+        if (swReloadDone) return;
+        swReloadPending = true;
+        if (state && state.view === "day") return; // hold until the workout ends
+        applySwReload();
       });
     }
     window.addEventListener("load", function () {
