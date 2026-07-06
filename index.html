@@ -5827,11 +5827,22 @@ function resolveSpec(request, state) {
         prBanner.textContent = prText; prBanner.hidden = false;
       } else { prBanner.hidden = true; prBanner.textContent = ""; }
     }
-    // The stamp's sig line: today's date (same format as the rest of the app)
-    // plus the real elapsed session time -- never a fabricated duration.
+    // The stamp's sig line: today's date + the real session duration. Measure
+    // from the FIRST LOGGED SET (sl.date), not from when the app was opened, so
+    // pre-workout dawdling (open the app, browse, then start) doesn't inflate it;
+    // fall back to the live-timer start if nothing's logged. And since we don't
+    // track pauses, an implausibly long span (left the app open, walked away) is
+    // suppressed rather than printed as a fabricated-looking duration -- an
+    // honest blank beats a wrong number.
     var sigLine = $("completeSigLine");
     if (sigLine) {
-      var mins = liveTimerStart ? Math.max(1, Math.round((Date.now() - liveTimerStart) / 60000)) : null;
+      var slc = state.log[ses.id];
+      var startMs = (slc && slc.date) ? Date.parse(slc.date) : (liveTimerStart || 0);
+      var mins = null;
+      if (startMs) {
+        var m = Math.round((Date.now() - startMs) / 60000);
+        if (m >= 1 && m <= 180) mins = m; // plausible single-session window only
+      }
       sigLine.textContent = fmtDate(new Date().toISOString()) + (mins != null ? " · " + mins + " min" : "");
     }
     var nextBtn = $("completeNext"), dlg = $("completeSheet");
