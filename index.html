@@ -1831,7 +1831,13 @@ function libraryIntegrity(lib) {
 
 var ROLES = {
   full: [{ patterns: ["squat", "lunge"], compound: true }, { patterns: ["hinge"], compound: true }, { patterns: ["hpush"], compound: true }, { patterns: ["hpull", "vpull"], compound: true }, { patterns: ["vpush"], compound: false }, { patterns: ["core"], compound: false }],
-  upper: [{ patterns: ["hpush"], compound: true }, { patterns: ["vpull", "hpull"], compound: true }, { patterns: ["vpush"], compound: false }, { patterns: ["hpull"], compound: false }, { patterns: ["biceps"], compound: false }, { patterns: ["triceps"], compound: false }],
+  // Slot 2 is a COMPOUND vpush (Phase D vertical-press guarantee): "Upper" bills
+  // shoulders in its focus text (ROLE_FOCUS.upper), but this slot used to be
+  // compound:false, so pickStrength could only ever fill it with an isolation
+  // move (Lateral Raise) -- a real Overhead/DB Shoulder Press was structurally
+  // impossible here, no matter the session length. Mirrors ROLES.push, which
+  // already pairs a compound hpush + compound vpush slot the same way.
+  upper: [{ patterns: ["hpush"], compound: true }, { patterns: ["vpull", "hpull"], compound: true }, { patterns: ["vpush"], compound: true }, { patterns: ["hpull"], compound: false }, { patterns: ["biceps"], compound: false }, { patterns: ["triceps"], compound: false }],
   lower: [{ patterns: ["squat"], compound: true }, { patterns: ["hinge"], compound: true }, { patterns: ["lunge"], compound: false }, { patterns: ["hinge"], compound: false }, { patterns: ["calf"], compound: false }, { patterns: ["core"], compound: false }],
   push: [{ patterns: ["hpush"], compound: true }, { patterns: ["vpush"], compound: true }, { patterns: ["hpush"], compound: false }, { patterns: ["vpush"], compound: false }, { patterns: ["triceps"], compound: false }, { patterns: ["triceps"], compound: false }],
   pull: [{ patterns: ["vpull"], compound: true }, { patterns: ["hpull"], compound: true }, { patterns: ["hpull"], compound: false }, { patterns: ["vpull"], compound: false }, { patterns: ["biceps"], compound: false }, { patterns: ["biceps"], compound: false }],
@@ -1927,13 +1933,27 @@ var DEADLIFT_FAMILY = ["deadlift", "deficit-deadlift", "trap-bar-deadlift", "rom
 // prescribed as a maximal triple -- those are eccentric/unilateral/isolation
 // movements that belong at higher reps. A lead lift outside this set still
 // leads the day, just at a moderate strength scheme, never 3-5 + ramp.
+// RAMP_ANCHORS stays the full ramp-eligible set (unchanged meaning, still used
+// for the ramp-curve gate and as the broad "money lift" check). Phase D splits
+// it into two TIERS purely for ANCHOR SLOT SCORING below: T1 is the flagship a
+// coach defaults to (Bench, Back Squat, OHP, Deadlift, Barbell Row, Pull-up/
+// Chin-up, Trap Bar Deadlift); T2 is its specialty variations (pause/floor/
+// incline/banded/front-squat/pendlay/deficit etc.). Without this split every
+// ramp anchor scored identically, so on a full gym a coin-toss (seeded jitter)
+// could let a specialty variation (Floor Press) lead a day over the flagship
+// (Bench Press) -- exactly the reported bug. T2 stays fully eligible as an
+// anchor (when T1 can't fill the slot -- equipment, dedup) and for accessory
+// slots; it just no longer TIES with T1 for the primary pick.
+var ANCHOR_T1 = {};
+["back-squat", "bench-press", "overhead-press", "deadlift", "trap-bar-deadlift",
+ "barbell-row", "pull-up", "chin-up"].forEach(function (id) { ANCHOR_T1[id] = 1; });
+var ANCHOR_T2 = {};
+["front-squat", "pause-squat", "hack-squat", "leg-press", "smith-squat", "banded-squat",
+ "pause-bench-press", "floor-press", "incline-bench-press", "banded-bench-press",
+ "deficit-deadlift", "banded-deadlift",
+ "pendlay-row"].forEach(function (id) { ANCHOR_T2[id] = 1; });
 var RAMP_ANCHORS = {};
-["back-squat", "front-squat", "pause-squat", "hack-squat", "leg-press", "smith-squat", "banded-squat",
- "bench-press", "pause-bench-press", "floor-press", "incline-bench-press", "banded-bench-press",
- "overhead-press",
- "deadlift", "deficit-deadlift", "trap-bar-deadlift", "banded-deadlift",
- "barbell-row", "pendlay-row",
- "pull-up", "chin-up"].forEach(function (id) { RAMP_ANCHORS[id] = 1; });
+Object.keys(ANCHOR_T1).concat(Object.keys(ANCHOR_T2)).forEach(function (id) { RAMP_ANCHORS[id] = 1; });
 // The accessible-substitute bodyweight moves: real training when they're all a
 // kit offers, but a loaded gym should never PROGRAM them over a barbell squat or
 // a real row. Deprioritised whenever the slot has any non-basic option (so they
@@ -2073,9 +2093,17 @@ function selectComplementary(o) {
       // happened to surface. Reward the canonical strength anchors and nudge
       // machine/Smith substitutes down, so a full gym leads with the bar (Back
       // Squat, not Goblet Squat; Barbell Row, not Smith Row). Hypertrophy keeps
-      // its lengthened-stretch bias above instead.
+      // its lengthened-stretch bias above instead. TIERED (Phase D): T1 flagships
+      // score well below T2 specialty variations -- previously every RAMP_ANCHOR
+      // got the same flat bonus, so Bench Press and Floor Press tied and seeded
+      // jitter alone (a ~5-point spread) decided the coin toss, letting a
+      // specialty variation lead the day over the flagship. The 8-point gap
+      // between tiers is wider than that jitter spread, so T1 reliably wins
+      // whenever it's available for the slot; T2 remains the honest anchor when
+      // T1 can't fill it (equipment, week-level dedup).
       if (isAnchor && slotCompound && (selGoal === "strength" || selGoal === "general")) {
-        if (RAMP_ANCHORS[e.id]) s -= 8;
+        if (ANCHOR_T1[e.id]) s -= 12;
+        else if (ANCHOR_T2[e.id]) s -= 4;
         if (e.stability_demand === "machine") s += 4;
       }
       s += seededJitter(e.id, seedForSlot) * 5;                            // variety within ties

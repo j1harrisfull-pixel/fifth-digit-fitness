@@ -2,15 +2,20 @@
 // (1) strength anchors are FROZEN across the whole block (same main lift each
 //     week so load can climb); (2) conditioning/mobility still ROTATE for variety;
 // (3) full-gym strength anchors are barbell "money lifts" (RAMP_ANCHORS), not
-//     random same-pattern compounds; (4) strength conditioning is polarized
-//     (<=1 hard finisher/week); (5) no battle-ropes/jump-rope on a bodyweight kit.
+//     random same-pattern compounds; (3b) and specifically T1 FLAGSHIPS, not
+//     tied specialty variations (Phase D -- the reported Floor-Press-led-over-
+//     Bench-Press bug); (4) strength conditioning is polarized (<=1 hard
+//     finisher/week); (5) no battle-ropes/jump-rope on a bodyweight kit;
+//     (6) Phase D vertical-press guarantee: any Upper/Push day that bills
+//     shoulders in its focus and has room (>=3 strength slots) contains a real
+//     compound vertical press, not just an isolation lateral raise.
 const fs = require('fs');
 const lines = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8').split('\n');
 const helper = lines.slice(lines.findIndex(l => /function clampInt\(/.test(l)), lines.findIndex(l => /function migrateV1toV2\(/.test(l))).join('\n');
 const cs = lines.findIndex(l => l.includes('/*__COACH_START__*/')), ce = lines.findIndex(l => l.includes('/*__COACH_END__*/'));
-const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,RAMP_ANCHORS,generateProgram};';
+const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,RAMP_ANCHORS,ANCHOR_T1,ANCHOR_T2,generateProgram};';
 const m = { exports: {} }; new Function('module', 'exports', src)(m, m.exports);
-const { LIBRARY, RAMP_ANCHORS, generateProgram } = m.exports;
+const { LIBRARY, RAMP_ANCHORS, ANCHOR_T1, ANCHOR_T2, generateProgram } = m.exports;
 const byName = {}; LIBRARY.forEach(e => byName[e.name.toLowerCase()] = e);
 const libOf = n => byName[String(n).toLowerCase()];
 let pass = 0, fail = 0; const fails = [];
@@ -56,6 +61,27 @@ for (const seed of [1, 3, 7, 11, 17, 23, 31, 42]) {
 }
 ok(moneyHits / moneyTotal >= 0.9, `>=90% full-gym strength anchors are money lifts (got ${moneyHits}/${moneyTotal})`);
 
+// ---------- 3b. full-gym anchors are specifically T1 flagships, not tied T2 variations ----------
+// Regression test for the reported bug: Floor Press (T2) led an Upper day over
+// Bench Press (T1) because both scored identically. Covers strength AND hybrid
+// (hybrid's selGoal collapses to the same "general" bucket the anchor bonus
+// gates on), across enough seeds that a real regression can't hide in the jitter.
+let t1Hits = 0, t1Total = 0;
+for (const goal of ['strength', 'hybrid']) for (const seed of [1, 3, 7, 11, 17, 23, 31, 42, 55, 89]) {
+  const p = generateProgram({ goal, days: 4, minutes: 60, weeks: 4, includes: ['mobility', 'conditioning'], equipment: null }, {}, seed, {}, {});
+  p.weeks[0].sessions.forEach(s => {
+    const lead = strengthOf(s)[0]; if (!lead) return;
+    const l = libOf(lead.name); t1Total++;
+    if (l && ANCHOR_T1[l.id]) t1Hits++;
+  });
+}
+ok(t1Hits / t1Total >= 0.85, `>=85% strength/hybrid full-gym anchors are T1 flagships (got ${t1Hits}/${t1Total})`);
+// Confirm the tiers are actually disjoint and both non-empty (guards against a
+// future edit collapsing them back into one bucket without anyone noticing).
+const t1Ids = Object.keys(ANCHOR_T1), t2Ids = Object.keys(ANCHOR_T2);
+ok(t1Ids.length > 0 && t2Ids.length > 0, `both anchor tiers populated (T1=${t1Ids.length}, T2=${t2Ids.length})`);
+ok(t1Ids.every(id => !ANCHOR_T2[id]), 'ANCHOR_T1 and ANCHOR_T2 are disjoint');
+
 // ---------- 4. strength conditioning polarized (<=1 hard/week) ----------
 const HARD = /interval|sprint|rope|burpee/i;
 let overCon = 0;
@@ -75,6 +101,29 @@ for (const seed of [1, 5, 9]) {
   p.weeks.forEach(w => w.sessions.forEach(s => s.exercises.forEach(e => { if (/Battle Ropes|Jump Rope/.test(e.name)) ropeLeak++; })));
 }
 ok(ropeLeak === 0, `${ropeLeak} rope moves leaked into a bodyweight kit`);
+
+// ---------- 6. Phase D vertical-press guarantee ----------
+// Any day that BILLS shoulders in its focus text (Upper/Push, via ROLE_FOCUS)
+// must contain a real compound vertical press once it has room for one (>=3
+// strength slots) -- not just an isolation lateral raise. Gated on slot count
+// so a 2-exercise session (too short for full coverage) isn't unfairly failed.
+let pressChecked = 0, pressMissing = 0;
+for (const goal of ['strength', 'hybrid', 'hypertrophy', 'general']) for (const days of [2, 4, 5, 6]) for (const minutes of [45, 60]) for (const seed of [1, 5, 9, 13, 21]) {
+  const p = generateProgram({ goal, days, minutes, weeks: 1, includes: ['mobility', 'conditioning'], equipment: null }, {}, seed, {}, {});
+  p.weeks[0].sessions.forEach(s => {
+    if (!/shoulders/i.test(s.focus || '')) return; // only days that BILL shoulders (Upper/Push)
+    const strength = strengthOf(s);
+    if (strength.length < 3) return; // too short a session to guarantee full coverage
+    pressChecked++;
+    const hasPress = strength.some(e => {
+      const l = libOf(e.name);
+      return l && l.compound && (l.movement_pattern === 'vert_push' || l.pattern === 'vpush');
+    });
+    if (!hasPress) pressMissing++;
+  });
+}
+ok(pressChecked > 0, 'vertical-press check actually exercised some Upper/Push sessions');
+ok(pressMissing === 0, `${pressMissing}/${pressChecked} shoulder-billed sessions (>=3 strength slots) missing a real vertical press`);
 
 console.log(`froze-checked ${frozenChecks} session-slots`);
 console.log(pass + ' passed, ' + fail + ' failed');
