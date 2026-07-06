@@ -210,6 +210,9 @@ input, textarea { font: inherit; color: inherit; }
 
 /* One-time RPE / est-1RM explainer: pulled, dismissible, shown once. */
 .coachhint { margin: 0 14px 8px; padding: 12px 14px; border: 1px solid var(--line-strong); background: var(--surface); display: flex; align-items: flex-start; gap: 12px; }
+/* display:flex overrides the plain [hidden] attribute, so the dismiss button's
+   coachHint.hidden = true never actually hid it -- same bug class as .supernext. */
+.coachhint[hidden] { display: none; }
 .coachhint__body { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
 .coachhint__body b { color: var(--ink); font-weight: 700; }
 .coachhint__dismiss { flex: none; align-self: center; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; }
@@ -643,6 +646,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
    because a genuine all-time best is exactly the kind of moment this brand's
    "spend the accent once" rule exists to protect, not suppress. */
 .complete__pr-banner { display: inline-block; font-family: var(--font-display); font-weight: 800; font-size: 13px; letter-spacing: .01em; color: var(--accent-ink); background: var(--accent-tint); border: 1px solid var(--accent-ink); padding: 6px 10px; margin: 0 0 16px; }
+/* display:inline-block overrides [hidden], so a no-PR session showed an empty
+   accent box (the element is re-used and .hidden=true never took). */
+.complete__pr-banner[hidden] { display: none; }
 .complete__pr-badge { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent-ink); border: 1px solid var(--accent-ink); padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
 .complete__read-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--paper-dim); font-weight: 700; margin: 0 0 10px; }
 .complete__read-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px dashed var(--paper-line); }
@@ -4583,6 +4589,8 @@ function resolveSpec(request, state) {
         unlockAudio();
         var pr1 = sessionProgress(sessionItemsFor(ses));
         if (pr1.total > 0 && pr1.done === pr1.total) showSessionComplete(ses); else startRest(e, si);
+      } else {
+        hideRest(); // un-checking a set cancels the rest it started
       }
       applyGlance();
     } else if (act === "w-" || act === "w+") {
@@ -4691,6 +4699,11 @@ function resolveSpec(request, state) {
         unlockAudio();
         var pr2 = sessionProgress(sessionItemsFor(ses));
         if (pr2.total > 0 && pr2.done === pr2.total) showSessionComplete(ses); else startRest(e, di);
+      } else {
+        // Un-checking a set (the most common logging fumble -- a mis-tap) should
+        // cancel the rest it started, not leave a timer counting down for a set
+        // you just said you didn't do.
+        hideRest();
       }
       applyGlance();
     } else if (act === "rep-" || act === "rep+") {
@@ -4731,6 +4744,28 @@ function resolveSpec(request, state) {
   function resetDay() {
     var ses = curSession(), sid = ses.id;
     var sl = state.log[sid];
+    // Reset wipes every logged set/rep/weight/RPE for the day. It's a small icon
+    // in the day header, so a mis-tap mid-workout would silently bin the session
+    // (a 6s toast-Undo is easy to miss). Confirm first -- but only when there's
+    // real logged data to lose; on an untouched day it's a harmless no-op.
+    var hasLogged = !!(sl && sl.ex && Object.keys(sl.ex).some(function (k) {
+      var el = sl.ex[k]; return el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; });
+    }));
+    if (hasLogged) {
+      askConfirm({
+        title: "Reset " + ses.name + "?",
+        message: "This clears every set, weight and rep you've logged for this session. You can undo for a few seconds after.",
+        confirmLabel: "Reset session",
+        onConfirm: doResetDay
+      });
+      return;
+    }
+    doResetDay();
+  }
+  function doResetDay() {
+    var ses = curSession(), sid = ses.id;
+    var sl = state.log[sid];
+    hideRest(); // a running rest is for a set that's about to be wiped
     var prev = sl ? JSON.parse(JSON.stringify(sl)) : null; // snapshot for Undo
     if (sl && sl.ex) {
       Object.keys(sl.ex).forEach(function (k) {
@@ -5621,16 +5656,34 @@ function resolveSpec(request, state) {
   // my pocket" is the one unforgivable failure of a gym timer. Timestamps
   // (endAt), not remaining seconds, so recompute-on-resume is exact.
   var REST_KEY = "tl:rest";
-  function persistRest() { try { localStorage.setItem(REST_KEY, JSON.stringify({ endAt: restState.endAt, total: restState.total })); } catch (e) {} }
+  function persistRest() { try { localStorage.setItem(REST_KEY, JSON.stringify({ endAt: restState.endAt, total: restState.total, exId: restState.exId, setIdx: restState.setIdx })); } catch (e) {} }
   function clearRestPersist() { try { localStorage.removeItem(REST_KEY); } catch (e) {} }
+  // The rest bar's context (RPE chips, superset "next up", or filler) -- shared by
+  // startRest and resumeRest so a rest RESTORED after a lock-screen/reload comes
+  // back with its guidance, not a bare countdown.
+  function showRestContext(ex, setIdx) {
+    if (!ex) { hideSuperNext(); hideFiller(); return; }
+    var partner = supersetPartner(curSession(), ex);
+    var isAnchor = !partner && curSession().exercises.indexOf(ex) === 0 && ex.type === "strength";
+    // Clear both prompts first so neither a superset nor a filler from a prior
+    // exercise's rest can linger on a rest that shouldn't show one (the anchor,
+    // which gets no filler and no partner).
+    hideSuperNext(); hideFiller();
+    if (partner) showSuperNext(partner); else if (!isAnchor) showFiller(ex);
+    showRestRpe(ex, setIdx);
+  }
   function resumeRest() {
     if (state.view !== "day") { clearRestPersist(); return; }
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(REST_KEY)); } catch (e) {}
     if (!saved || !(saved.endAt > Date.now())) { clearRestPersist(); return; }
     restState.total = saved.total; restState.endAt = saved.endAt;
+    restState.exId = saved.exId; restState.setIdx = (saved.setIdx == null ? null : saved.setIdx);
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
+    // Restore the rest's context (RPE / superset / filler), not just the timer.
+    var rex = saved.exId ? curSession().exercises.filter(function (e) { return e.id === saved.exId; })[0] : null;
+    if (rex) showRestContext(rex, saved.setIdx);
     tickRest();
     clearInterval(restState.timer); restState.timer = setInterval(tickRest, 250);
   }
@@ -5658,28 +5711,14 @@ function resolveSpec(request, state) {
       return;
     }
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
+    restState.exId = ex.id; restState.setIdx = (setIdx == null ? null : setIdx);
     persistRest();
     document.body.classList.add("has-rest");
     restEl.classList.remove("is-done"); restEl.hidden = false;
     // Reset the controls a completed rest may have swapped (Done -> Skip, +15s back).
     var rpB = $("restPlus"); if (rpB) rpB.hidden = false;
     var rskB = $("restSkip"); if (rskB) rskB.textContent = "Skip";
-    // Superset: the real next action during this rest is the paired exercise,
-    // not a random accessory. Route to the partner and suppress the filler.
-    // Otherwise, fall back to the optional filler suggestion -- UNLESS this is
-    // the day's anchor (always exercises[0] for a strength session; never
-    // grouped, since assignSupersets never touches index 0). No coach fills
-    // dead time on the primary lift with an unrelated core/calf/band drill --
-    // it pre-fatigues the brace/grip right before the next heavy set. Filler
-    // stays exactly where it belongs: the rest of unpaired accessory work.
-    var partner = supersetPartner(curSession(), ex);
-    var isAnchor = !partner && curSession().exercises.indexOf(ex) === 0 && ex.type === "strength";
-    // Clear both prompts first so neither a superset nor a filler from a prior
-    // exercise's rest can linger on a rest that shouldn't show one (e.g. the
-    // anchor, which gets no filler and no partner).
-    hideSuperNext(); hideFiller();
-    if (partner) showSuperNext(partner); else if (!isAnchor) showFiller(ex);
-    showRestRpe(ex, setIdx);
+    showRestContext(ex, setIdx);
     var anS = $("restAnnounce"); if (anS) anS.textContent = "Rest started, " + secs + " second" + (secs === 1 ? "" : "s");
     if (restFillEl) restFillEl.style.transform = "scaleX(1)";
     tickRest();
