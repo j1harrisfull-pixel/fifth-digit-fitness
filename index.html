@@ -1376,9 +1376,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       var sessionsIn = Array.isArray(wk.sessions) ? wk.sessions : [];
       var sessions = sessionsIn.map(function (ses, si) {
         ses = ses && typeof ses === "object" ? ses : {};
-        var sid = "wk" + wi + "_s" + si;
+        // Preserve an existing id (a freshly-generated program has none yet --
+        // ids are assigned HERE the first time -- but a session that already
+        // has one, e.g. addTodaySession's own scheme, must keep it on every
+        // later re-normalize/reload. normalizeProgram runs on EVERY app boot
+        // (coerceState), so unconditionally overwriting by position here was
+        // silently reassigning ids out from under already-logged sessions,
+        // orphaning their state.log entries on the very next reload.
+        var sid = (typeof ses.id === "string" && ses.id) ? ses.id : ("wk" + wi + "_s" + si);
         var exIn = Array.isArray(ses.exercises) ? ses.exercises : [];
-        var out = { id: sid, name: str(ses.name, "Session " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, sid + "_e" + ei); }) };
+        var out = { id: sid, name: str(ses.name, "Session " + (si + 1)), focus: str(ses.focus, ""), exercises: exIn.map(function (e, ei) { return normalizeExercise(e, (typeof (e && e.id) === "string" && e.id) ? e.id : (sid + "_e" + ei)); }) };
         var blocks = normalizeSessionBlocks(ses.blocks);
         if (blocks) out.blocks = blocks;
         return out;
