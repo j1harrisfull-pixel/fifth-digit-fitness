@@ -361,6 +361,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 /* planned-vs-actual: a deliberate full-width second grid line (rendered only
    when a real target exists), never an accidental wrap. */
 .setrow__target { grid-column: 1 / -1; padding: 0 0 2px 24px; font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
+/* Per-set effort: hidden until the set is logged, then revealed inline. */
+.setrow__rpe { grid-column: 1 / -1; display: none; align-items: center; gap: 6px; padding: 8px 0 3px 24px; }
+.setrow.is-done .setrow__rpe { display: flex; }
+.setrow__rpe-lbl { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-right: 3px; }
+.setrpe-chip { flex: none; min-width: 34px; min-height: 36px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 0; font-family: "Spline Sans Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink-dim); transition: color .12s ease, border-color .12s ease, background .12s ease; }
+.setrpe-chip.is-set { color: var(--accent-ink); border-color: var(--accent-ink); background: var(--accent-tint); }
 .setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
 /* The one live set: a stronger border + full-ink set number so the row you're
    about to log is unmistakable and agrees with the sticky LOG bar. Neutral,
@@ -1051,16 +1057,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <button class="resttimer__skip" id="restPlus" type="button" aria-label="Add 15 seconds of rest">+15s</button>
     <button class="resttimer__skip" id="restSkip" type="button">Skip</button>
-  </div>
-  <div class="restrpe" id="restRpe" hidden>
-    <span class="restrpe__label">Rate that set · optional</span>
-    <div class="restrpe__chips" role="group" aria-label="Effort for the set you just logged">
-      <button type="button" class="restrpe__chip" data-rpe="6">6</button>
-      <button type="button" class="restrpe__chip" data-rpe="7">7</button>
-      <button type="button" class="restrpe__chip" data-rpe="8">8</button>
-      <button type="button" class="restrpe__chip" data-rpe="9">9</button>
-      <button type="button" class="restrpe__chip" data-rpe="10">10</button>
-    </div>
   </div>
   <button class="supernext" id="superNext" type="button" hidden>
     <span class="supernext__label">Superset · next up</span>
@@ -4292,6 +4288,14 @@ function resolveSpec(request, state) {
     var lr = (lastLogs && lastLogs[canonicalExName(e.name)]) || null;
     return { loadable: loadable, lr: lr };
   }
+  // Per-set effort (RPE) strip, shown under a set once it's logged. One home for
+  // RPE, in the set area -- no rest-bar picker, so the last set is rateable too.
+  function rpeStripHtml(exId, k, val) {
+    var chips = [6, 7, 8, 9, 10].map(function (v) {
+      return '<button type="button" class="setrpe-chip' + (val === v ? " is-set" : "") + '" data-act="setrpe" data-ex="' + exId + '" data-set="' + k + '" data-rpe="' + v + '" aria-pressed="' + (val === v) + '" aria-label="Effort ' + v + ' of 10 for set ' + (k + 1) + '">' + v + '</button>';
+    }).join("");
+    return '<div class="setrow__rpe"><span class="setrow__rpe-lbl">Effort</span>' + chips + '</div>';
+  }
   function setRowsInner(e, lg, suppressCaption) {
     var html = "";
     var meta = rowTableMeta(e), loadable = meta.loadable, lr = meta.lr;
@@ -4340,6 +4344,11 @@ function resolveSpec(request, state) {
         // tappable at rest, fills ready-green on completion (see CSS).
         '<button type="button" class="setrow__done" data-act="setdone" data-ex="' + e.id + '" data-set="' + k + '" aria-pressed="' + d + '" aria-label="Complete set ' + (k + 1) + ' of ' + e.sets + (d ? ", done" : "") + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>' +
         plannedSpan +
+        // RPE now lives WITH the set: a compact "how hard?" strip that reveals
+        // (CSS, keyed on .setrow.is-done) the moment you log the set -- so every
+        // set is rateable including the last one, without a rest bar. Strength
+        // only; optional. data-act="setrpe" toggles actual_rpe.
+        (e.type === "strength" ? rpeStripHtml(e.id, k, s.actual_rpe) : "") +
       '</div>';
     }
     return html;
@@ -4801,6 +4810,17 @@ function resolveSpec(request, state) {
       rs.actual_reps = rnv; saveSoon();
       rrow.querySelector(".rval").textContent = rnv;
       refreshFoot(btn.closest(".card"), e, ses);
+    } else if (act === "setrpe") {
+      var pi = parseInt(btn.getAttribute("data-set"), 10), wp = writeLog(ses, e), ps = wp.el.sets[pi]; if (!ps) return;
+      var pv = parseInt(btn.getAttribute("data-rpe"), 10);
+      ps.actual_rpe = (ps.actual_rpe === pv) ? null : pv; // tap the set value again to clear
+      saveSoon();
+      var strip = btn.closest(".setrow__rpe");
+      if (strip) strip.querySelectorAll(".setrpe-chip").forEach(function (c) {
+        var on = parseInt(c.getAttribute("data-rpe"), 10) === ps.actual_rpe;
+        c.classList.toggle("is-set", on); c.setAttribute("aria-pressed", on);
+      });
+      renderHead(); // keep the "high effort logged" nudge live as RPE is rated
     }
   }
   function onListInput(ev) {
@@ -5767,7 +5787,7 @@ function resolveSpec(request, state) {
     // which gets no filler and no partner).
     hideSuperNext(); hideFiller();
     if (partner) showSuperNext(partner); else if (!isAnchor) showFiller(ex);
-    showRestRpe(ex, setIdx);
+    // RPE moved into the set row (rpeStripHtml) -- no rest-bar picker anymore.
   }
   function resumeRest() {
     if (state.view !== "day") { clearRestPersist(); return; }
