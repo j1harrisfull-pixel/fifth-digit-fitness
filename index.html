@@ -1438,7 +1438,7 @@ const LIBRARY = [
   { id: "back-extension", name: "Back Extension", type: "strength", equipment: "machine", pattern: "hinge", muscles: ["glutes", "hamstrings", "back"], compound: false, goals: I, unit: "reps", setup: "Hip pad set just below the pelvis so you can hinge freely, ankles locked under the rear rollers, body straight to start.", movement_pattern: "hinge", primary_muscles: ["glutes"], secondary_muscles: ["hamstrings", "back"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "machine", variations: ["machine-hip-thrust", "band-pull-through", "banded-lateral-walk", "band-hip-thrust"], progression_policy: "add_reps_then_load", cue: "Setup: pads at the hip crease. Key: hinge from the hips, squeeze glutes to come up, neutral spine. Fault: hyperextending or yanking up with the lower back." },
   { id: "seated-leg-curl", name: "Seated Leg Curl", type: "strength", equipment: "machine", pattern: "hinge", muscles: ["hamstrings"], compound: false, lengthened: true, goals: I, unit: "reps", setup: "Sit back with the thigh pad clamped low over the legs, ankle roller resting just above the heels, knees aligned with the pivot.", movement_pattern: "isolation_hamstrings", primary_muscles: ["hamstrings"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee"], is_unilateral: false, stability_demand: "machine", variations: ["lying-leg-curl"], progression_policy: "add_reps_then_load", cue: "Setup: knee joint on the pivot, thighs pinned. Key: curl fully, squeeze, slow the return. Fault: lifting the hips or rushing the eccentric." },
   { id: "lying-leg-curl", name: "Lying Leg Curl", type: "strength", equipment: "machine", pattern: "hinge", muscles: ["hamstrings"], compound: false, lengthened: true, goals: I, unit: "reps", setup: "Lie face down with kneecaps just past the pad edge, ankle roller resting on the lower calf above the heels, hips pressed to the bench.", movement_pattern: "isolation_hamstrings", primary_muscles: ["hamstrings"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee"], is_unilateral: false, stability_demand: "machine", variations: ["seated-leg-curl"], progression_policy: "add_reps_then_load", cue: "Setup: hips flat, pad on the lower calf. Key: curl with control, full squeeze, slow lower. Fault: hips lifting off the pad." },
-  { id: "kettlebell-swing", name: "Kettlebell Swing", type: "strength", equipment: "kettlebell", pattern: "hinge", muscles: ["glutes", "hamstrings"], compound: true, goals: I, unit: "reps", movement_pattern: "hinge", primary_muscles: ["glutes"], secondary_muscles: ["hamstrings"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "free", variations: ["back-extension", "machine-hip-thrust", "band-pull-through", "banded-lateral-walk"], progression_policy: "linear_double_progression_load", cue: "Setup: bell a foot ahead, hinge to grip it. Key: hike it back, snap the hips to float it to chest height. Fault: squatting and lifting with the arms." },
+  { id: "kettlebell-swing", name: "Kettlebell Swing", type: "strength", equipment: "kettlebell", pattern: "hinge", muscles: ["glutes", "hamstrings"], compound: true, goals: C, unit: "reps", movement_pattern: "hinge", primary_muscles: ["glutes"], secondary_muscles: ["hamstrings"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "free", variations: ["back-extension", "machine-hip-thrust", "band-pull-through", "banded-lateral-walk"], progression_policy: "linear_double_progression_load", cue: "Setup: bell a foot ahead, hinge to grip it. Key: hike it back, snap the hips to float it to chest height. Fault: squatting and lifting with the arms." },
   { id: "good-morning", name: "Good Morning", type: "strength", equipment: "barbell", pattern: "hinge", muscles: ["hamstrings", "back"], compound: true, goals: I, unit: "reps", movement_pattern: "hinge", primary_muscles: ["hamstrings"], secondary_muscles: ["back"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "free", variations: ["smith-rdl", "band-good-morning", "dumbbell-rdl", "kb-romanian-deadlift"], progression_policy: "linear_double_progression_load", cue: "Setup: bar on the back, soft knees, braced. Key: hinge the hips back with a flat back, feel the hamstrings. Fault: rounding the spine or going too heavy." },
 
   // ---------- HORIZONTAL PUSH / chest ----------
@@ -2133,6 +2133,18 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
   if (ex.pattern === "carry") {
     return { sets: isDeload ? 2 : 3, reps: isDeload ? "30s" : "40s", target: "Heavy · tall and braced, steady steps", rest: "90s" };
   }
+  // Isometric holds (plank, hollow hold, wall sit, side plank, dead hang, L-sit)
+  // are TIMED, not counted. Their unit is "sec", so prescribe a hold duration --
+  // "Plank 3 x 10-12 reps" is meaningless.
+  if (ex.unit === "sec") {
+    return { sets: isDeload ? 2 : 3, reps: isDeload ? "20-30s" : "30-45s", target: "Hold · brace hard, breathe", rest: "60s" };
+  }
+  // The Turkish Get-Up is a slow, complex full-body grind done for a few quality
+  // reps per side -- never a hypertrophy bracket. "3 x 8-10 get-ups" (~25-30 reps)
+  // is not how anyone programs it.
+  if (ex.id === "kb-turkish-get-up") {
+    return { sets: isDeload ? 2 : 3, reps: "3-5/side", target: "Slow and deliberate, stack the joints", rest: "90s" };
+  }
 
   var rirMap = { 1: "3 RIR · RPE 7", 2: "2 RIR · RPE 8", 3: "1 RIR · RPE 9", 4: "4 RIR · RPE 6" };
   var target = rirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "2 RIR · RPE 8";
@@ -2364,41 +2376,38 @@ function nameStrengthSessions(sessions) {
   sessions.forEach(function (s) { if (s) delete s._nmeta; });
 }
 function assignSupersets(exercises) {
-  var strengthExes = exercises.filter(function (e) { return e.type === "strength"; });
-  if (strengthExes.length < 2) return;
-  var paired = {};
+  if (exercises.filter(function (e) { return e.type === "strength"; }).length < 2) return;
   var letter = 65;
-  // Index 0 (the anchor, the day's primary lift) is deliberately never
-  // touched here -- the loop starts at 1, and no inner loop ever visits index
-  // 0 as a partner either, so the anchor always stays straight sets.
-  for (var i = 1; i < strengthExes.length; i++) {
-    if (paired[i]) continue;
-    var patA = getExPattern(strengthExes[i].name);
+  // Operate on the real array and reorder each pair to be ADJACENT. The renderer
+  // (groupExercises) only draws superset chrome for CONSECUTIVE same-group items,
+  // and supersetPartner prompts the partner during rest -- a pair that shares a
+  // group letter but sits non-adjacently would prompt a superset the UI never
+  // drew. Moving the partner to sit right after its lead keeps the two in sync.
+  // Index 0 (the anchor) is never paired: the loop starts at 1 and never visits
+  // 0 as a partner.
+  for (var i = 1; i < exercises.length; i++) {
+    if (exercises[i].group || exercises[i].type !== "strength") continue;
+    var patA = getExPattern(exercises[i].name);
     var antagonists = ANTAGONIST_MAP[patA] || [];
-    var partner = -1;
-    // Preferred: a listed antagonist, still gated through pairLegal (defense
-    // in depth -- a map suggestion is never trusted blind).
-    for (var j = i + 1; j < strengthExes.length; j++) {
-      if (paired[j]) continue;
-      if (antagonists.indexOf(getExPattern(strengthExes[j].name)) >= 0 && pairLegal(strengthExes[i].name, strengthExes[j].name)) { partner = j; break; }
+    var partner = -1, fallback = -1;
+    // One pass: prefer a listed antagonist, remember the first merely-legal one
+    // as a fallback. Both are gated through pairLegal (a map hint is never
+    // trusted blind); nothing legal -> the lift stays straight sets, which a
+    // real coach prefers to a forced bad combination.
+    for (var j = i + 1; j < exercises.length; j++) {
+      if (exercises[j].group || exercises[j].type !== "strength") continue;
+      if (!pairLegal(exercises[i].name, exercises[j].name)) continue;
+      if (antagonists.indexOf(getExPattern(exercises[j].name)) >= 0) { partner = j; break; }
+      if (fallback < 0) fallback = j;
     }
-    // Fallback: ANY remaining exercise that passes pairLegal -- not literally
-    // the next leftover regardless of fit (that old fallback is what produced
-    // Romanian Deadlift + Reverse Lunge and Overhead Press + Cable Fly). If
-    // nothing legal remains, this exercise stays straight sets -- a real
-    // coach leaves a lift unpaired sooner than force a bad combination.
-    if (partner < 0) {
-      for (var k = i + 1; k < strengthExes.length; k++) {
-        if (!paired[k] && pairLegal(strengthExes[i].name, strengthExes[k].name)) { partner = k; break; }
-      }
-    }
-    if (partner >= 0) {
-      var g = String.fromCharCode(letter++);
-      strengthExes[i].group = g;
-      strengthExes[partner].group = g;
-      paired[i] = true;
-      paired[partner] = true;
-    }
+    if (partner < 0) partner = fallback;
+    if (partner < 0) continue;
+    // Pull the partner up to sit right after the lead, then pair them.
+    if (partner !== i + 1) { var p = exercises.splice(partner, 1)[0]; exercises.splice(i + 1, 0, p); }
+    var g = String.fromCharCode(letter++);
+    exercises[i].group = g;
+    exercises[i + 1].group = g;
+    i++; // skip the partner we just placed
   }
 }
 
