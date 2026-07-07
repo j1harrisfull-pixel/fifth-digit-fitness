@@ -1082,34 +1082,49 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="sect__label">Injuries &amp; restrictions</div>
       <p class="sect__hint">All optional — skip anything that doesn't apply. The coach will never program anything you add here.</p>
 
-      <div class="sect__label" style="margin-top:16px;font-size:11px">Painful movements</div>
-      <div class="chips" id="injChips-pain" role="group" aria-label="Painful movements"></div>
+      <!-- Product Polish Phase 1 (item 2): one simple front door instead of
+           four raw categories up front. Writes category:"pain" (same default
+           as the onboarding quick-add, J1) into the SAME state.athlete.injuries
+           array the detailed categories below use -- nothing about the
+           underlying model changes, only what a first-time user sees first. -->
+      <div class="chips" id="injChips-quick" role="group" aria-label="Anything hurt, restricted, or off-limits"></div>
       <div class="btn-row" style="margin-top:8px">
-        <input class="intro__name" id="injInput-pain" type="text" placeholder="e.g. Overhead Press" aria-label="Add a painful movement">
-        <button class="btn" data-inj-cat="pain" type="button">Add</button>
-      </div>
-
-      <div class="sect__label" style="margin-top:16px;font-size:11px">Restricted joint or movement</div>
-      <div class="chips" id="injChips-restricted" role="group" aria-label="Restricted joint or movement"></div>
-      <div class="btn-row" style="margin-top:8px">
-        <input class="intro__name" id="injInput-restricted" type="text" placeholder="e.g. Left shoulder" aria-label="Add a restricted joint or movement">
-        <button class="btn" data-inj-cat="restricted" type="button">Add</button>
-      </div>
-
-      <div class="sect__label" style="margin-top:16px;font-size:11px">Medical restriction / red flag</div>
-      <div class="chips" id="injChips-medical" role="group" aria-label="Medical restriction or red flag"></div>
-      <div class="btn-row" style="margin-top:8px">
-        <input class="intro__name" id="injInput-medical" type="text" placeholder="e.g. Heavy overhead loading" aria-label="Add a medical restriction">
-        <button class="btn" data-inj-cat="medical" type="button">Add</button>
-      </div>
-
-      <div class="sect__label" style="margin-top:16px;font-size:11px">Personal no-go / preference</div>
-      <div class="chips" id="injChips-nogo" role="group" aria-label="Personal no-go movements"></div>
-      <div class="btn-row" style="margin-top:8px">
-        <input class="intro__name" id="injInput-nogo" type="text" placeholder="e.g. Burpees" aria-label="Add a movement you'd rather skip">
-        <button class="btn" data-inj-cat="nogo" type="button">Add</button>
+        <input class="intro__name" id="injQuickInput" type="text" placeholder="e.g. Left shoulder" aria-label="Add anything hurt, restricted, or off-limits">
+        <button class="btn btn--primary" id="injQuickAdd" type="button">Add</button>
       </div>
       <p class="sect__hint" style="margin-top:8px">Tap any entry to remove it.</p>
+
+      <details class="inj-more" style="margin-top:16px">
+        <summary class="sect__label" style="font-size:11px;cursor:pointer">More specific? (pain, restriction, medical, preference)</summary>
+
+        <div class="sect__label" style="margin-top:16px;font-size:11px">Painful movements</div>
+        <div class="chips" id="injChips-pain" role="group" aria-label="Painful movements"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <input class="intro__name" id="injInput-pain" type="text" placeholder="e.g. Overhead Press" aria-label="Add a painful movement">
+          <button class="btn" data-inj-cat="pain" type="button">Add</button>
+        </div>
+
+        <div class="sect__label" style="margin-top:16px;font-size:11px">Restricted joint or movement</div>
+        <div class="chips" id="injChips-restricted" role="group" aria-label="Restricted joint or movement"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <input class="intro__name" id="injInput-restricted" type="text" placeholder="e.g. Left shoulder" aria-label="Add a restricted joint or movement">
+          <button class="btn" data-inj-cat="restricted" type="button">Add</button>
+        </div>
+
+        <div class="sect__label" style="margin-top:16px;font-size:11px">Medical restriction / red flag</div>
+        <div class="chips" id="injChips-medical" role="group" aria-label="Medical restriction or red flag"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <input class="intro__name" id="injInput-medical" type="text" placeholder="e.g. Heavy overhead loading" aria-label="Add a medical restriction">
+          <button class="btn" data-inj-cat="medical" type="button">Add</button>
+        </div>
+
+        <div class="sect__label" style="margin-top:16px;font-size:11px">Personal no-go / preference</div>
+        <div class="chips" id="injChips-nogo" role="group" aria-label="Personal no-go movements"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <input class="intro__name" id="injInput-nogo" type="text" placeholder="e.g. Burpees" aria-label="Add a movement you'd rather skip">
+          <button class="btn" data-inj-cat="nogo" type="button">Add</button>
+        </div>
+      </details>
     </div>
     <div class="sect">
       <div class="sect__label">Backup (everything)</div>
@@ -1192,7 +1207,45 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <li><b>Log as you go:</b> set your reps, tap each set done, nudge the weight up or down.</li>
         <li><b>Technique:</b> open <b>Form notes</b> on any exercise for the coaching cues.</li>
       </ul>
-      <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
+      <button class="btn btn--primary intro__go" id="introStep2Go" type="button">Continue</button>
+    </div>
+    <!-- Step 3 (Product Polish Phase 1, items 1 & 2, J1/J2): the safety
+         question, surfaced BEFORE the first build so the injury gate is
+         visible from day one rather than buried in Settings. Skippable,
+         writes into the exact same state.athlete.injuries the Settings
+         quick-add (and the four detailed categories) already use --
+         addAthleteInjury("pain", ...) is the one shared write path. Only
+         shown when actually building a first program (see showWelcome). -->
+    <div class="intro__step" id="introStep3" hidden>
+      <h1 class="intro__title">Anything we should avoid?</h1>
+      <label class="intro__ask" for="introInjInput">Add injuries, painful movements, restricted joints, or anything you don't want programmed.</label>
+      <div class="intro__row">
+        <input class="intro__name" id="introInjInput" type="text" placeholder="e.g. Left shoulder" enterkeyhint="done">
+        <button class="btn" id="introInjAdd" type="button">Add</button>
+      </div>
+      <div class="chips" id="introInjChips" role="group" aria-label="Added" style="margin-top:12px"></div>
+      <div class="intro__row" style="margin-top:18px">
+        <button class="btn btn--primary intro__go" id="introStep3Go" type="button">Continue</button>
+        <button class="intro__skip" id="introStep3Skip" type="button">Skip</button>
+      </div>
+      <p class="intro__fine">You can skip this and change it later.</p>
+    </div>
+    <!-- Step 4 (Product Polish Phase 1, item 1, J1/J2): experience, right
+         before the first build so the coach knows how hard/how much to
+         prescribe from session one. Writes state.athlete.experience via the
+         same data path Settings' expChips already use. -->
+    <div class="intro__step" id="introStep4" hidden>
+      <h1 class="intro__title">Training experience</h1>
+      <p class="intro__ask">This helps the coach set the right amount of work.</p>
+      <div class="chips" id="introExpChips" role="group" aria-label="Experience level">
+        <button class="chip" data-exp="beginner" type="button">Beginner</button>
+        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
+        <button class="chip" data-exp="advanced" type="button">Advanced</button>
+      </div>
+      <div class="intro__row" style="margin-top:18px">
+        <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
+      </div>
+      <p class="intro__fine">Optional — change it anytime in Settings.</p>
     </div>
   </div>
 </div>
@@ -1206,6 +1259,25 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <button class="btn btn--danger" id="confirmYes" type="button">Confirm</button>
       <button class="btn" id="confirmNo" type="button">Cancel</button>
     </div>
+  </div>
+</dialog>
+
+<!-- Product Polish Phase 1 (item 5, J5): a light-touch readiness check before
+     an un-started SCHEDULED session -- readiness previously only existed
+     inside "Just today". Same three-value scale + label as the existing
+     #readinessChips (Rough/So-so/Great), reusing setReadiness()/
+     getReadinessToday() verbatim, not a new vocabulary or a new mechanism. -->
+<dialog class="sheet" id="readinessPromptSheet" aria-labelledby="readinessPromptTitle">
+  <div class="sheet__grip"></div>
+  <div class="sheet__body">
+    <h2 class="confirm__title" id="readinessPromptTitle">How are you feeling today?</h2>
+    <div class="chips" id="readinessPromptChips" role="group" aria-label="Today's readiness">
+      <button type="button" class="chip" data-rp="0">Rough</button>
+      <button type="button" class="chip" data-rp="1">So-so</button>
+      <button type="button" class="chip" data-rp="2">Great</button>
+    </div>
+    <p class="sect__hint" style="margin-top:10px">A rough day offers a recovery session instead of forcing today's plan.</p>
+    <button class="intro__skip" id="readinessPromptSkip" type="button" style="margin-top:6px">Skip</button>
   </div>
 </dialog>
 
@@ -5350,7 +5422,7 @@ function resolveSpec(request, state) {
         subLinkHtml +
       '</div>';
     var cta = $("homeHeroCta");
-    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { openDay(heroIdx); });
+    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { maybeOpenDayWithReadiness(heroIdx); });
     var subBtn = $("homeHeroSub");
     if (subBtn) subBtn.addEventListener("click", function () { openPlanForSubstitute(subTargetIdx); });
   }
@@ -5944,8 +6016,27 @@ function resolveSpec(request, state) {
   // type tag, the NOW chip, the exercise position). An informative why comes
   // from real weekly-debt / fatigue / progression reasoning.
   var GENERIC_WHY = { "general accessory work": 1, "mobility work": 1, "conditioning work": 1, "primary lift for today's session": 1 };
-  function isInformativeWhy(w) { return !!(w && !GENERIC_WHY[String(w).toLowerCase().trim()]); }
-  function buildCard(e, i, ses, badge) {
+  // Product Polish Phase 1 (item 4, J4): "Primary lift for today's session"
+  // is the one generic string that IS worth showing -- but only on the
+  // session's actual anchor slot, where it reads as a real coach note
+  // ("this is today's headline lift") rather than filler. Every other
+  // generic string, and this same string on a non-anchor card, stays
+  // suppressed exactly as before. No new copy -- this is the engine's own
+  // existing .why string, just no longer hidden in the one place it's
+  // informative.
+  var ANCHOR_VISIBLE_WHY = "primary lift for today's session";
+  function isInformativeWhy(w, isAnchor) {
+    var key = String(w || "").toLowerCase().trim();
+    if (isAnchor && key === ANCHOR_VISIBLE_WHY) return true;
+    return !!(w && !GENERIC_WHY[key]);
+  }
+  // ctx (Product Polish Phase 1, items 4 & 6) carries per-render context that
+  // isn't a property of the exercise itself: which exercise id is today's
+  // anchor, and the block this card belongs to (for a block-scoped counter
+  // instead of a whole-session one). Both optional -- omitted (legacy
+  // sessions with no ses.blocks) falls back to exactly today's behaviour.
+  function buildCard(e, i, ses, badge, ctx) {
+    ctx = ctx || {};
     // Skipped today: the exercise is set aside so the session can still finish.
     // Render a compact strip -- name, a quiet "skipped" tag, and Undo -- instead
     // of the full logging UI. It's out of the way but never gone.
@@ -6046,7 +6137,7 @@ function resolveSpec(request, state) {
     // work", "Mobility work", "Primary lift for today's session"). The type
     // tag shows only for non-strength, since strength is the default and the
     // tag rarely informs. When both are empty, the subline is omitted whole.
-    var showWhy = isInformativeWhy(e.why);
+    var showWhy = isInformativeWhy(e.why, ctx.anchorId != null && e.id === ctx.anchorId);
     var showTag = e.type !== "strength";
     var subLine = (showTag || showWhy)
       ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<p class="card__why">' + esc(e.why) + '</p>' : '') + '</div>'
@@ -6073,7 +6164,17 @@ function resolveSpec(request, state) {
       '<span class="card__collapsed-name">' + esc(e.name) + '</span>' +
       '<span class="card__collapsed-meta mono">' + esc(collapsedMeta) + '</span>' +
       '</div>';
-    var exOverline = '<p class="card__overline">Exercise ' + (i + 1) + ' of ' + total_ex + '</p>';
+    // Product Polish Phase 1 (item 6): "Exercise 4 of 11" used to count warm-up,
+    // strength, conditioning and cooldown together, so the first real lift
+    // could read as "exercise 4" even though only 3 warm-up moves came before
+    // it. Block-scoped when ctx.blockItems is available (every session built
+    // by the current engine carries ses.blocks); falls back to the exact
+    // legacy whole-session count for older stored/imported sessions with no
+    // block metadata, so nothing already saved regresses.
+    var overlineIdx = ctx.blockItems ? ctx.blockItems.indexOf(e) : i;
+    var overlineTotal = ctx.blockItems ? ctx.blockItems.length : total_ex;
+    var overlineLabel = ctx.blockLabel || "Exercise";
+    var exOverline = '<p class="card__overline">' + esc(overlineLabel) + ' ' + (overlineIdx + 1) + ' of ' + overlineTotal + '</p>';
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       collapsedHtml +
       '<div class="card__full">' +
@@ -6083,7 +6184,11 @@ function resolveSpec(request, state) {
       formNotes +
       weightCtrl +
       warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
-      '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> Edit sets &amp; swap</button>' +
+      // Product Polish Phase 1 (item 3, J3): the disclosure used to say "Edit
+      // sets & swap" on every card, but the swap control above only ever
+      // renders for conditioning (swapHtml) -- the label overpromised on
+      // strength/mobility. Type-aware label, no behaviour change.
+      '<button type="button" class="notes-toggle" data-act="notes" data-ex="' + e.id + '" aria-expanded="' + (e.notesOpen ? "true" : "false") + '" aria-controls="n-' + e.id + '"><span class="chev" aria-hidden="true">▸</span> ' + (e.type === "conditioning" ? "Edit sets &amp; swap" : "Edit sets") + '</button>' +
       '<div class="notes' + (e.notesOpen ? " is-open" : "") + '" id="n-' + e.id + '"><div class="notes__inner"><div class="notes__pad">' +
       metaBlock + notesCue +
       '<div class="scheme"><div class="scheme__item"><span class="field-label">Sets</span><div class="stepper"><button type="button" class="step" data-act="sets-" data-ex="' + e.id + '" aria-label="One fewer set">−</button><span class="stepper__val">' + total + '</span><button type="button" class="step" data-act="sets+" data-ex="' + e.id + '" aria-label="One more set">+</button></div></div>' +
@@ -6096,17 +6201,17 @@ function resolveSpec(request, state) {
   // continuing the card entrance-stagger index across calls. Shared by both the
   // legacy flat render and the Phase-A per-block render below, so superset
   // handling is defined exactly once.
-  function renderCardRun(items, ses, i) {
+  function renderCardRun(items, ses, i, ctx) {
     var html = "";
     groupExercises(items).forEach(function (grp) {
       var sup = grp.group && grp.items.length > 1;
       if (sup) {
         html += '<div class="superrun" role="group" aria-label="Superset ' + esc(grp.group) + '">' +
           '<div class="superhead"><span class="supertag">Superset ' + esc(grp.group) + '</span><span class="superhint">alternate, rest after each round</span></div>';
-        grp.items.forEach(function (e, j) { html += buildCard(e, i++, ses, grp.group + (j + 1)); });
+        grp.items.forEach(function (e, j) { html += buildCard(e, i++, ses, grp.group + (j + 1), ctx); });
         html += '</div>';
       } else {
-        grp.items.forEach(function (e) { html += buildCard(e, i++, ses, null); });
+        grp.items.forEach(function (e) { html += buildCard(e, i++, ses, null, ctx); });
       }
     });
     return { html: html, i: i };
@@ -6167,6 +6272,12 @@ function resolveSpec(request, state) {
       return;
     }
     var html = "", i = 0;
+    // Product Polish Phase 1 (item 4, J4): the anchor is the first
+    // strength-type exercise in the session -- the same k===0 convention
+    // buildEx/selectComplementary already use for the anchor slot. Computed
+    // once per render, read-only, never affects selection.
+    var anchorEx = ses.exercises.filter(function (e) { return e.type === "strength"; })[0];
+    var anchorId = anchorEx ? anchorEx.id : null;
     // Gold-standard Phase A: a session built with the new engine carries
     // ses.blocks (four time-budgeted phases). Older stored/imported programs
     // don't -- feature-detect and fall back to the exact legacy flat render, so
@@ -6179,10 +6290,13 @@ function resolveSpec(request, state) {
         if (!items.length) return; // blocks[] only lists non-empty kinds, but stay defensive
         html += phaseHeaderHtml(b.kind, b.minutes, b.mode);
         if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i); i++; }
-        else { var r = renderCardRun(items, ses, i); html += r.html; i = r.i; }
+        else {
+          var ctx = { anchorId: anchorId, blockItems: items, blockLabel: PHASE_LABEL[b.kind] || "Exercise" };
+          var r = renderCardRun(items, ses, i, ctx); html += r.html; i = r.i;
+        }
       });
     } else {
-      var r2 = renderCardRun(ses.exercises, ses, i); html = r2.html; i = r2.i;
+      var r2 = renderCardRun(ses.exercises, ses, i, { anchorId: anchorId }); html = r2.html; i = r2.i;
     }
     // Quiet, out-of-the-way home for the rare "delete this day" action, at the
     // very end of the day so it's off the hot path (undo-backed, like before).
@@ -6510,6 +6624,41 @@ function resolveSpec(request, state) {
   // The timer + wake lock start on your first logged set (ensureSessionLive). If
   // the day already has a live run going (resumed after reload), it stays live.
   function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); if (sessionLive()) acquireWakeLock(); }
+  // Product Polish Phase 1 (item 5, J5): a light-touch readiness check
+  // before an un-started SCHEDULED session -- only when nothing's been
+  // logged for that day yet AND today's readiness hasn't already been
+  // recorded (getReadinessToday, the exact same date-scoped check the
+  // existing Just-Today readiness chips use), so a resumed/live session, or
+  // a day opened after readiness was already answered once today, is never
+  // re-prompted.
+  var readinessPromptDayIdx = null;
+  function shouldPromptReadiness(ses) {
+    if (!ses || !Array.isArray(ses.exercises) || !ses.exercises.length) return false;
+    if (getReadinessToday(state) != null) return false;
+    return sessionProgress(sessionItemsFor(ses)).done === 0;
+  }
+  function maybeOpenDayWithReadiness(i) {
+    var wk = curWeek(), ses = wk && wk.sessions[i];
+    if (ses && shouldPromptReadiness(ses)) { readinessPromptDayIdx = i; openSheetNoKb($("readinessPromptSheet")); }
+    else openDay(i);
+  }
+  // Rough only: same-day swap to a freshly-built recoverySession(), reusing
+  // the EXACT existing substitution mechanism (pendingToday +
+  // pendingSubstituteIdx + addTodaySession()) that already powers "Fancy a
+  // different session?" -- same-slot replace, undo-backed via its existing
+  // toastUndo, never a new storage concept. The stored program/week is left
+  // exactly as it was if the user undoes; recoverySession() itself is
+  // called with no changes to how it already works.
+  function swapTodayForRecovery(dayIdx) {
+    var wk = curWeek(), ses = wk && wk.sessions[dayIdx];
+    if (!ses) return;
+    state.todaySeedCounter = (state.todaySeedCounter || 0) + 1; save();
+    var allowed = buildPrefs().equipment;
+    pendingToday = recoverySession(allowed, state.todaySeedCounter, state.athlete && state.athlete.injuries, unlockedSkillMap());
+    pendingSubstituteIdx = dayIdx;
+    state.view = "day";
+    addTodaySession();
+  }
   function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload(); }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
@@ -6518,7 +6667,7 @@ function resolveSpec(request, state) {
   }
   weekListEl.addEventListener("click", function (ev) {
     var open = ev.target.closest(".weekrow__open");
-    if (open) openDay(parseInt(open.getAttribute("data-day"), 10));
+    if (open) maybeOpenDayWithReadiness(parseInt(open.getAttribute("data-day"), 10));
   });
   $("backWeek").addEventListener("click", backToWeek);
   $("liveBarEnd").addEventListener("click", endSession);
@@ -6729,6 +6878,16 @@ function resolveSpec(request, state) {
         ? items.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + cat + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
         : '<span class="sect__hint">None yet.</span>';
     });
+    // Product Polish Phase 1 (item 2): the simplified quick-add list shows
+    // every injury regardless of category -- a single at-a-glance list, same
+    // removal affordance (data-cat/data-target), reading from the identical
+    // state.athlete.injuries array the four detailed lists above already use.
+    var quickWrap = $("injChips-quick");
+    if (quickWrap) {
+      quickWrap.innerHTML = inj.length
+        ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+        : '<span class="sect__hint">None yet.</span>';
+    }
   }
   function wireSkillChips() {
     var el = $("skillChips"); if (!el) return;
@@ -7236,6 +7395,28 @@ function resolveSpec(request, state) {
     });
   }
   $("readinessChips").addEventListener("click", function (ev) { var b = ev.target.closest("[data-readiness]"); if (!b) return; setReadiness(parseInt(b.getAttribute("data-readiness"), 10)); });
+  // Product Polish Phase 1 (item 5, J5): the scheduled-session readiness
+  // prompt. Rough reuses the same same-day recoverySession() swap as the
+  // existing substitution mechanism (swapTodayForRecovery); So-so/Great just
+  // record readiness (setReadiness -- the exact existing function) and open
+  // the already-built session unchanged; Skip records nothing and opens it
+  // unchanged too.
+  (function () {
+    var dlg = $("readinessPromptSheet");
+    function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
+    $("readinessPromptChips").addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-rp]"); if (!b || readinessPromptDayIdx == null) return;
+      var v = parseInt(b.getAttribute("data-rp"), 10), dayIdx = readinessPromptDayIdx;
+      readinessPromptDayIdx = null; closeDlg();
+      setReadiness(v);
+      if (v === 0) swapTodayForRecovery(dayIdx); else openDay(dayIdx);
+    });
+    $("readinessPromptSkip").addEventListener("click", function () {
+      var dayIdx = readinessPromptDayIdx; readinessPromptDayIdx = null; closeDlg();
+      if (dayIdx != null) openDay(dayIdx);
+    });
+    dlg.addEventListener("cancel", function () { readinessPromptDayIdx = null; }); // Escape
+  })();
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
@@ -7336,25 +7517,47 @@ function resolveSpec(request, state) {
     if (!state.athlete) state.athlete = normalizeAthlete(null);
     state.athlete.experience = b.getAttribute("data-exp"); save(); renderAthleteSettings();
   });
+  // Shared write path for every injury entry point (the 4 detailed categories,
+  // the Settings quick-add, and the onboarding safety step, Product Polish
+  // Phase 1 items 1 & 2) -- one place decides the dedup rule, so no entry
+  // point can silently diverge from another.
+  function addAthleteInjury(cat, v) {
+    v = (v || "").trim(); if (!v) return false;
+    if (!state.athlete) state.athlete = normalizeAthlete(null);
+    if (!Array.isArray(state.athlete.injuries)) state.athlete.injuries = [];
+    if (!state.athlete.injuries.some(function (i) { return i.category === cat && i.target.toLowerCase() === v.toLowerCase(); })) {
+      state.athlete.injuries.push({ category: cat, target: v });
+    }
+    return true;
+  }
+  function removeAthleteInjury(cat, target) {
+    if (!state.athlete || !Array.isArray(state.athlete.injuries)) return;
+    state.athlete.injuries = state.athlete.injuries.filter(function (i) { return !(i.category === cat && i.target === target); });
+  }
   INJURY_UI_CATS.forEach(function (cat) {
     var addBtn = document.querySelector('[data-inj-cat="' + cat + '"]'), inp = $("injInput-" + cat), wrap = $("injChips-" + cat);
     if (addBtn) addBtn.addEventListener("click", function () {
-      var v = (inp.value || "").trim(); if (!v) return;
-      if (!state.athlete) state.athlete = normalizeAthlete(null);
-      if (!Array.isArray(state.athlete.injuries)) state.athlete.injuries = [];
-      if (!state.athlete.injuries.some(function (i) { return i.category === cat && i.target.toLowerCase() === v.toLowerCase(); })) {
-        state.athlete.injuries.push({ category: cat, target: v });
-      }
-      inp.value = ""; save(); renderAthleteSettings();
+      if (addAthleteInjury(cat, inp.value)) { inp.value = ""; save(); renderAthleteSettings(); }
     });
     if (wrap) wrap.addEventListener("click", function (ev) {
       var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
-      var t = b.getAttribute("data-target");
-      if (state.athlete && Array.isArray(state.athlete.injuries)) {
-        state.athlete.injuries = state.athlete.injuries.filter(function (i) { return !(i.category === cat && i.target === t); });
-      }
+      removeAthleteInjury(cat, b.getAttribute("data-target"));
       save(); renderAthleteSettings();
     });
+  });
+  // Product Polish Phase 1 (item 2): the simplified front door. Always writes
+  // category "pain" (J1's resolved default) into the SAME array/dedup path
+  // above -- the four categories underneath are untouched and still fully
+  // reachable via "More specific?".
+  var injQuickAddBtn = $("injQuickAdd"), injQuickInput = $("injQuickInput"), injQuickWrap = $("injChips-quick");
+  if (injQuickAddBtn) injQuickAddBtn.addEventListener("click", function () {
+    if (addAthleteInjury("pain", injQuickInput.value)) { injQuickInput.value = ""; save(); renderAthleteSettings(); }
+  });
+  if (injQuickInput) injQuickInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); injQuickAddBtn.click(); } });
+  if (injQuickWrap) injQuickWrap.addEventListener("click", function (ev) {
+    var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
+    removeAthleteInjury(b.getAttribute("data-cat"), b.getAttribute("data-target"));
+    save(); renderAthleteSettings();
   });
 
   /* ===================== Backup ===================== */
@@ -7828,7 +8031,7 @@ function resolveSpec(request, state) {
       secondaryBtn.onclick = function () { closeDlg(); }; // stay in the session
     } else if (nextIdx >= 0) {
       secondaryBtn.hidden = false; secondaryBtn.textContent = "Start " + dayPositionLabel(wk.sessions, nextIdx) + " →";
-      secondaryBtn.onclick = function () { closeDlg(); openDay(nextIdx); };
+      secondaryBtn.onclick = function () { closeDlg(); maybeOpenDayWithReadiness(nextIdx); };
     } else {
       secondaryBtn.hidden = true; secondaryBtn.onclick = null;
     }
@@ -7927,24 +8130,47 @@ function resolveSpec(request, state) {
     openSheetNoKb(dlg);
   }
 
+  // Product Polish Phase 1 (items 1 & 2, J1/J2): tracks which mode the intro
+  // is in -- a genuine first-run (building=true) walks name -> how-it-works
+  // -> safety -> experience -> build; a re-open from Settings' "Show intro
+  // again" (building=false) is info-only and stays exactly as it always was
+  // (name -> how-it-works -> "Got it", no safety/experience re-ask).
+  var introBuilding = true;
   function introShowStep(n) {
-    var s1 = $("introStep1"), s2 = $("introStep2");
+    var s1 = $("introStep1"), s2 = $("introStep2"), s3 = $("introStep3"), s4 = $("introStep4");
     if (s1) s1.hidden = n !== 1;
     if (s2) s2.hidden = n !== 2;
+    if (s3) s3.hidden = n !== 3;
+    if (s4) s4.hidden = n !== 4;
     if (n === 2) {
       // Greet by name in the heading, and only then show the "how it works"
       // overline -- otherwise the two would say the same thing twice.
       var t = $("introStep2Title"), lbl = $("introHowLabel"), nm = state.userName;
       if (t) t.textContent = nm ? "Good to meet you, " + nm + "." : "Here's how it works";
       if (lbl) lbl.hidden = !nm;
+      var s2go = $("introStep2Go"); if (s2go) s2go.textContent = introBuilding ? "Continue" : "Got it";
     }
+    if (n === 3) renderIntroInjChips();
+    if (n === 4) syncIntroExpChips();
     // No auto-focus on step 1 -- the keyboard waits for a deliberate tap on the
     // field, rather than springing up the moment the welcome appears.
   }
+  function renderIntroInjChips() {
+    var wrap = $("introInjChips"); if (!wrap) return;
+    var inj = (state.athlete && Array.isArray(state.athlete.injuries)) ? state.athlete.injuries : [];
+    wrap.innerHTML = inj.length
+      ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+      : "";
+  }
+  function syncIntroExpChips() {
+    var exp = (state.athlete && state.athlete.experience) || "";
+    document.querySelectorAll("#introExpChips button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-exp") === exp); });
+  }
   function showWelcome(building) {
     var el = $("intro"); if (!el) return;
+    introBuilding = !!building;
     var go = $("introGo");
-    if (go) { go.textContent = building ? "Build my first week" : "Got it"; go.setAttribute("data-build", building ? "1" : "0"); }
+    if (go) { go.textContent = "Build my first week"; go.setAttribute("data-build", building ? "1" : "0"); }
     var nameInput = $("introName"); if (nameInput) nameInput.value = state.userName || "";
     // First run with no name yet -> open with the handshake. Re-opened from
     // Settings (or a name already set) -> straight to "how it works"; the name
@@ -7969,6 +8195,37 @@ function resolveSpec(request, state) {
     });
     var ni = $("introName");
     if (ni) ni.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); var c = $("introContinue"); if (c) c.click(); } });
+    // Step 2 -> either advances to the new safety step (real first run) or
+    // closes the overlay (info-only reopen from Settings) -- exactly today's
+    // "Got it" behaviour, unchanged, when introBuilding is false.
+    var s2go = $("introStep2Go");
+    if (s2go) s2go.addEventListener("click", function () {
+      if (introBuilding) introShowStep(3);
+      else { var el = $("intro"); if (el) el.hidden = true; }
+    });
+    // Step 3 (safety, item 1/2): Add uses the same shared write path as
+    // Settings' quick-add and detailed categories (addAthleteInjury,
+    // defaulting to category "pain" per J1). Skip proceeds without adding
+    // anything typed but not yet added.
+    var injAdd = $("introInjAdd"), injInput = $("introInjInput"), injWrap = $("introInjChips");
+    if (injAdd) injAdd.addEventListener("click", function () {
+      if (addAthleteInjury("pain", injInput.value)) { injInput.value = ""; save(); renderIntroInjChips(); renderAthleteSettings(); }
+    });
+    if (injInput) injInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); injAdd.click(); } });
+    if (injWrap) injWrap.addEventListener("click", function (ev) {
+      var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
+      removeAthleteInjury(b.getAttribute("data-cat"), b.getAttribute("data-target"));
+      save(); renderIntroInjChips(); renderAthleteSettings();
+    });
+    var s3go = $("introStep3Go"); if (s3go) s3go.addEventListener("click", function () { introShowStep(4); });
+    var s3skip = $("introStep3Skip"); if (s3skip) s3skip.addEventListener("click", function () { introShowStep(4); });
+    // Step 4 (experience, item 1): same data write as Settings' expChips.
+    var expWrap = $("introExpChips");
+    if (expWrap) expWrap.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-exp]"); if (!b) return;
+      if (!state.athlete) state.athlete = normalizeAthlete(null);
+      state.athlete.experience = b.getAttribute("data-exp"); save(); syncIntroExpChips(); renderAthleteSettings();
+    });
     var go = $("introGo");
     if (go) go.addEventListener("click", function () {
       var building = go.getAttribute("data-build") === "1";
