@@ -2821,12 +2821,11 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
     return { sets: isDeload ? 2 : 3, reps: "3-5/side", target: "Slow and deliberate, stack the joints", rest: "90s" };
   }
 
-  var rirMap = { 1: "Effort 7 · 3 reps left", 2: "Effort 8 · 2 reps left", 3: "Effort 9 · 1 rep left", 4: "Effort 6 · 4 reps left" };
-  var target = rirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "Effort 8 · 2 reps left";
   var anchor = ex.compound && isAnchor;
   // Only a true strength anchor earns the maximal 3-5 rep top set. A compound
   // that leads the day but isn't built for grinding (an RDL, goblet squat,
-  // single-arm row) still leads, at a moderate 6-8, never a bogus triple.
+  // single-arm row) still leads, at a moderate 6-8 or the table's own compound
+  // reps, never a bogus triple.
   var rampAnchor = anchor && !!RAMP_ANCHORS[ex.id];
 
   var anchorSets, accSets;
@@ -2835,29 +2834,127 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
   else if (weekNum === 2) { anchorSets = 5; accSets = 3; }
   else                 { anchorSets = 5; accSets = 4; }
 
-  if (goal === "strength") {
-    return rampAnchor
-      ? { sets: anchorSets, reps: "3-5",   target: target, rest: "3 min" }
-      : anchor
-      ? { sets: anchorSets, reps: "6-8",   target: target, rest: "2-3 min" }
-      : { sets: accSets,    reps: "8-10",  target: target, rest: "90 s" };
+  // "hybrid" and "endurance" are real GOAL values distinct from Intent's own
+  // stimulus vocabulary (buildIntent maps both to stimulus "general" for
+  // selection purposes, but prescription() has always branched on the raw
+  // goal directly) -- outside Phase 5's declared 3-stimulus scope (judgement
+  // call #1), so both stay EXACTLY as they were, byte-for-byte, including
+  // their original rirMap-derived target wording (untouched by this task).
+  if (goal === "hybrid" || goal === "endurance") {
+    var legacyRirMap = { 1: "Effort 7 · 3 reps left", 2: "Effort 8 · 2 reps left", 3: "Effort 9 · 1 rep left", 4: "Effort 6 · 4 reps left" };
+    var legacyTarget = legacyRirMap[isDeload ? 4 : Math.min(weekNum, 3)] || "Effort 8 · 2 reps left";
+    if (goal === "hybrid") {
+      return anchor
+        ? { sets: anchorSets, reps: "5-6",   target: legacyTarget, rest: "2 min" }
+        : { sets: accSets,    reps: "8-12",  target: legacyTarget, rest: "75 s" };
+    }
+    return { sets: accSets, reps: "15-20", target: legacyTarget, rest: "45 s" };
   }
-  if (goal === "hypertrophy") {
-    return anchor
-      ? { sets: anchorSets, reps: "6-8",   target: target, rest: "2-3 min" }
-      : { sets: accSets,    reps: "10-15", target: target, rest: "75 s" };
+
+  // Programming Philosophy Phase 5, §3.4: genuinely stimulus-driven --
+  // strength/hypertrophy/general (and any unrecognised goal, same fallback
+  // as before) all read PRESCRIPTION_TABLE. Accessories now read their OWN
+  // compound/isolation row (fixing conflict #1: they no longer get a flat
+  // bracket regardless of their own nature); a hypertrophy compound anchor
+  // now uses the table's full compound reps band (fixing conflict #2: no
+  // longer pinned at a narrow 6-8 when the Philosophy's band is 6-12).
+  //
+  // "strength" stimulus's compound row is ANCHOR-EXCLUSIVE by definition --
+  // it means near-max singles/triples on the main lift, not a bracket for a
+  // secondary compound or isolation accessory. A non-anchor slot in a
+  // strength-goal session is real-world accessory/hypertrophy work regardless
+  // of the day's overall goal (this is standard coaching practice: even a
+  // powerlifting block's accessories are prescribed as hypertrophy-style
+  // work, not more max-effort singles), so it borrows the hypertrophy
+  // (Tension) row instead of a nonexistent strength-accessory bracket.
+  var tableGoal = (goal === "strength" && !anchor) ? "hypertrophy" : goal;
+  var row = PRESCRIPTION_TABLE[tableGoal] || PRESCRIPTION_TABLE.general;
+  var slotIsCompound = anchor ? true : !!ex.compound;
+  var stimRow = slotIsCompound ? row.compound : (row.isolation || row.compound);
+  var sets = anchor ? anchorSets : accSets;
+  // rampAnchor's maximal 3-5 top set is specifically a STRENGTH-stimulus
+  // decision (near-max grinding is what "Strength" stimulus means) -- a
+  // hypertrophy-goal session using the same canonical lift as its anchor
+  // should NOT be forced into 3-5 reps just because the lift is a ramp
+  // anchor; it uses the table's own compound reps instead (this restores the
+  // pre-Phase-5 behaviour, where only the "strength" branch ever checked
+  // rampAnchor at all -- hypertrophy/hybrid/endurance never did).
+  var reps = (goal === "strength" && rampAnchor) ? "3-5" : stimRow.reps;
+  // RIR (fixing conflict #3): a genuine numeric field now, composing the
+  // stimulus's own baseline band with the existing week-wave progression
+  // (weekNum 1 easiest -> week 3+ tightest -> deload eased) -- the week-wave
+  // is real, already-correct coaching logic and is preserved, just given a
+  // real numeric home instead of an opaque, stimulus-disconnected string.
+  var rir = ririForWeek(stimRow.rirRange, weekNum, isDeload);
+  var target = ririTargetString(rir);
+  return { sets: sets, reps: reps, rir: rir, target: target, rest: stimRow.rest };
+}
+// Programming Philosophy Phase 5, §3.4. Keyed by [stimulus][compound ? "compound" : "isolation"].
+// "strength" only has a compound row -- true strength work is never
+// prescribed as isolation (matches the existing RAMP_ANCHORS/rampAnchor gate,
+// unchanged). rirRange is the STIMULUS BASELINE band; ririForWeek tightens
+// WITHIN this band across weekNum/isDeload -- the two mechanisms compose,
+// neither replaces the other.
+var PRESCRIPTION_TABLE = {
+  // NOTE: strength.compound.reps ("6-8") is the ANCHOR-BUT-NOT-A-TRUE-RAMP
+  // default (a compound lift leading the day that isn't built for grinding --
+  // an RDL, goblet squat, single-arm row -- still leads, at a moderate 6-8,
+  // never a bogus triple). The genuine 3-5 rep max top set is ONLY earned by
+  // a canonical ramp anchor (RAMP_ANCHORS), applied as an explicit override in
+  // prescription() -- this preserves the pre-existing, correct three-way
+  // split (ramp anchor / non-ramp anchor / accessory), which collapsing this
+  // row to "3-5" would have silently destroyed (caught by test-coach-
+  // hardening.js and test-stress.js during Phase 5 test-first verification).
+  strength:    { compound: { reps: "6-8",   rest: "3-5 min", rirRange: [1, 2] } },
+  hypertrophy: { compound: { reps: "6-12",  rest: "2-3 min", rirRange: [1, 3] },
+                 isolation:{ reps: "10-15", rest: "60-120s", rirRange: [1, 2] } },
+  general:     { compound: { reps: "8-10",  rest: "2 min",   rirRange: [1, 2] },
+                 isolation:{ reps: "10-12", rest: "75 s",    rirRange: [1, 2] } }
+};
+// Week-wave position WITHIN the stimulus's own baseline band, not a fixed
+// rirMap disconnected from stimulus. weekNum 1 = easiest (top of band, more
+// reps in reserve), progressing to the tightest (bottom of band) by week 3+;
+// deload returns easier than the band's own top, for genuine recovery intent.
+function ririForWeek(rirRange, weekNum, isDeload) {
+  var low = rirRange[0], high = rirRange[1];
+  if (isDeload) return high + 1;
+  var step = Math.min(Math.max(weekNum || 1, 1), 3) - 1; // 0, 1, 2 for week 1/2/3+
+  var span = high - low;
+  return Math.max(low, high - Math.round((span * step) / 2));
+}
+// `target` is a DERIVED display string -- one source of truth, no more
+// independently-worded rirMap text that could drift from the actual number.
+function ririTargetString(rir) {
+  return "Effort " + (10 - rir) + " · " + rir + (rir === 1 ? " rep" : " reps") + " left";
+}
+// Quiet capacity limit, same idiom as the existing fatigue-budget/deload
+// adjustments: reduces SETS ONLY, never touches which exercise was selected
+// (that question is already closed -- Phase 4's job, not this one's).
+// Evaluates EVERY muscle this exercise credits (primary at full weight, each
+// secondary at SECONDARY_MUSCLE_CREDIT) -- the MOST restrictive muscle wins,
+// so a secondary-muscle ceiling can trim an exercise even when its primary
+// muscle still has headroom (physiologically honest, per Programming
+// Philosophy Phase 5 guardrails). Never trims below 1 set -- a capped
+// exercise still happens, just lighter, exactly like the existing "never
+// leave a session hollow" principle applied to volume instead of selection.
+function trimSetsForVolumeLandmark(sets, exercise, weeklyVolume) {
+  if (!exercise || !weeklyVolume) return sets;
+  var affordable = sets;
+  var primary = exercise.primary_muscles && exercise.primary_muscles[0];
+  if (primary && weeklyVolume[primary]) {
+    affordable = Math.min(affordable, weeklyVolume[primary].remainingToMrv);
   }
-  if (goal === "hybrid") {
-    return anchor
-      ? { sets: anchorSets, reps: "5-6",   target: target, rest: "2 min" }
-      : { sets: accSets,    reps: "8-12",  target: target, rest: "75 s" };
-  }
-  if (goal === "endurance") {
-    return { sets: accSets, reps: "15-20", target: target, rest: "45 s" };
-  }
-  return anchor
-    ? { sets: anchorSets, reps: "8-10",  target: target, rest: "2 min" }
-    : { sets: accSets,    reps: "10-12", target: target, rest: "75 s" };
+  (exercise.secondary_muscles || []).forEach(function (sm) {
+    if (!weeklyVolume[sm]) return;
+    // each SET of this exercise only spends SECONDARY_MUSCLE_CREDIT (0.5)
+    // against this muscle, so more exercise-sets fit before its own MRV --
+    // divide the muscle's remaining headroom by the credit rate to get how
+    // many EXERCISE sets it can actually absorb.
+    var affordableForThisMuscle = weeklyVolume[sm].remainingToMrv / SECONDARY_MUSCLE_CREDIT;
+    affordable = Math.min(affordable, affordableForThisMuscle);
+  });
+  if (affordable >= sets) return sets; // plenty of headroom everywhere, no trim needed
+  return Math.max(1, Math.floor(affordable));
 }
 function pickConditioning(intensity, allowed, used, seed) {
   var pool = LIBRARY.filter(function (e) { return e.type === "conditioning" && e.intensity === intensity && equipOk(e, allowed) && !used[e.id]; });
@@ -2925,7 +3022,7 @@ function defaultWhy(ex) {
   if (ex.type === "mobility") return "Mobility work";
   return "General accessory work";
 }
-function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why) {
+function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why, weeklyVolume) {
   var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
   var w = weightMap[canonicalExName(ex.name)];
   // Per-exercise autoregulation: real RPE-based autoregulation responds to what
@@ -2934,19 +3031,28 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   // prescription by one set instead of blindly repeating the fixed schedule.
   var lr = lastLogs && lastLogs[canonicalExName(ex.name)];
   if (lr && lr.rpeAvg != null && lr.rpeAvg >= 9.5 && !isDeload && p.sets > 2) {
-    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (high effort last time)", rest: p.rest };
+    // rir/reps carried through explicitly -- a plain-object reconstruction
+    // here would otherwise silently drop the new rir field (Phase 5), the
+    // same whitelist-drop bug class that has bitten this codebase before.
+    p = { sets: p.sets - 1, reps: p.reps, rir: p.rir, target: p.target + " · eased (high effort last time)", rest: p.rest };
   }
   // Phase 7 (2.1b): reactive easing from TODAY's manual readiness tap or the fatigue
   // sensing layer (amber band) -- same mechanism as the per-exercise RPE ease above,
   // but triggered by a today-level signal rather than this specific lift's history.
   if (ease && !isDeload && p.sets > 2 && !/eased/.test(p.target)) {
-    p = { sets: p.sets - 1, reps: p.reps, target: p.target + " · eased (today)", rest: p.rest };
+    p = { sets: p.sets - 1, reps: p.reps, rir: p.rir, target: p.target + " · eased (today)", rest: p.rest };
+  }
+  // Programming Philosophy Phase 5: quiet MRV capacity trim. weeklyVolume is
+  // optional and trailing -- absent (existing call sites not yet updated)
+  // means no trimming, identical to pre-Phase-5 behaviour.
+  if (weeklyVolume) {
+    p = Object.assign({}, p, { sets: trimSetsForVolumeLandmark(p.sets, ex, weeklyVolume) });
   }
   var curve = curveFor(ex, goal, isAnchor);
   var setPlan = buildSetPlan(curve, p.sets, p.reps, p.rest);
   return {
     name: ex.name, type: ex.type, equipment: ex.equipment, group: "",
-    sets: p.sets, reps: p.reps,
+    sets: p.sets, reps: p.reps, rir: p.rir,
     weight: (w && w > 0) ? w : 0,
     target: p.target + (curve === "ramp" ? " · ramp to top set" : ""), rest: p.rest, notes: ex.cue,
     curve: curve, setPlan: setPlan, why: why || defaultWhy(ex)
@@ -3683,7 +3789,7 @@ function buildIntent(opts, athlete) {
     })
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot, weeklyVolume) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
   // (Programming Philosophy §3.1) -- everything below reads from it rather
@@ -3724,7 +3830,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   // backstop) is decided independently of the whole-program calendar deload --
   // generateSession has no such calendar concept, so it's ALWAYS the anchor's
   // own decision here. Reuses the existing deload prescription math verbatim.
-  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k])); });
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k], weeklyVolume)); });
   topUpThinDay(strengthEx, parsed.role);
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (includeMob) {
@@ -3789,7 +3895,7 @@ function runWorkout(si, days, minutes, wn) {
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, fatigueSnapshot) {
+function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, fatigueSnapshot, weeklyVolume) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
@@ -3887,7 +3993,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
       // existing deload prescription math for that one exercise; a sibling
       // exercise in the same session that isn't itself a frozen anchor is
       // only ever affected by the calendar deload, exactly as before.
-      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k])); });
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weeklyVolume)); });
       topUpThinDay(strengthEx, role);
 
       if (includeCon) {
@@ -4045,6 +4151,33 @@ var WEEKLY_SET_TARGETS = {
   carry: 4, power: 6, anti_extension: 4, anti_rotation: 4, anti_lateral_flexion: 3,
   rotation: 3, flexion: 4, lateral_flexion: 3
 };
+// Programming Philosophy Phase 5, §3.4: weekly volume targets, sets per muscle.
+// MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum
+// recoverable volume. Named constants (not inlined numbers) so a later phase
+// can make these athlete-specific (experience, recovery, age) without
+// touching the functions that consume them. Only defined for muscles where
+// weekly-set-count programming is a real, established practice -- joint/
+// stabiliser tags (ankles, wrists, neck, spine, hips, shins, forearms, full
+// body) deliberately have no landmarks; inventing MEV/MAV/MRV for "ankles"
+// would be silently-invented coaching behaviour, not a real landmark.
+var MUSCLE_VOLUME_LANDMARKS = {
+  chest:      { mev: 8,  mav: 14, mrv: 20 },
+  back:       { mev: 10, mav: 16, mrv: 22 },
+  shoulders:  { mev: 8,  mav: 14, mrv: 20 },
+  biceps:     { mev: 8,  mav: 14, mrv: 20 },
+  triceps:    { mev: 8,  mav: 14, mrv: 20 },
+  quads:      { mev: 8,  mav: 16, mrv: 22 },
+  hamstrings: { mev: 8,  mav: 14, mrv: 20 },
+  glutes:     { mev: 8,  mav: 14, mrv: 20 },
+  calves:     { mev: 8,  mav: 14, mrv: 20 },
+  core:       { mev: 8,  mav: 14, mrv: 20 }
+};
+// A compound lift's secondary muscle credits at this fraction of a full set
+// (Programming Philosophy §3.4: "compound lifts should contribute
+// intelligently to multiple muscle groups") -- never full credit (would
+// over-count incidental work as equal to a direct set), never zero (would
+// under-count real secondary stimulus).
+var SECONDARY_MUSCLE_CREDIT = 0.5;
 var MP_LABEL = {
   squat: "Squat", hinge: "Hinge", lunge: "Lunge/single-leg", horiz_push: "Horizontal push",
   vert_push: "Vertical push", horiz_pull: "Horizontal pull", vert_pull: "Vertical pull",
@@ -4074,7 +4207,7 @@ var MP_LABEL = {
 function computeWeeklyDebt(state) {
   var byName = {};
   for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
-  var donePat = {}, doneMus = {}, seenPat = {};
+  var donePat = {}, doneMus = {}, doneMusSecondary = {}, seenPat = {};
   var prog = state && state.program, log = (state && state.log) || {};
   var wk = prog && Array.isArray(prog.weeks) ? prog.weeks[(state.activeWeek || 0)] : null;
   if (wk && Array.isArray(wk.sessions)) {
@@ -4097,6 +4230,13 @@ function computeWeeklyDebt(state) {
         if (lib.movement_pattern) donePat[lib.movement_pattern] = (donePat[lib.movement_pattern] || 0) + done;
         var pm = lib.primary_muscles && lib.primary_muscles[0];
         if (pm) doneMus[pm] = (doneMus[pm] || 0) + done;
+        // Programming Philosophy Phase 5, §3.4: "compound lifts should
+        // contribute intelligently to multiple muscle groups" -- secondary
+        // muscles credit at SECONDARY_MUSCLE_CREDIT (0.5), never full, so
+        // incidental work is never counted as equal to a direct working set.
+        (lib.secondary_muscles || []).forEach(function (sm) {
+          doneMusSecondary[sm] = (doneMusSecondary[sm] || 0) + done * SECONDARY_MUSCLE_CREDIT;
+        });
       });
     });
   }
@@ -4108,9 +4248,20 @@ function computeWeeklyDebt(state) {
     ranked.push({ key: mp, label: MP_LABEL[mp] || mp, debt: debt, done: done, target: target, hadOpportunity: hadOpportunity });
   });
   ranked.sort(function (a, b) { return b.debt - a.debt || a.key.localeCompare(b.key); });
+  // Programming Philosophy Phase 5, §3.4: weekly volume landmarks (MEV/MAV/MRV)
+  // per muscle, crediting primary muscle at full weight and secondary muscles
+  // at SECONDARY_MUSCLE_CREDIT. Additive-only -- byPattern/byMuscle/ranked
+  // above are completely unchanged in shape and value from before this task.
+  var byMuscleVolume = {};
+  Object.keys(MUSCLE_VOLUME_LANDMARKS).forEach(function (m) {
+    var landmarks = MUSCLE_VOLUME_LANDMARKS[m];
+    var done = (doneMus[m] || 0) + (doneMusSecondary[m] || 0);
+    var band = done >= landmarks.mrv ? "at-or-over-mrv" : done >= landmarks.mav ? "in-mav" : done >= landmarks.mev ? "in-mev" : "under-mev";
+    byMuscleVolume[m] = { done: done, mev: landmarks.mev, mav: landmarks.mav, mrv: landmarks.mrv, band: band, remainingToMrv: Math.max(0, landmarks.mrv - done) };
+  });
   // byMuscle carries completed-set counts only; per-muscle TARGETS are a documented
   // follow-on (pattern debt is the operative signal for antagonist/pattern balance).
-  return { byPattern: byPattern, byMuscle: doneMus, ranked: ranked };
+  return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked };
 }
 
 // ---- Phase 7 (2.1): fatigue sensing layer ----
@@ -6457,7 +6608,7 @@ function resolveSpec(request, state) {
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
-      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null);
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null, computeWeeklyDebt(state).byMuscleVolume);
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
         '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · ' + equipSummaryLabel(p.equipment) + '</div>' +
@@ -6628,7 +6779,7 @@ function resolveSpec(request, state) {
         // "Propose, never force": pre-build exactly what was requested (ease=false,
         // ignoring the degradation entirely) so a single explicit tap can have it --
         // never by silently reinterpreting the text, only this named escape hatch.
-        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue);
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume);
         anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
@@ -6636,7 +6787,7 @@ function resolveSpec(request, state) {
         // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
         // exercise and tightens the fatigue budget, same mechanism as the existing
         // per-exercise RPE ease.
-        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue);
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume);
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so · easing off</div>';
       }
