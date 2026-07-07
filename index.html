@@ -3243,17 +3243,21 @@ function buildIntent(opts, athlete) {
 }
 function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
-  var minutes = clampInt(parsed.minutes, 15, 120, 45);
-  var goal = parsed.goal || "general";
-  var allowed = Array.isArray(parsed.equipment) ? parsed.equipment : null;
+  // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
+  // (Programming Philosophy §3.1) -- everything below reads from it rather
+  // than re-inferring goal->stimulus or role->pattern independently.
+  var intent = buildIntent(parsed, athlete);
+  var minutes = intent.constraints.minutes;
+  var goal = intent.goal;
+  var allowed = intent.constraints.equipment;
   // Gold standard, non-negotiable: EVERY session warms up and cools down --
   // regardless of any setting, even a brief one, even if the user "skipped"
   // mobility. So warm-up/cool-down are always built (and always reserve their
   // time slot below). Conditioning stays a real choice.
   var includeMob = true;
   var includeCon = (parsed.includes || []).indexOf("conditioning") >= 0;
-  var selGoal = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
-  var allowPats = parsed.role ? rolePatterns(parsed.role) : ((parsed.patterns && parsed.patterns.length) ? parsed.patterns.slice() : null);
+  var selGoal = intent.primary.stimulus;
+  var allowPats = intent.primary.focusPatterns;
   var slotsTotal = Math.max(3, Math.min(8, Math.round(minutes / 8)));
   var strengthSlots = Math.max(2, Math.min(7, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
   var baseSlots, patCap;
