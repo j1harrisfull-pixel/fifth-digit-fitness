@@ -31,6 +31,7 @@ If implementation reveals a case that seems to require touching exercise selecti
 1. **Stimulus vocabulary scope.** The spec's table has 5 stimulus rows (Strength / Tension-compound / Tension-isolation / Pump / Power), but `buildIntent()` (Phase 2, already shipped) only derives 3 real stimulus values today (`strength` / `hypertrophy` / `general`) -- "Pump" and a first-class "Power" stimulus don't exist in Intent yet, only a `wantsPower` boolean used for purpose-slot routing. **Decision: Phase 5 stays inside today's 3 real stimuli** and builds a genuine compound/isolation-aware rest+RIR table for them; the existing `wantsPower`/`velocity_or_load` signal is used only as a narrow override for power-pattern lifts (unchanged from today's `curveFor` power handling). Extending Intent's own stimulus vocabulary to add real Pump/Power stimuli is flagged as **future Intent work**, not built here -- doing it now would mean Phase 5 reaching back into Phase 2's already-approved function.
 2. **Secondary-muscle volume credit.** A compound lift's secondary muscle (e.g. Bench Press → triceps) credits **0.5 sets** toward that muscle's weekly volume, not 0 (spec: "compound lifts should contribute intelligently to multiple muscle groups") and not 1.0 (would over-credit incidental work as equal to a direct set).
 3. **MRV enforcement.** When a muscle's rolling weekly volume would exceed MRV if an exercise's full prescribed sets were logged, prescription **quietly trims the set count** to fit under the landmark -- the same quiet-adjustment idiom the app already uses for fatigue budget and deload, not a new visible UI surface.
+4. **Non-ramp-anchor default reps for `strength`, and the accessory table redirect (discovered during implementation, reported here rather than silently coded around).** The true 3-5 rep max is a property of a RAMP ANCHOR specifically (a lift genuinely being worked up to a top set), not of the `strength` stimulus in general -- a non-ramp compound anchor (e.g. a goblet squat leading a day, or a lift not in `RAMP_ANCHORS`) was never 3-5 reps even before this phase. So `PRESCRIPTION_TABLE.strength.compound.reps` is **`"6-8"`** (the non-ramp-anchor default), and the genuine 3-5 max is supplied ONLY by the existing `rampAnchor` override in Task 2.2, scoped to `goal === "strength"` exactly as it was pre-Phase-5. Separately, because `strength` has no `isolation` row (judgement call: true strength work is never isolation), a non-anchor (accessory) slot in a strength-goal session has no bracket of its own to read -- it borrows the `hypertrophy` bracket via a `tableGoal` redirect (`goal === "strength" && !anchor ? "hypertrophy" : goal`), matching real coaching practice: accessories in a strength block are hypertrophy-style assistance work, not more max-effort work. Getting either of these wrong (a flat `"3-5"` in the table, or no redirect) reintroduces a real bug: every strength-goal accessory and every non-ramp strength anchor would wrongly get 3-5 reps. This was caught during implementation by the full regression suite, not the new test file alone -- see Section 4.
 
 ---
 
@@ -129,8 +130,17 @@ These three deltas are the intentional coaching improvements this task makes; th
 // rirRange is the STIMULUS BASELINE band (§3.4); the existing week-wave
 // progression (Task 2.3) tightens WITHIN this band across weekNum/isDeload --
 // the two mechanisms compose, neither replaces the other.
+//
+// strength.compound.reps is "6-8" -- the NON-ramp-anchor default (see
+// judgement call #4, plan header). The genuine 3-5 rep max is a property of
+// a true ramp anchor specifically, and is applied ONLY via the `rampAnchor`
+// override in Task 2.2, exactly as it was before this phase. Putting "3-5"
+// directly in this table would apply it to every strength-goal anchor
+// (including non-ramp ones) and, via the tableGoal redirect below, was the
+// exact bug caught by the full regression suite during implementation --
+// see Section 4.
 var PRESCRIPTION_TABLE = {
-  strength:    { compound: { reps: "3-5",   rest: "3-5 min", rirRange: [1, 2] } },
+  strength:    { compound: { reps: "6-8",   rest: "3-5 min", rirRange: [1, 2] } },
   hypertrophy: { compound: { reps: "6-12",  rest: "2-3 min", rirRange: [1, 3] },
                  isolation:{ reps: "10-15", rest: "60-120s", rirRange: [1, 2] } },
   general:     { compound: { reps: "8-10",  rest: "2 min",   rirRange: [1, 2] },
@@ -138,7 +148,7 @@ var PRESCRIPTION_TABLE = {
 };
 ```
 
-- [ ] **Test-first:** every stimulus present in `PRESCRIPTION_TABLE` has at least a `compound` row; `strength` deliberately has no `isolation` row (asserted explicitly, not just absent by omission); every `rirRange` is a real `[low, high]` pair with `low <= high`.
+- [ ] **Test-first:** every stimulus present in `PRESCRIPTION_TABLE` has at least a `compound` row; `strength` deliberately has no `isolation` row (asserted explicitly, not just absent by omission); every `rirRange` is a real `[low, high]` pair with `low <= high`; `strength.compound.reps` is `"6-8"`, NOT `"3-5"` (the true rep-max lives only in the `rampAnchor` override, Task 2.2 -- asserted explicitly so a future edit can't silently reintroduce the table-level bug).
 - [ ] Implement, confirm pass, commit.
 
 ### Task 2.2: Rebuild `prescription()`'s strength-training branch to be genuinely stimulus-driven (coaching improvement, not a refactor)
@@ -151,16 +161,28 @@ var PRESCRIPTION_TABLE = {
 // (true strength work is never isolation), and a genuine ramp anchor still
 // earns the tightest reps in-band, same coaching intent as before, now
 // expressed through the table instead of a bypass literal.
-var row = (PRESCRIPTION_TABLE[goal] || PRESCRIPTION_TABLE.general);
+//
+// tableGoal redirect (judgement call #4, plan header): "strength" has no
+// isolation row, and a non-anchor (accessory) slot in a strength-goal
+// session isn't itself a ramp/strength effort -- it's assistance work, so it
+// borrows the hypertrophy bracket. Only a true ANCHOR slot stays on the
+// strength row.
+var tableGoal = (goal === "strength" && !anchor) ? "hypertrophy" : goal;
+var row = (PRESCRIPTION_TABLE[tableGoal] || PRESCRIPTION_TABLE.general);
 var slotIsCompound = anchor ? true : !!ex.compound;
 var stimRow = slotIsCompound ? row.compound : (row.isolation || row.compound);
 var sets = anchor ? anchorSets : accSets;
-var reps = (rampAnchor) ? "3-5" : stimRow.reps; // fixing conflict #2: hypertrophy anchors now use the full compound band via stimRow.reps, not a fixed 6-8
+// fixing conflict #2: hypertrophy anchors now use the full compound band via
+// stimRow.reps, not a fixed 6-8. The true 3-5 rep max applies ONLY when this
+// IS a ramp anchor in a strength-goal session -- matching pre-Phase-5 gating
+// exactly (the old code's hypertrophy/hybrid/endurance branches never
+// consulted rampAnchor at all; only the old "strength" branch did).
+var reps = (goal === "strength" && rampAnchor) ? "3-5" : stimRow.reps;
 ```
 
 (RIR is computed in Task 2.3, not here -- see that task for how the stimulus `rirRange` and the existing week-wave progression compose into one real number.)
 
-- [ ] **Test-first:** a strength-goal ISOLATION accessory now gets Tension-isolation numbers (10-15 reps / 60-120s), not the old flat 8-10/90s (this assertion must FAIL against the current code before implementation, proving it's a real behaviour change, not a no-op); a strength-goal COMPOUND accessory now gets Tension-compound numbers (6-12 reps / 2-3 min); a hypertrophy-goal compound anchor's reps now come from the full 6-12 band rather than a fixed 6-8; the anchor/rampAnchor gating logic itself (which exercise counts as the day's anchor, and which anchors are true ramp anchors) is completely unchanged -- Phase 5 only changes how a slot's stimulus is translated to reps/rest/RIR, never which slot is the anchor.
+- [ ] **Test-first:** a strength-goal ISOLATION accessory now gets Tension-isolation numbers via the hypertrophy-bracket redirect (10-15 reps / 60-120s), not the old flat 8-10/90s (this assertion must FAIL against the current code before implementation, proving it's a real behaviour change, not a no-op); a strength-goal COMPOUND accessory now gets Tension-compound numbers (6-12 reps / 2-3 min) via the same redirect; a strength-goal NON-RAMP anchor gets 6-8 reps (the table's own default), not 3-5; a strength-goal RAMP anchor still gets 3-5 reps via the `rampAnchor` override, unchanged from before this phase; a hypertrophy-goal compound anchor's reps now come from the full 6-12 band rather than a fixed 6-8, and are NOT affected by `rampAnchor` (matching the old code, which never checked `rampAnchor` outside the strength branch); the anchor/rampAnchor gating logic itself (which exercise counts as the day's anchor, and which anchors are true ramp anchors) is completely unchanged -- Phase 5 only changes how a slot's stimulus is translated to reps/rest/RIR, never which slot is the anchor.
 - [ ] Implement.
 - [ ] Confirm the new tests pass, and confirm the special-case branches (mobility/conditioning/static_hold/carry/Turkish-get-up) are provably untouched via their own existing passing tests (`test-phase-b-warmup-cooldown.js`, `test-phase-c-density.js`, etc.).
 - [ ] Commit.
@@ -262,7 +284,8 @@ Real call sites (`generateSession`, `generateProgram`) pass `computeWeeklyDebt(s
 **Skill lens: usability and regression checking.**
 
 - [ ] Run the new test file (`tools/tests/test-phase5-prescription-volume.js`) -- confirm all pass, including every required case above.
-- [ ] Run the full suite -- confirm every pre-existing file is pass-count-identical to the Phase 4 baseline (33/5/4/13/213/22988/12/11/54/288/369/44) **for every file EXCEPT wherever `test-progression.js`/`test-phase-a-blocks.js` assert the OLD strength-prescription numbers this phase intentionally changes** -- those specific assertions are expected to need updating to the new, Philosophy-aligned numbers, and any such change must be listed explicitly in the completion report, not silently absorbed. The special-case branches (mobility/conditioning/static-hold/carry/Turkish-get-up) must remain byte-for-byte unaffected.
-- [ ] Live-verify: reset SW/caches, boot-check, zero console errors; build a session and confirm displayed sets/reps/rest/RIR read sensibly for a compound vs. an isolation accessory at the same goal, and that RIR is now visibly a real number driving the effort text rather than an opaque wording; log enough sets against one muscle to approach MRV (test both as an exercise's primary AND as a secondary credit), rebuild, and confirm that muscle's next prescribed exercise shows a visibly reduced set count.
+- [ ] Run the full suite. The bar is NOT "every file must match the Phase 4 baseline exactly" -- Phase 5 deliberately changes strength-training prescription numbers, so a file that directly asserts the OLD reps/rest brackets is EXPECTED to need its assertions rewritten to the new, Philosophy-aligned numbers, and any such rewrite must be listed explicitly in the completion report as an intentional coaching-behaviour change, never silently absorbed. Conversely, a file's pass COUNT staying identical to the Phase 4 baseline is not itself a requirement to preserve -- it is simply the expected result for any file that tests progression/session-structure mechanics rather than the specific numeric brackets this phase changes (e.g. `test-progression.js`, `test-phase-a-blocks.js`), and should be reported as an observation, not treated as a target. The special-case branches (mobility/conditioning/static-hold/carry/Turkish-get-up) must remain byte-for-byte unaffected in every file.
+- [ ] Live-verify: reset SW/caches, boot-check, zero console errors; build a session and confirm displayed sets/reps/rest/RIR read sensibly for a compound vs. an isolation accessory at the same goal, and that RIR is now visibly a real number driving the effort text rather than an opaque wording; log enough sets against one muscle to approach MRV (test both as an exercise's primary AND as a secondary credit), rebuild, and confirm that muscle's next prescribed exercise shows a visibly reduced set count. If a case can only be proven via the automated end-to-end test rather than manual UI interaction (e.g. reproducing enough real logged history through the click-driven UI to reach MRV), say so explicitly in the report rather than implying full manual coverage.
+- [ ] Check every OTHER place in the codebase that reconstructs an exercise object from a fixed field list (not just `buildEx`) for the same whitelist-drop failure mode that has bitten this codebase before (`session.blocks`, athlete `metrics`/`history`) -- any such site must carry the new `rir` field through explicitly, the same way every other real field is carried through. Report every site found and fixed.
 - [ ] Commit locally. **Do not push/deploy or start Phase 6 until James reviews the completion report and approves.**
-- [ ] Write the completion report covering: what changed / what deliberately did NOT change (the special-case branches, the anchor/rampAnchor selection gating itself, the week-progression set-count wave) / specialist skill used per task / exact tests added / full regression result, with every intentional numeric behaviour change (the three identified conflicts) listed explicitly as coaching improvements, not bugs / whether an injury-free, preference-free, fresh-week athlete now sees DIFFERENT strength-training numbers than Phase 4 (expected: yes, for accessories and hypertrophy-compound anchors specifically -- that is the intended outcome of this phase, not a regression) / risks / judgement calls (the 3 in the header, plus any found during implementation, plus the RIR week-wave formula in Task 2.3) / architectural observations / scope drift.
+- [ ] Write the completion report covering: what changed / what deliberately did NOT change (the special-case branches, the anchor/rampAnchor selection gating itself, the week-progression set-count wave) / specialist skill used per task / exact tests added / full regression result, reported as actual observed outcomes (not a pre-committed target) with every intentional numeric behaviour change (the three identified conflicts, plus judgement call #4's non-ramp-anchor default and tableGoal redirect) listed explicitly as coaching improvements, not bugs / whether an injury-free, preference-free, fresh-week athlete now sees DIFFERENT strength-training numbers than Phase 4 (expected: yes, for accessories and hypertrophy-compound anchors specifically -- that is the intended outcome of this phase, not a regression) / every whitelist-drop site found and fixed / risks / judgement calls (the 4 in the header, plus any found during implementation, plus the RIR week-wave formula in Task 2.3) / architectural observations / scope drift.
