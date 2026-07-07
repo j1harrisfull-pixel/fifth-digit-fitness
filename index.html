@@ -1070,6 +1070,22 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <p class="sect__hint" style="margin-top:8px">Left out until you tick the ones you can already do; you get an easier version in their place.</p>
     </div>
     <div class="sect">
+      <div class="sect__label">Your training</div>
+      <div class="chips" id="expChips" role="group" aria-label="Experience level">
+        <button class="chip" data-exp="beginner" type="button">Beginner</button>
+        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
+        <button class="chip" data-exp="advanced" type="button">Advanced</button>
+      </div>
+      <p class="sect__hint" style="margin-top:8px">Sets how hard and how much the coach prescribes. Change it any time.</p>
+      <div class="sect__label" style="margin-top:16px">Movements to avoid</div>
+      <div class="chips" id="avoidChips" role="group" aria-label="Movements to avoid"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <input class="intro__name" id="avoidInput" type="text" placeholder="e.g. Overhead Press" aria-label="Movement to avoid">
+        <button class="btn" id="avoidAddBtn" type="button">Add</button>
+      </div>
+      <p class="sect__hint" style="margin-top:8px">The coach will never program these. Tap one to remove it.</p>
+    </div>
+    <div class="sect">
       <div class="sect__label">Backup (everything)</div>
       <div class="btn-row">
         <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
@@ -5323,7 +5339,11 @@ function resolveSpec(request, state) {
       btn.classList.toggle("is-done", wwl.el.warm[wi]); btn.setAttribute("aria-pressed", wwl.el.warm[wi]);
     } else if (act === "skipex") {
       // Set the exercise aside for today so the session can finish without it.
-      var wSk = writeLog(ses, e); wSk.el.skipped = true; hideRest(); save();
+      var wSk = writeLog(ses, e); wSk.el.skipped = true; hideRest();
+      // Learned preference (Programming Philosophy §3.6): skipping is a soft "less
+      // of this" signal. Collect-only in Phase 1 -- the ranker reads it from Phase 4.
+      bumpPref(state.athlete, canonicalExName(e.name), -1);
+      save();
       renderHead(); renderList(true);
       // Skipping the last unresolved exercise can complete the session -- flip
       // the bar to "Finish" rather than auto-firing the receipt.
@@ -5355,7 +5375,7 @@ function resolveSpec(request, state) {
     } else if (act === "swap-pick") {
       var newName = btn.getAttribute("data-name");
       var alt = LIBRARY.filter(function (x) { return x.type === "conditioning" && x.name === newName; })[0];
-      if (alt) { e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false; save(); renderList(false); }
+      if (alt) { bumpPref(state.athlete, canonicalExName(e.name), -1); e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false; save(); renderList(false); }
     } else if (act === "sets-" || act === "sets+") {
       var ns = clampInt(e.sets + (act === "sets+" ? 1 : -1), SETS_MIN, SETS_MAX, e.sets);
       if (ns === e.sets) return;
@@ -5713,6 +5733,21 @@ function resolveSpec(request, state) {
   function syncSkillChips() {
     var arr = (state && Array.isArray(state.unlockedSkills)) ? state.unlockedSkills : [];
     document.querySelectorAll("#skillChips button").forEach(function (b) { b.setAttribute("aria-pressed", arr.indexOf(b.getAttribute("data-skill")) >= 0); });
+  }
+  // Athlete-profile settings (Programming Philosophy §3.6): experience picker +
+  // "movements to avoid" list. Injury-entry UX is deliberately minimal here
+  // (spec §5 parks the richer version); an avoid-list entry stores as a "nogo".
+  function renderAthleteSettings() {
+    if (!state.athlete) state.athlete = normalizeAthlete(null);
+    var exp = state.athlete.experience || "intermediate";
+    document.querySelectorAll("#expChips button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-exp") === exp);
+    });
+    var wrap = $("avoidChips"); if (!wrap) return;
+    var inj = Array.isArray(state.athlete.injuries) ? state.athlete.injuries : [];
+    wrap.innerHTML = inj.length
+      ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="avoid-del" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+      : '<span class="sect__hint">None yet.</span>';
   }
   function wireSkillChips() {
     var el = $("skillChips"); if (!el) return;
@@ -6247,6 +6282,7 @@ function resolveSpec(request, state) {
     document.querySelectorAll("#fillerSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-filler-val") === (state.fillers === false ? "off" : "on")); });
     syncEquipChips("myEquip");
     syncSkillChips();
+    renderAthleteSettings();
     syncScheduleSect();
   }
   // Settings training-day picker: edits state.program.trainDays IN PLACE (no
@@ -6303,6 +6339,29 @@ function resolveSpec(request, state) {
   wireEquipChips("myEquip");
   wireEquipChips("todayEquip");
   wireSkillChips();
+  // Athlete profile (Programming Philosophy §3.6): experience + movements-to-avoid.
+  $("expChips").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-exp]"); if (!b) return;
+    if (!state.athlete) state.athlete = normalizeAthlete(null);
+    state.athlete.experience = b.getAttribute("data-exp"); save(); renderAthleteSettings();
+  });
+  $("avoidAddBtn").addEventListener("click", function () {
+    var v = ($("avoidInput").value || "").trim(); if (!v) return;
+    if (!state.athlete) state.athlete = normalizeAthlete(null);
+    if (!Array.isArray(state.athlete.injuries)) state.athlete.injuries = [];
+    if (!state.athlete.injuries.some(function (i) { return i.target.toLowerCase() === v.toLowerCase(); })) {
+      state.athlete.injuries.push({ category: "nogo", target: v });
+    }
+    $("avoidInput").value = ""; save(); renderAthleteSettings();
+  });
+  $("avoidChips").addEventListener("click", function (ev) {
+    var b = ev.target.closest('[data-act="avoid-del"]'); if (!b) return;
+    var t = b.getAttribute("data-target");
+    if (state.athlete && Array.isArray(state.athlete.injuries)) {
+      state.athlete.injuries = state.athlete.injuries.filter(function (i) { return i.target !== t; });
+    }
+    save(); renderAthleteSettings();
+  });
 
   /* ===================== Backup ===================== */
   function exportBackup() {
