@@ -3219,6 +3219,70 @@ function guaranteeSession(session, minutes) {
 // (pickStrength, selectComplementary, etc.) re-infers goal->stimulus or
 // role->pattern mapping independently. Full purpose-slot mapping (anchor
 // freeze/progression) is Phase 3; this is the intent object itself.
+// Allowed purpose-slot roles -- fixed, do not extend without approval.
+var PURPOSE_SLOT_ROLES = ["prep", "power_skill", "anchor", "secondary_compound", "accessory_balance", "accessory_weak_point", "isolation", "finisher", "cooldown", "recovery"];
+// Purpose slots describe WHAT a session needs and WHY -- never which exercise,
+// load, or progression fills it (that's Phase 3+). Every slot is a placeholder:
+// { role, target?, pattern?, stimulus?, demand?, reason, required, selectionStatus:"unfilled", constraints? }.
+// Deterministic and pure: same ctx in -> same slots out, always.
+function derivePurposeSlots(ctx) {
+  var slots = [];
+  function add(role, f) {
+    var s = { role: role, reason: f.reason, required: !!f.required, selectionStatus: "unfilled" };
+    if (f.target !== undefined) s.target = f.target;
+    if (f.pattern !== undefined) s.pattern = f.pattern;
+    if (f.stimulus !== undefined) s.stimulus = f.stimulus;
+    if (f.demand !== undefined) s.demand = f.demand;
+    if (f.constraints !== undefined) s.constraints = f.constraints;
+    slots.push(s);
+  }
+  var shared = { equipment: ctx.equipment, injuries: ctx.injuries };
+  // Readiness TUNES emphasis/slot presence -- it never silently swaps the
+  // requested theme for something else. "rough" mirrors the app's EXISTING
+  // readiness->recovery path (a real recoverySession is already what happens
+  // today), so collapsing to a recovery-shaped slot list here is consistent
+  // with current behaviour, not a new override.
+  var isRough = ctx.readiness === "rough" || ctx.readiness === "recovery";
+  var isEased = ctx.readiness === "eased" || ctx.readiness === "so-so";
+
+  add("prep", { required: true, reason: "General movement preparation before loading." });
+
+  if (isRough) {
+    add("recovery", { required: true, reason: "Readiness is rough -- active recovery in place of the requested load.", constraints: shared });
+    add("cooldown", { required: true, reason: "Mandatory cool-down and breathing to close the session." });
+    return slots;
+  }
+
+  if (ctx.wantsPower && ctx.minutes >= 30) {
+    add("power_skill", { required: false, stimulus: "power", reason: "Explosive/skill work was requested and there's time for it.", constraints: shared });
+  }
+
+  var targetLabel = Array.isArray(ctx.target) ? ctx.target.join("/") : ctx.target;
+  add("anchor", {
+    required: true, target: ctx.target, stimulus: ctx.stimulus,
+    demand: isEased ? "reduced" : "normal",
+    reason: "Primary " + ctx.stimulus + " driver for the requested session" + (targetLabel ? " (" + targetLabel + ")" : "") + ".",
+    constraints: shared
+  });
+
+  if (ctx.minutes >= 30) {
+    add("secondary_compound", { required: false, target: ctx.target, stimulus: ctx.stimulus, reason: "A second compound movement to build additional volume toward the session's target.", constraints: shared });
+  }
+  if (ctx.minutes >= 45) {
+    add("accessory_balance", { required: false, reason: "Balances the day's primary movement pattern (antagonist coverage).", constraints: shared });
+  }
+  if (ctx.minutes >= 60 && !isEased) {
+    add("accessory_weak_point", { required: false, reason: "Reserved for weak-point emphasis -- not yet driven by tracked data, provisional until a later phase.", constraints: shared });
+  }
+  if (ctx.minutes >= 45) {
+    add("isolation", { required: false, reason: "Isolated single-joint work to finish the muscle group.", constraints: shared });
+  }
+  if (ctx.includesConditioning && !isEased) {
+    add("finisher", { required: false, stimulus: "conditioning", reason: "Conditioning finisher requested for this session.", constraints: shared });
+  }
+  add("cooldown", { required: true, reason: "Mandatory cool-down and breathing to close the session." });
+  return slots;
+}
 function buildIntent(opts, athlete) {
   opts = opts || {};
   var goal = opts.goal || "general";
@@ -3228,17 +3292,26 @@ function buildIntent(opts, athlete) {
   var focusPatterns = role ? rolePatterns(role) : rawPatterns;
   var target = role || (Array.isArray(opts.areas) && opts.areas.length ? opts.areas.slice() : rawPatterns);
   var a = normalizeAthlete(athlete);
+  var minutes = clampInt(opts.minutes, 15, 120, 45);
+  var equipment = Array.isArray(opts.equipment) ? opts.equipment.slice() : null;
+  var readiness = opts.readiness || null;
+  var includesConditioning = Array.isArray(opts.includes) && opts.includes.indexOf("conditioning") >= 0;
+  var wantsPower = !!((Array.isArray(opts.patterns) && opts.patterns.indexOf("power") >= 0) || (focusPatterns && focusPatterns.indexOf("power") >= 0));
   return {
     goal: goal,
     primary: { target: target, stimulus: stimulus, focusPatterns: focusPatterns },
     secondary: [], // reserved -- per-muscle secondary emphasis is Phase 4/debt territory
     constraints: {
-      minutes: clampInt(opts.minutes, 15, 120, 45),
-      equipment: Array.isArray(opts.equipment) ? opts.equipment.slice() : null,
-      readiness: opts.readiness || null,
+      minutes: minutes,
+      equipment: equipment,
+      readiness: readiness,
       injuries: a.injuries.slice(),
       experience: a.experience
-    }
+    },
+    purposeSlots: derivePurposeSlots({
+      target: target, stimulus: stimulus, minutes: minutes, equipment: equipment,
+      injuries: a.injuries.slice(), readiness: readiness, includesConditioning: includesConditioning, wantsPower: wantsPower
+    })
   };
 }
 function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete) {
