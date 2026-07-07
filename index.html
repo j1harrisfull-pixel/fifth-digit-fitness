@@ -3212,7 +3212,36 @@ function guaranteeSession(session, minutes) {
   session = attachBlocks(session, minutes);
   return applyDensityFormat(session, minutes);
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked) {
+// ===== Intent Blueprint (Programming Philosophy §3.1) =====
+// The SINGLE place a request's stimulus/target-pattern/constraints are derived.
+// generateSession/generateProgram build ONE intent here and read every
+// intent-level fact from it for the rest of the call -- no downstream function
+// (pickStrength, selectComplementary, etc.) re-infers goal->stimulus or
+// role->pattern mapping independently. Full purpose-slot mapping (anchor
+// freeze/progression) is Phase 3; this is the intent object itself.
+function buildIntent(opts, athlete) {
+  opts = opts || {};
+  var goal = opts.goal || "general";
+  var stimulus = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
+  var role = opts.role || null;
+  var rawPatterns = (Array.isArray(opts.patterns) && opts.patterns.length) ? opts.patterns.slice() : null;
+  var focusPatterns = role ? rolePatterns(role) : rawPatterns;
+  var target = role || (Array.isArray(opts.areas) && opts.areas.length ? opts.areas.slice() : rawPatterns);
+  var a = normalizeAthlete(athlete);
+  return {
+    goal: goal,
+    primary: { target: target, stimulus: stimulus, focusPatterns: focusPatterns },
+    secondary: [], // reserved -- per-muscle secondary emphasis is Phase 4/debt territory
+    constraints: {
+      minutes: clampInt(opts.minutes, 15, 120, 45),
+      equipment: Array.isArray(opts.equipment) ? opts.equipment.slice() : null,
+      readiness: opts.readiness || null,
+      injuries: a.injuries.slice(),
+      experience: a.experience
+    }
+  };
+}
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
