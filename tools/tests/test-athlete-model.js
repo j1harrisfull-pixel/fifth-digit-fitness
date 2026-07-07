@@ -17,6 +17,32 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(a.experience === 'intermediate', 'null -> experience defaults to intermediate');
   ok(Array.isArray(a.injuries) && a.injuries.length === 0, 'null -> injuries defaults to []');
   ok(a.prefs && typeof a.prefs === 'object' && Object.keys(a.prefs).length === 0, 'null -> prefs defaults to {}');
+  ok(a.metrics && typeof a.metrics === 'object' && Object.keys(a.metrics).length === 0, 'null -> metrics defaults to {} (reserved for future use)');
+  ok(a.history && typeof a.history === 'object' && Object.keys(a.history).length === 0, 'null -> history defaults to {} (reserved for future use)');
+}
+
+// ---------- normalizeAthlete: metrics/history are forward-compatible placeholders ----------
+{
+  const a = normalizeAthlete({ metrics: { est1rm: { 'Back Squat': 120 } }, history: { streak: 4 } });
+  ok(a.metrics.est1rm && a.metrics.est1rm['Back Squat'] === 120, 'a valid metrics object is PRESERVED, not wiped (future phases will write here)');
+  ok(a.history.streak === 4, 'a valid history object is PRESERVED, not wiped');
+  const b = normalizeAthlete({ metrics: 'nope', history: [1, 2, 3] });
+  ok(Object.keys(b.metrics).length === 0, 'a non-object metrics value falls back to {}');
+  ok(Object.keys(b.history).length === 0, 'an array (non-plain-object) history value falls back to {}');
+}
+
+// ---------- normalizeAthlete: all four injury categories are accepted ----------
+{
+  const a = normalizeAthlete({ injuries: [
+    { category: 'pain', target: 'Overhead Press' },
+    { category: 'restricted', target: 'Left shoulder' },
+    { category: 'medical', target: 'Heavy overhead loading' },
+    { category: 'nogo', target: 'Burpees' }
+  ] });
+  ok(a.injuries.length === 4, 'all four injury categories (pain/restricted/medical/nogo) survive validation');
+  ['pain', 'restricted', 'medical', 'nogo'].forEach(cat => {
+    ok(a.injuries.some(i => i.category === cat), `category "${cat}" is present`);
+  });
 }
 
 // ---------- normalizeAthlete: validation ----------

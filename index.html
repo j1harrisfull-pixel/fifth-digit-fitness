@@ -1077,13 +1077,39 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button class="chip" data-exp="advanced" type="button">Advanced</button>
       </div>
       <p class="sect__hint" style="margin-top:8px">Sets how hard and how much the coach prescribes. Change it any time.</p>
-      <div class="sect__label" style="margin-top:16px">Movements to avoid</div>
-      <div class="chips" id="avoidChips" role="group" aria-label="Movements to avoid"></div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">Injuries &amp; restrictions</div>
+      <p class="sect__hint">All optional — skip anything that doesn't apply. The coach will never program anything you add here.</p>
+
+      <div class="sect__label" style="margin-top:16px;font-size:11px">Painful movements</div>
+      <div class="chips" id="injChips-pain" role="group" aria-label="Painful movements"></div>
       <div class="btn-row" style="margin-top:8px">
-        <input class="intro__name" id="avoidInput" type="text" placeholder="e.g. Overhead Press" aria-label="Movement to avoid">
-        <button class="btn" id="avoidAddBtn" type="button">Add</button>
+        <input class="intro__name" id="injInput-pain" type="text" placeholder="e.g. Overhead Press" aria-label="Add a painful movement">
+        <button class="btn" data-inj-cat="pain" type="button">Add</button>
       </div>
-      <p class="sect__hint" style="margin-top:8px">The coach will never program these. Tap one to remove it.</p>
+
+      <div class="sect__label" style="margin-top:16px;font-size:11px">Restricted joint or movement</div>
+      <div class="chips" id="injChips-restricted" role="group" aria-label="Restricted joint or movement"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <input class="intro__name" id="injInput-restricted" type="text" placeholder="e.g. Left shoulder" aria-label="Add a restricted joint or movement">
+        <button class="btn" data-inj-cat="restricted" type="button">Add</button>
+      </div>
+
+      <div class="sect__label" style="margin-top:16px;font-size:11px">Medical restriction / red flag</div>
+      <div class="chips" id="injChips-medical" role="group" aria-label="Medical restriction or red flag"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <input class="intro__name" id="injInput-medical" type="text" placeholder="e.g. Heavy overhead loading" aria-label="Add a medical restriction">
+        <button class="btn" data-inj-cat="medical" type="button">Add</button>
+      </div>
+
+      <div class="sect__label" style="margin-top:16px;font-size:11px">Personal no-go / preference</div>
+      <div class="chips" id="injChips-nogo" role="group" aria-label="Personal no-go movements"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <input class="intro__name" id="injInput-nogo" type="text" placeholder="e.g. Burpees" aria-label="Add a movement you'd rather skip">
+        <button class="btn" data-inj-cat="nogo" type="button">Add</button>
+      </div>
+      <p class="sect__hint" style="margin-top:8px">Tap any entry to remove it.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Backup (everything)</div>
@@ -1445,7 +1471,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       var n = Number(prefsIn[k]);
       if (!isNaN(n)) prefs[k] = Math.max(PREF_MIN, Math.min(PREF_MAX, n));
     });
-    return { experience: experience, injuries: injuries, prefs: prefs };
+    // metrics/history are reserved, empty in Phase 1 (future coaching data: est.
+    // 1RM, progression trends, recovery, compliance, favourite patterns...).
+    // Preserved AS-IS if a later phase has already started writing into them --
+    // never wiped just because normalizeAthlete doesn't validate their shape yet
+    // (the same whitelist-drop mistake bit Phase A's session.blocks earlier).
+    var metrics = (obj.metrics && typeof obj.metrics === "object" && !Array.isArray(obj.metrics)) ? Object.assign({}, obj.metrics) : {};
+    var history = (obj.history && typeof obj.history === "object" && !Array.isArray(obj.history)) ? Object.assign({}, obj.history) : {};
+    return { experience: experience, injuries: injuries, prefs: prefs, metrics: metrics, history: history };
   }
   // Nudge a learned preference for one exercise (by canonical name) and clamp.
   // Returns the new score. Tolerates a prefs-less athlete. Phase 1 only COLLECTS
@@ -5375,7 +5408,12 @@ function resolveSpec(request, state) {
     } else if (act === "swap-pick") {
       var newName = btn.getAttribute("data-name");
       var alt = LIBRARY.filter(function (x) { return x.type === "conditioning" && x.name === newName; })[0];
-      if (alt) { bumpPref(state.athlete, canonicalExName(e.name), -1); e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false; save(); renderList(false); }
+      if (alt) {
+        bumpPref(state.athlete, canonicalExName(e.name), -1); // swapped away from
+        e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false;
+        bumpPref(state.athlete, canonicalExName(e.name), 1); // deliberately swapped to
+        save(); renderList(false);
+      }
     } else if (act === "sets-" || act === "sets+") {
       var ns = clampInt(e.sets + (act === "sets+" ? 1 : -1), SETS_MIN, SETS_MAX, e.sets);
       if (ns === e.sets) return;
@@ -5735,19 +5773,24 @@ function resolveSpec(request, state) {
     document.querySelectorAll("#skillChips button").forEach(function (b) { b.setAttribute("aria-pressed", arr.indexOf(b.getAttribute("data-skill")) >= 0); });
   }
   // Athlete-profile settings (Programming Philosophy §3.6): experience picker +
-  // "movements to avoid" list. Injury-entry UX is deliberately minimal here
-  // (spec §5 parks the richer version); an avoid-list entry stores as a "nogo".
+  // all four injury categories (§3.5), each its own lightweight, fully-optional
+  // add/remove list -- kept aligned with the data model from day one rather
+  // than exposing only one category and adding the rest later.
+  var INJURY_UI_CATS = ["pain", "restricted", "medical", "nogo"];
   function renderAthleteSettings() {
     if (!state.athlete) state.athlete = normalizeAthlete(null);
     var exp = state.athlete.experience || "intermediate";
     document.querySelectorAll("#expChips button").forEach(function (b) {
       b.setAttribute("aria-pressed", b.getAttribute("data-exp") === exp);
     });
-    var wrap = $("avoidChips"); if (!wrap) return;
     var inj = Array.isArray(state.athlete.injuries) ? state.athlete.injuries : [];
-    wrap.innerHTML = inj.length
-      ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="avoid-del" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
-      : '<span class="sect__hint">None yet.</span>';
+    INJURY_UI_CATS.forEach(function (cat) {
+      var wrap = $("injChips-" + cat); if (!wrap) return;
+      var items = inj.filter(function (i) { return i.category === cat; });
+      wrap.innerHTML = items.length
+        ? items.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + cat + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+        : '<span class="sect__hint">None yet.</span>';
+    });
   }
   function wireSkillChips() {
     var el = $("skillChips"); if (!el) return;
@@ -6339,28 +6382,32 @@ function resolveSpec(request, state) {
   wireEquipChips("myEquip");
   wireEquipChips("todayEquip");
   wireSkillChips();
-  // Athlete profile (Programming Philosophy §3.6): experience + movements-to-avoid.
+  // Athlete profile (Programming Philosophy §3.6): experience + all four
+  // injury categories, each its own lightweight add/remove list.
   $("expChips").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-exp]"); if (!b) return;
     if (!state.athlete) state.athlete = normalizeAthlete(null);
     state.athlete.experience = b.getAttribute("data-exp"); save(); renderAthleteSettings();
   });
-  $("avoidAddBtn").addEventListener("click", function () {
-    var v = ($("avoidInput").value || "").trim(); if (!v) return;
-    if (!state.athlete) state.athlete = normalizeAthlete(null);
-    if (!Array.isArray(state.athlete.injuries)) state.athlete.injuries = [];
-    if (!state.athlete.injuries.some(function (i) { return i.target.toLowerCase() === v.toLowerCase(); })) {
-      state.athlete.injuries.push({ category: "nogo", target: v });
-    }
-    $("avoidInput").value = ""; save(); renderAthleteSettings();
-  });
-  $("avoidChips").addEventListener("click", function (ev) {
-    var b = ev.target.closest('[data-act="avoid-del"]'); if (!b) return;
-    var t = b.getAttribute("data-target");
-    if (state.athlete && Array.isArray(state.athlete.injuries)) {
-      state.athlete.injuries = state.athlete.injuries.filter(function (i) { return i.target !== t; });
-    }
-    save(); renderAthleteSettings();
+  INJURY_UI_CATS.forEach(function (cat) {
+    var addBtn = document.querySelector('[data-inj-cat="' + cat + '"]'), inp = $("injInput-" + cat), wrap = $("injChips-" + cat);
+    if (addBtn) addBtn.addEventListener("click", function () {
+      var v = (inp.value || "").trim(); if (!v) return;
+      if (!state.athlete) state.athlete = normalizeAthlete(null);
+      if (!Array.isArray(state.athlete.injuries)) state.athlete.injuries = [];
+      if (!state.athlete.injuries.some(function (i) { return i.category === cat && i.target.toLowerCase() === v.toLowerCase(); })) {
+        state.athlete.injuries.push({ category: cat, target: v });
+      }
+      inp.value = ""; save(); renderAthleteSettings();
+    });
+    if (wrap) wrap.addEventListener("click", function (ev) {
+      var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
+      var t = b.getAttribute("data-target");
+      if (state.athlete && Array.isArray(state.athlete.injuries)) {
+        state.athlete.injuries = state.athlete.injuries.filter(function (i) { return !(i.category === cat && i.target === t); });
+      }
+      save(); renderAthleteSettings();
+    });
   });
 
   /* ===================== Backup ===================== */
@@ -6718,7 +6765,15 @@ function resolveSpec(request, state) {
       var lg = readLog(ses, e);
       setsDone += lg.sets.filter(function (s) { return s.completed; }).length;
       if (e.type === "strength" && strengthFoot(e, lg, unit).ready) readyCount++;
+      // Positive learned-preference signal (Programming Philosophy §3.6):
+      // finishing every logged set of a non-skipped exercise is a "kept doing
+      // this" signal. Collect-only in Phase 1 -- consumed by the ranker from
+      // Phase 4, never influences selection here.
+      if (!isSkipped(ses, e.id) && lg.sets.length && lg.sets.every(function (s) { return s.completed; })) {
+        bumpPref(state.athlete, canonicalExName(e.name), 1);
+      }
     });
+    save();
     var prog = sessionProgress(sessionItemsFor(ses));
     var wk = curWeek(), nextIdx = -1;
     for (var i = 0; i < wk.sessions.length; i++) {
