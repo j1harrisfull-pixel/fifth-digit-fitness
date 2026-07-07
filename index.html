@@ -4010,8 +4010,26 @@ function computeFatigueState(state) {
   function avgPct(agg) { var out = {}; Object.keys(agg).forEach(function (k) { var a = agg[k]; out[k] = Math.round(100 * a.reduce(function (x, y) { return x + y; }, 0) / a.length); }); return out; }
   var byPattern = avgPct(patAgg), byMuscle = avgPct(musAgg), overall = 0;
   Object.keys(byPattern).forEach(function (k) { if (byPattern[k] > overall) overall = byPattern[k]; });
-  var band = overall >= 20 ? "red" : overall >= 10 ? "amber" : "green";
+  var band = fatigueBand(overall);
   return { percent: overall, band: band, byPattern: byPattern, byMuscle: byMuscle, hasData: hasData };
+}
+// Same red/amber/green thresholds computeFatigueState always used for its
+// overall band -- extracted so Phase 3 can apply the identical thresholds
+// PER movement pattern (anchorProgressionDecision needs a per-pattern band,
+// not just the whole-athlete overall) without duplicating the numbers.
+function fatigueBand(percent) {
+  return percent >= 20 ? "red" : percent >= 10 ? "amber" : "green";
+}
+// byPattern above is keyed by the LIBRARY's granular movement_pattern field
+// (e.g. "horiz_push"), while the anchor system's ANCHOR_PATTERNS use the
+// shorter slot-vocabulary codes (e.g. "hpush") shared with ROLES/pickStrength.
+// This is the one place that translates between them for the six anchor-
+// bearing patterns; nothing else needs to know both vocabularies exist.
+var ANCHOR_PATTERN_TO_MOVEMENT_PATTERN = { squat: "squat", hinge: "hinge", hpush: "horiz_push", vpush: "vert_push", hpull: "horiz_pull", vpull: "vert_pull" };
+function fatigueBandForAnchorPattern(fatigue, anchorPattern) {
+  var mp = ANCHOR_PATTERN_TO_MOVEMENT_PATTERN[anchorPattern];
+  var pct = (fatigue && mp && fatigue.byPattern && fatigue.byPattern[mp] != null) ? fatigue.byPattern[mp] : 0;
+  return fatigueBand(pct);
 }
 // Resolve-stage stubs (block-week / readiness land in Phases 9 / 2.1b).
 function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
@@ -4196,6 +4214,16 @@ function resolveSpec(request, state) {
   // one increment if you earned it last time, else repeated. Falls back to the
   // program's generated weight when there's no history.
   function suggestedWeight(ex) {
+    // Phase 3: if this exercise IS the athlete's frozen anchor for its
+    // movement pattern, its weight comes from the anchor's own progression
+    // state (advanced by recordAnchorExposure at session-complete), not the
+    // generic flat-STEP bump below. Every non-anchor exercise is completely
+    // unaffected -- same path as before Phase 3.
+    var lib = LIBRARY.filter(function (e) { return e.name === ex.name; })[0];
+    if (lib && state.athlete) {
+      var anchorState = getAnchorState(state.athlete, lib.pattern);
+      if (anchorState && anchorState.exerciseId === lib.id) return roundW(anchorState.weight);
+    }
     var lr = lastLogs && lastLogs[canonicalExName(ex.name)];
     // A legitimately logged weight of 0 (bodyweight) is real history, not "no
     // data" -- so a bodyweight lift that's ready still progresses, by adding a
@@ -7084,16 +7112,38 @@ function resolveSpec(request, state) {
     var ended = !!opts.ended;
     hideRest();
     var setsDone = 0, readyCount = 0, unit = state.program.unit;
+    // Phase 3: computed once per completion, not per exercise -- exposure
+    // recording below only reads state.athlete.metrics.anchors and the
+    // fatigue snapshot for whichever pattern(s) today's session actually
+    // anchors, never re-deriving intent/selection.
+    var fatigueSnapshot = state.athlete ? computeFatigueState(state) : null;
     ses.exercises.forEach(function (e) {
       var lg = readLog(ses, e);
       setsDone += lg.sets.filter(function (s) { return s.completed; }).length;
-      if (e.type === "strength" && strengthFoot(e, lg, unit).ready) readyCount++;
+      var ready = e.type === "strength" ? strengthFoot(e, lg, unit).ready : false;
+      if (e.type === "strength" && ready) readyCount++;
       // Positive learned-preference signal (Programming Philosophy §3.6):
       // finishing every logged set of a non-skipped exercise is a "kept doing
       // this" signal. Collect-only in Phase 1 -- consumed by the ranker from
       // Phase 4, never influences selection here.
       if (!isSkipped(ses, e.id) && lg.sets.length && lg.sets.every(function (s) { return s.completed; })) {
         bumpPref(state.athlete, canonicalExName(e.name), 1);
+      }
+      // Phase 3: record a real anchor exposure ONLY when this exercise is
+      // TODAY's frozen anchor for its movement pattern (never a substitute --
+      // a substitute has no frozen state to record against in the first
+      // place, so getAnchorState naturally returns null/mismatched for it).
+      if (e.type === "strength" && state.athlete && lg.sets.length) {
+        var lib = LIBRARY.filter(function (x) { return x.name === e.name; })[0];
+        if (lib) {
+          var anchorState = getAnchorState(state.athlete, lib.pattern);
+          if (anchorState && anchorState.exerciseId === lib.id) {
+            var band = fatigueBandForAnchorPattern(fatigueSnapshot, lib.pattern);
+            var decision = anchorProgressionDecision(anchorState, band, ready);
+            var newWeight = decision.action === "increase" ? roundW(anchorState.weight + anchorIncrementKg(lib)) : anchorState.weight;
+            recordAnchorExposure(state.athlete, lib.pattern, { hitTop: ready, newWeight: newWeight, action: decision.action });
+          }
+        }
       }
     });
     save();

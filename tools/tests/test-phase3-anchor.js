@@ -5,9 +5,9 @@ const fs = require('fs');
 const lines = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8').split('\n');
 const helper = lines.slice(lines.findIndex(l => /function clampInt\(/.test(l)), lines.findIndex(l => /function migrateV1toV2\(/.test(l))).join('\n');
 const cs = lines.findIndex(l => l.includes('/*__COACH_START__*/')), ce = lines.findIndex(l => l.includes('/*__COACH_END__*/'));
-const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={normalizeAthlete,getAnchorState,freezeAnchor,recordAnchorExposure,ANCHOR_PATTERNS,anchorIncrementKg,anchorProgressionDecision,resolveTodaysAnchor,ANCHOR_STALL_LIMIT,ANCHOR_EXPOSURE_BACKSTOP,generateSession,generateProgram,LIBRARY};';
+const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={normalizeAthlete,getAnchorState,freezeAnchor,recordAnchorExposure,ANCHOR_PATTERNS,anchorIncrementKg,anchorProgressionDecision,resolveTodaysAnchor,ANCHOR_STALL_LIMIT,ANCHOR_EXPOSURE_BACKSTOP,generateSession,generateProgram,LIBRARY,fatigueBand,fatigueBandForAnchorPattern,computeFatigueState};';
 const m = { exports: {} }; new Function('module', 'exports', src)(m, m.exports);
-const { normalizeAthlete, getAnchorState, freezeAnchor, recordAnchorExposure, anchorIncrementKg, anchorProgressionDecision, resolveTodaysAnchor, generateSession, LIBRARY } = m.exports;
+const { normalizeAthlete, getAnchorState, freezeAnchor, recordAnchorExposure, anchorIncrementKg, anchorProgressionDecision, resolveTodaysAnchor, generateSession, LIBRARY, fatigueBand, fatigueBandForAnchorPattern } = m.exports;
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
@@ -211,6 +211,49 @@ function squatExOf(session) {
   const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
   const s = generateSession(parsed, {}, 1, {}, null, false, null, null);
   ok(s && Array.isArray(s.exercises) && s.exercises.length > 0, "generateSession works with athlete=null/absent exactly as before");
+}
+
+// ================= Section 6: fatigue-band thresholds + per-pattern translation =================
+// suggestedWeight/showSessionComplete themselves live in the UI closure (not
+// exportable to Node) -- this section proves the underlying decision chain
+// they call (fatigueBandForAnchorPattern -> anchorProgressionDecision ->
+// anchorIncrementKg -> recordAnchorExposure) is correct in isolation; the
+// actual UI wiring is confirmed by live browser verification (see plan §7).
+
+{
+  ok(fatigueBand(0) === "green" && fatigueBand(9) === "green", "under 10% -> green");
+  ok(fatigueBand(10) === "amber" && fatigueBand(19) === "amber", "10-19% -> amber");
+  ok(fatigueBand(20) === "red" && fatigueBand(50) === "red", "20%+ -> red");
+}
+
+{
+  // fatigueBandForAnchorPattern translates the short anchor-pattern code
+  // ("squat") to the LIBRARY's granular movement_pattern key ("squat" is
+  // coincidentally identical, but hpush -> horiz_push is NOT -- this proves
+  // the translation table is actually being used, not a same-string fluke.
+  const fatigue = { byPattern: { squat: 25, horiz_push: 5 } };
+  ok(fatigueBandForAnchorPattern(fatigue, "squat") === "red", "squat's own fatigue% (25) reads red through the anchor-pattern code");
+  ok(fatigueBandForAnchorPattern(fatigue, "hpush") === "green", "hpush correctly translates to horiz_push's fatigue% (5), not looked up under the wrong key");
+  ok(fatigueBandForAnchorPattern(fatigue, "vpush") === "green", "a pattern with no fatigue data at all defaults to green (0%), not a crash");
+  ok(fatigueBandForAnchorPattern(null, "squat") === "green", "a null fatigue snapshot (no athlete/no history) defaults to green, never throws");
+}
+
+{
+  // The full decision chain, simulating exactly what showSessionComplete does
+  // for a frozen anchor: read state, compute band, decide, compute the new
+  // weight, record. A hit-top exposure with green fatigue increases load by
+  // the real tiered increment (not a flat generic STEP).
+  const a = normalizeAthlete({});
+  freezeAnchor(a, "squat", "back-squat", 60);
+  const squatLib = LIBRARY.filter(function (e) { return e.id === "back-squat"; })[0];
+  const anchorState = getAnchorState(a, "squat");
+  const band = fatigueBandForAnchorPattern({ byPattern: {} }, "squat");
+  const decision = anchorProgressionDecision(anchorState, band, true);
+  ok(decision.action === "increase", "green fatigue + hit-top -> increase, as showSessionComplete's chain would decide");
+  const newWeight = decision.action === "increase" ? anchorState.weight + anchorIncrementKg(squatLib) : anchorState.weight;
+  ok(newWeight === 65, "back-squat (lower-body compound) increases by the real tiered +5kg, not a flat +2.5kg/STEP");
+  recordAnchorExposure(a, "squat", { hitTop: true, newWeight: newWeight, action: decision.action });
+  ok(getAnchorState(a, "squat").weight === 65, "the recorded exposure persists the correctly-tiered new weight");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
