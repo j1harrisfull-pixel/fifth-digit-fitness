@@ -1492,6 +1492,100 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     athlete.prefs[name] = next;
     return next;
   }
+  // ===== Anchor & Progression (Phase 3) =====
+  // Three concepts, kept deliberately separate (never blur into one another):
+  //   1. Frozen Anchor Identity  -- athlete.metrics.anchors[pattern] (permanent
+  //      until an explicit future reassignment feature, not built here).
+  //   2. Today's Anchor Assignment -- what resolveTodaysAnchor() returns for THIS
+  //      session; usually equals #1.
+  //   3. Temporary Substitute -- a one-session stand-in when #1 is unavailable
+  //      (equipment/injury/skill). Never written back into #1.
+  var ANCHOR_PATTERNS = ["squat", "hinge", "hpush", "vpush", "hpull", "vpull"];
+  var ANCHOR_STALL_LIMIT = 3;      // consecutive non-hit exposures = "genuinely stalled"
+  var ANCHOR_EXPOSURE_BACKSTOP = 6; // fixed safety net, lowest priority -- layered so a
+                                    // later phase can make these athlete-specific
+                                    // (experience/age/recovery/injury history) without
+                                    // touching the decision logic itself.
+  function getAnchorState(athlete, pattern) {
+    if (!athlete || !athlete.metrics || !athlete.metrics.anchors) return null;
+    var s = athlete.metrics.anchors[pattern];
+    return (s && typeof s === "object") ? s : null;
+  }
+  // Freeze-once: the athlete owns the anchor. Silently ignored if this pattern
+  // already has a frozen identity -- reassignment is a deliberate future action
+  // (e.g. a Settings control), never an automatic side effect of a later session.
+  function freezeAnchor(athlete, pattern, exerciseId, startingWeight) {
+    if (!athlete || typeof athlete !== "object") return;
+    if (!athlete.metrics || typeof athlete.metrics !== "object") athlete.metrics = {};
+    if (!athlete.metrics.anchors || typeof athlete.metrics.anchors !== "object") athlete.metrics.anchors = {};
+    if (athlete.metrics.anchors[pattern]) return; // freeze-once
+    athlete.metrics.anchors[pattern] = { exerciseId: exerciseId, weight: startingWeight, exposureCount: 0, consecutiveStalls: 0, lastResult: null };
+  }
+  function recordAnchorExposure(athlete, pattern, result) {
+    var s = getAnchorState(athlete, pattern); if (!s) return;
+    s.weight = result.newWeight;
+    s.lastResult = result.action;
+    s.consecutiveStalls = result.hitTop ? 0 : (s.consecutiveStalls + 1);
+    s.exposureCount = (result.action === "deload") ? 0 : (s.exposureCount + 1);
+  }
+  // Tier 1: real per-exercise/equipment increment metadata (e.g. e.load_increment_kg).
+  // Not present in LIBRARY today -- this branch exists so a future content pass can
+  // populate it WITHOUT touching this function again.
+  // Tier 2: sensible compound-type defaults.
+  // Tier 3 (see plan doc): the app's existing generic STEP is used only as a final
+  // fallback by callers that have no exercise object at all; this function never
+  // needs it since every anchor has a real LIBRARY entry.
+  var LOWER_BODY_ANCHOR_PATTERNS = ["squat", "hinge"];
+  function anchorIncrementKg(exercise) {
+    if (exercise && typeof exercise.load_increment_kg === "number" && exercise.load_increment_kg > 0) {
+      return exercise.load_increment_kg; // Tier 1 (unpopulated today, see plan note)
+    }
+    if (exercise && exercise.compound) {
+      return LOWER_BODY_ANCHOR_PATTERNS.indexOf(exercise.pattern) >= 0 ? 5 : 2.5; // Tier 2
+    }
+    return 1.25; // Tier 2, isolation/smaller lifts -- smallest common plate total
+  }
+  // Priority hierarchy is fixed and must never reverse: fatigue-red first, then a
+  // genuinely stalled progression, then a fixed exposure-count backstop, and only
+  // then the ordinary hit/miss double-progression call.
+  function anchorProgressionDecision(anchorState, fatigueBandForPattern, hitTopThisExposure) {
+    if (fatigueBandForPattern === "red") {
+      return { action: "deload", reason: "This movement pattern is showing high accumulated fatigue." };
+    }
+    if (anchorState.consecutiveStalls >= ANCHOR_STALL_LIMIT) {
+      return { action: "deload", reason: "Progression on this lift has genuinely stalled -- time to reset, not push harder." };
+    }
+    if (anchorState.exposureCount >= ANCHOR_EXPOSURE_BACKSTOP) {
+      return { action: "deload", reason: "Scheduled reset after a sustained run without one." };
+    }
+    if (hitTopThisExposure) {
+      return { action: "increase", reason: "Every working set hit the top of the rep range -- time to add load." };
+    }
+    return { action: "hold", reason: "Still earning reps at the current weight." };
+  }
+  // Concept 2 producer: resolves what goes in TODAY's anchor slot. Concept 1
+  // (frozen identity) is read-only here -- this function NEVER calls freezeAnchor
+  // or recordAnchorExposure itself; callers do that explicitly, so the "who is
+  // allowed to freeze/record" responsibility stays in exactly one place, not
+  // scattered across every call site that happens to resolve a session.
+  // isAvailable(exerciseId) wraps the caller's own equipment/injury/skill/dedup
+  // filters -- this function has no access to the exercise pool and never needs it.
+  function resolveTodaysAnchor(athlete, pattern, isAvailable) {
+    var frozen = getAnchorState(athlete, pattern);
+    if (frozen && isAvailable(frozen.exerciseId)) {
+      return { exerciseId: frozen.exerciseId, source: "frozen" };
+    }
+    if (frozen) {
+      // Frozen anchor exists but isn't usable today. Concept 3: caller must pick
+      // a substitute via its normal ranker and place it for this session only --
+      // this function only reports that a substitute is needed, it does not
+      // choose one, and it never mutates the frozen identity.
+      return { exerciseId: null, source: "needs-substitute" };
+    }
+    // No frozen anchor yet at all -- caller runs the normal ranker and must
+    // freeze whatever it picks; this function does not make that choice.
+    return { exerciseId: null, source: "unset" };
+  }
   function migrateV1toV2(v1) {
     v1 = v1 && typeof v1 === "object" ? v1 : {};
     var v1s = v1.sessions && typeof v1.sessions === "object" ? v1.sessions : {};
