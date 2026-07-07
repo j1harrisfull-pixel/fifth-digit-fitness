@@ -3342,24 +3342,31 @@ function runWorkout(si, days, minutes, wn) {
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
+function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
   lastLogs = lastLogs || {};
 
-  var goal     = intake.goal || "general";
+  // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
+  // (Programming Philosophy §3.1) -- everything below reads from it rather
+  // than re-inferring goal->stimulus independently. Note: generateProgram's
+  // own minutes default is 60 (vs buildIntent's/generateSession's 45), so an
+  // omitted minutes is re-clamped here to preserve that exact pre-existing
+  // asymmetry rather than silently changing the whole-week default.
+  var intent = buildIntent(intake, athlete);
+  var goal     = intent.goal;
   var days     = clampInt(intake.days, 1, 7, 4);
-  var minutes  = clampInt(intake.minutes, 15, 120, 60);
+  var minutes  = (intake.minutes != null) ? intent.constraints.minutes : clampInt(intake.minutes, 15, 120, 60);
   var totalWeeks = clampInt(intake.weeks, 1, 8, 4);
   var isHybrid = goal === "hybrid", isEnd = goal === "endurance";
-  var allowed  = Array.isArray(intake.equipment) ? intake.equipment : null;
+  var allowed  = intent.constraints.equipment;
   // Gold standard, non-negotiable: EVERY session warms up and cools down --
   // always built regardless of settings (see generateSession). Cardio is a real
   // choice (forced only for Endurance, where it IS the goal).
   var includeMob = true;
   var includeCon = isEnd || (intake.includes || []).indexOf("conditioning") >= 0;
-  var selGoal  = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
+  var selGoal  = intent.primary.stimulus;
 
   var slotsTotal = Math.max(3, Math.min(8, Math.round(minutes / 8)));
   var strengthSlots;
