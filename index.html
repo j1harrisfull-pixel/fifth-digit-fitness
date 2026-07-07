@@ -2437,10 +2437,29 @@ function anchorIsAvailable(exerciseId, slot, allowed, unlocked, ctx, injuries) {
   if (isExerciseInjuryFlagged(e, injuries)) return false;
   return true;
 }
+// Recency (Programming Philosophy §3.3): the exercise most recently logged
+// for each movement pattern, if any -- keyed by the SHORT pattern code (mp
+// above may be the granular movement_pattern OR the short code; this reads
+// lastLogs by exercise name and maps back through LIBRARY, so it naturally
+// keys by whichever field that exercise's `mp` resolves to when the ranker
+// looks it up). lastLogs has no per-pattern timestamp ordering today, so
+// "most recent" is simply "last write wins" when iterating its keys --
+// consistent with how the rest of the app already treats lastLogs.
+function mostRecentByPattern(lastLogs) {
+  var byName = {}; LIBRARY.forEach(function (e) { byName[e.name.toLowerCase()] = e; });
+  var out = {};
+  Object.keys(lastLogs || {}).forEach(function (name) {
+    var lib = byName[name.toLowerCase()]; if (!lib) return;
+    out[lib.movement_pattern || lib.pattern] = lib.id;
+  });
+  return out;
+}
+var PREF_WEIGHT = 1.5;
 function selectComplementary(o) {
   var ctx = o.ctx, debt = o.debt || null, selGoal = o.selGoal;
   var biasMuscles = o.biasMuscles || [], fatigueBudget = o.fatigueBudget != null ? o.fatigueBudget : 2;
   var athlete = o.athlete || null;
+  var recentByPattern = mostRecentByPattern(o.lastLogs);
   // high-axial count and muscle-spread are PER SESSION; used/pat/dl on ctx stay
   // week-level (shared across a week's sessions by generateProgram) so dedup and
   // pattern/deadlift caps span the week while the fatigue budget resets each day.
@@ -2494,6 +2513,30 @@ function selectComplementary(o) {
         else if (ANCHOR_T2[e.id]) s -= 4;
         if (e.stability_demand === "machine") s += 4;
       }
+      // Learned preference (Programming Philosophy §3.6): athlete.prefs has
+      // been collected since Phase 1 (bumpPref, -3..+3 per canonical name) but
+      // never consumed until now. Weighted comparably to the existing debt/
+      // muscle-spread terms -- a full +/-3 preference swings ~4.5 points,
+      // meaningful, but never override-strength against debt's up-to-24-point
+      // swing or the anchor-tier bonus (both harder coaching facts than a
+      // soft preference). Runs identically for every ranked candidate,
+      // including a substitute/first-freeze pick for the anchor slot -- this
+      // never re-ranks an ALREADY-frozen anchor, since the ranker doesn't run
+      // for that case at all (Phase 3's force-select branch returns first).
+      if (athlete && athlete.prefs) {
+        var prefScore = athlete.prefs[canonicalExName(e.name)];
+        if (typeof prefScore === "number") s -= prefScore * PREF_WEIGHT;
+      }
+      // Recency (Programming Philosophy §3.3): "the previous session's
+      // variation is never repeated." A soft exclusion via ranking penalty
+      // (not a hard ok() filter) so it can never be the reason a slot goes
+      // unfilled for a mere variety reason -- safety yields nothing, but
+      // recency yields to availability. The candidate that was the most
+      // recently logged pick for THIS exact movement pattern is penalised
+      // heavily enough to lose any tie, but not so heavily it beats a real
+      // safety/equipment exclusion (which already removed it from the pool
+      // entirely, upstream of this ranker).
+      if (recentByPattern && recentByPattern[mp] === e.id) s += 20;
       s += seededJitter(e.id, seedForSlot) * 5;                            // variety within ties
       return s;
     };

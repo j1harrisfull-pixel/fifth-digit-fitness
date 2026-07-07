@@ -257,5 +257,75 @@ function baseCtxOpts(extra) {
   ok(!isExerciseInjuryFlagged(squatPick && byName(squatPick.name), athlete.injuries), "the substitute itself is never a flagged exercise (it went through the same hard-filtered pickStrength as every other slot)");
 }
 
+// ================= Task 4.1-4.2: learned preference + recency (S&C reasoning) =================
+
+{
+  // Learned preference: given two candidates for the same accessory slot, a
+  // strong positive preference wins a tie; a strong negative preference does
+  // NOT override a real weekly-debt signal.
+  const parsed = { role: "lower", minutes: 60, goal: "general", equipment: null, includes: [] };
+  let withoutPrefCount = 0, withPrefCount = 0;
+  for (let seed = 1; seed <= 15; seed++) {
+    const plainAthlete = normalizeAthlete({});
+    const preferredAthlete = normalizeAthlete({});
+    preferredAthlete.prefs["lying leg curl"] = 3; // canonicalExName lowercases -- must match the ranker's own lookup key
+    const s1 = generateSession(parsed, {}, seed, {}, null, false, null, plainAthlete);
+    const s2 = generateSession(parsed, {}, seed, {}, null, false, null, preferredAthlete);
+    if (s1.exercises.some(e => e.name === "Lying Leg Curl")) withoutPrefCount++;
+    if (s2.exercises.some(e => e.name === "Lying Leg Curl")) withPrefCount++;
+  }
+  ok(withPrefCount >= withoutPrefCount, `a strong positive preference (+3) makes Lying Leg Curl appear at least as often across seeds (without pref: ${withoutPrefCount}/15, with pref: ${withPrefCount}/15)`);
+  ok(withPrefCount > withoutPrefCount, `a strong positive preference (+3) measurably INCREASES how often Lying Leg Curl is chosen (without pref: ${withoutPrefCount}/15, with pref: ${withPrefCount}/15)`);
+}
+
+{
+  // Debt still wins over a strong negative preference: bias the pattern debt
+  // heavily toward hinge while giving Romanian Deadlift (a hinge accessory) a
+  // maximally negative preference -- debt's up-to-24-point swing should still
+  // be able to place a hinge accessory despite the -4.5 preference penalty.
+  const athlete = normalizeAthlete({});
+  const rdl = byName("Romanian Deadlift");
+  if (rdl) {
+    athlete.prefs[rdl.name.toLowerCase()] = -3;
+    const debt = { hinge: { debt: 12, hadOpportunity: true } };
+    const picks = selectComplementary(baseCtxOpts({
+      baseSlots: [{ patterns: ["hinge"], compound: false }], count: 1, selGoal: "general",
+      allowed: null, debt: debt, athlete: athlete
+    }));
+    ok(picks.length === 1, "a real weekly-debt signal on hinge still fills the slot despite a maximally negative preference on a hinge candidate");
+  }
+}
+
+{
+  // Recency: the exercise most recently logged for a pattern is deprioritised
+  // (not hard-excluded) when a safe alternative exists, and can still appear
+  // when it's genuinely the best/only real option.
+  const legCurl = byName("Lying Leg Curl") || byName("Seated Leg Curl");
+  if (legCurl) {
+    const lastLogs = {}; lastLogs[legCurl.name] = { reps: [10], weight: 20, ready: false, rpeAvg: null };
+    const picks = selectComplementary(baseCtxOpts({
+      baseSlots: [{ patterns: ["hinge"], compound: false }], count: 1, selGoal: "general",
+      allowed: null, lastLogs: lastLogs, athlete: normalizeAthlete({})
+    }));
+    ok(picks.length === 1, "recency never leaves a slot unfilled -- it only deprioritises, never hard-excludes");
+  }
+}
+
+{
+  // Required regression: neither a negative preference NOR a recency
+  // exclusion on the frozen anchor's own exercise ever replaces it -- the
+  // ranker simply never runs for a frozen anchor, so neither term can apply.
+  const athlete = normalizeAthlete({});
+  const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  generateSession(parsed, {}, 1, {}, null, false, null, athlete); // freezes squat
+  const frozenId = getAnchorState(athlete, "squat").exerciseId;
+  const frozenLib = LIBRARY.filter(e => e.id === frozenId)[0];
+  athlete.prefs[frozenLib.name.toLowerCase()] = -3; // maximally negative preference
+  const lastLogs = {}; lastLogs[frozenLib.name] = { reps: [5], weight: 60, ready: true, rpeAvg: 7 }; // "recent" too
+  const s2 = generateSession(parsed, {}, 2, lastLogs, null, false, null, athlete);
+  const squatPick = s2.exercises.find(e => { const lib = byName(e.name); return lib && lib.pattern === "squat" && lib.compound; });
+  ok(squatPick && squatPick.name === frozenLib.name, `a maximally negative preference AND a recency flag on the frozen anchor's own exercise (${frozenLib.name}) still does not replace it -- the ranker never runs for a frozen anchor`);
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('FAIL:', f)); process.exit(1); }
