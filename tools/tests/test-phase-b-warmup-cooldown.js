@@ -106,6 +106,32 @@ ok(rotateSeen / rotateChecked > 0.3, `warm-up content rotates across at least so
   ok(cooldown.length > 0, 'Just-Today (generateSession) sessions get real cool-down content');
 }
 
+// ---------- MANDATORY warm-up/cool-down: present regardless of the mobility flag ----------
+// Gold standard: every session warms up and cools down even when mobility is
+// NOT requested (empty includes) and even on the briefest sessions. Guards the
+// "always built, no opt-out" guarantee against a future re-gating regression.
+let mandChecked = 0, mandMissingWarm = 0, mandMissingCool = 0;
+for (const goal of ['strength', 'hybrid', 'hypertrophy', 'general']) {
+  for (const minutes of [15, 20, 30, 45, 60]) {
+    for (const seed of [1, 7, 13]) {
+      // includes deliberately OMITS 'mobility' -- warm-up/cool-down must appear anyway.
+      const p = generateProgram({ goal, days: 3, minutes, weeks: 1, includes: ['conditioning'], equipment: null }, {}, seed, {}, {});
+      p.weeks[0].sessions.forEach(s => {
+        mandChecked++;
+        if (!s.exercises.some(e => e.block === 'warmup')) mandMissingWarm++;
+        if (!s.exercises.some(e => e.block === 'cooldown')) mandMissingCool++;
+      });
+      const js = generateSession({ role: 'upper', minutes, goal, includes: [], equipment: null }, {}, seed, {}, null, false, {});
+      mandChecked++;
+      if (!js.exercises.some(e => e.block === 'warmup')) mandMissingWarm++;
+      if (!js.exercises.some(e => e.block === 'cooldown')) mandMissingCool++;
+    }
+  }
+}
+ok(mandMissingWarm === 0, `warm-up ALWAYS present even without a mobility request (${mandMissingWarm}/${mandChecked} missing)`);
+ok(mandMissingCool === 0, `cool-down ALWAYS present even without a mobility request (${mandMissingCool}/${mandChecked} missing)`);
+console.log(`checked ${mandChecked} no-mobility-requested sessions for mandatory warm-up/cool-down`);
+
 console.log(pass + ' passed, ' + fail + ' failed');
 if (fail) fails.slice(0, 30).forEach(f => console.log('  - ' + f));
 process.exit(fail ? 1 : 0);

@@ -568,6 +568,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 @keyframes bspin { to { transform: rotate(360deg); } }
 .bsect { margin-top: 16px; }
 .blabel { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
+.bhint { margin: 9px 0 0; font-size: 12px; line-height: 1.4; color: var(--faint); }
 .seg--full { display: flex; width: 100%; }
 .seg--full button { flex: 1 1 0; padding: 11px 6px; text-align: center; min-height: 44px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -949,9 +950,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <div class="bsect">
           <div class="blabel">Include</div>
           <div class="chips" id="bInclude" role="group" aria-label="Include">
-            <button class="chip" data-inc="mobility" type="button">Mobility</button>
             <button class="chip" data-inc="conditioning" type="button">Cardio</button>
           </div>
+          <p class="bhint">Every session warms up and cools down &mdash; always.</p>
         </div>
         <div class="bsect">
           <div class="blabel">My equipment</div>
@@ -2806,14 +2807,9 @@ function parseSession(text) {
   else if (/\b(build|muscle|hypertroph|grow|growth|size|pump|mass|gains?|tone|toned)\b/.test(s)) goal = "hypertrophy";
   else goal = "general";
   var includes = [];
-  // A Just-Today session should warm up and cool down by DEFAULT -- a coached
-  // session always does, and the free-text box has no toggle to ask for it. So
-  // mobility (which drives buildWarmupCooldown in generateSession) is on unless
-  // the text explicitly opts out ("no warm-up", "skip stretch", "without
-  // cooldown", "no mobility"). The week builder keeps its own Mobility toggle;
-  // this default only affects the text-parsed Just-Today path.
-  var noMob = /\bno\s+(?:warm.?ups?|cool.?downs?|stretch(?:ing)?|mobility)\b|\bskip\s+(?:the\s+)?(?:warm.?up|cool.?down|stretch(?:ing)?|mobility)\b|\bwithout\s+(?:a\s+)?(?:warm.?up|cool.?down|stretch(?:ing)?|mobility)\b/.test(s);
-  if (!noMob) includes.push("mobility");
+  // Warm-up + cool-down are always built (generateSession forces it), so the
+  // request always carries "mobility" -- no opt-out. Conditioning stays opt-in.
+  includes.push("mobility");
   if (/\b(cardio|conditioning|hiit|metcon|finisher|intervals?)\b/.test(s)) includes.push("conditioning");
   var equipment = null;
   if (/\b(bodyweight|body weight|no (?:gym|equipment|weights?|kit)|at home)\b/.test(s)) equipment = ["bodyweight"];
@@ -3134,7 +3130,11 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   var minutes = clampInt(parsed.minutes, 15, 120, 45);
   var goal = parsed.goal || "general";
   var allowed = Array.isArray(parsed.equipment) ? parsed.equipment : null;
-  var includeMob = (parsed.includes || []).indexOf("mobility") >= 0;
+  // Gold standard, non-negotiable: EVERY session warms up and cools down --
+  // regardless of any setting, even a brief one, even if the user "skipped"
+  // mobility. So warm-up/cool-down are always built (and always reserve their
+  // time slot below). Conditioning stays a real choice.
+  var includeMob = true;
   var includeCon = (parsed.includes || []).indexOf("conditioning") >= 0;
   var selGoal = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
   var allowPats = parsed.role ? rolePatterns(parsed.role) : ((parsed.patterns && parsed.patterns.length) ? parsed.patterns.slice() : null);
@@ -3234,9 +3234,10 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked) {
   var totalWeeks = clampInt(intake.weeks, 1, 8, 4);
   var isHybrid = goal === "hybrid", isEnd = goal === "endurance";
   var allowed  = Array.isArray(intake.equipment) ? intake.equipment : null;
-  // Both add-ons honour their toggle. Mobility is never "core" to a goal, so it is
-  // always optional. Cardio is forced only for Endurance (it IS the goal).
-  var includeMob = (intake.includes || []).indexOf("mobility") >= 0;
+  // Gold standard, non-negotiable: EVERY session warms up and cools down --
+  // always built regardless of settings (see generateSession). Cardio is a real
+  // choice (forced only for Endurance, where it IS the goal).
+  var includeMob = true;
   var includeCon = isEnd || (intake.includes || []).indexOf("conditioning") >= 0;
   var selGoal  = goal === "hypertrophy" ? "hypertrophy" : goal === "strength" ? "strength" : "general";
 
