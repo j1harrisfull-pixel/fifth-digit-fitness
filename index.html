@@ -3051,7 +3051,26 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   // optional and trailing -- absent (existing call sites not yet updated)
   // means no trimming, identical to pre-Phase-5 behaviour.
   if (weeklyVolume) {
-    p = Object.assign({}, p, { sets: trimSetsForVolumeLandmark(p.sets, ex, weeklyVolume) });
+    var trimmedSets = trimSetsForVolumeLandmark(p.sets, ex, weeklyVolume);
+    p = Object.assign({}, p, { sets: trimmedSets });
+    // Phase 5.5 Task 3 (Coaching Integrity Patch): the trim above only checked
+    // weeklyVolume's headroom as of THIS exercise -- decrement it by what this
+    // exercise actually consumes so the NEXT exercise built against the SAME
+    // weeklyVolume object in this generation pass (threaded by reference
+    // through the whole session/program build, exactly as debt/fatigueSnapshot
+    // already are) sees a truthfully-reduced headroom, instead of every
+    // exercise independently re-checking the same static historical snapshot
+    // and collectively exceeding MRV. Still prescription-only bookkeeping on
+    // an already-selected exercise -- never re-runs selection, never changes
+    // which exercise was picked, never touches ranking.
+    var primaryM = ex.primary_muscles && ex.primary_muscles[0];
+    if (primaryM && weeklyVolume[primaryM]) {
+      weeklyVolume[primaryM].remainingToMrv = Math.max(0, weeklyVolume[primaryM].remainingToMrv - trimmedSets);
+    }
+    (ex.secondary_muscles || []).forEach(function (sm) {
+      if (!weeklyVolume[sm]) return;
+      weeklyVolume[sm].remainingToMrv = Math.max(0, weeklyVolume[sm].remainingToMrv - trimmedSets * SECONDARY_MUSCLE_CREDIT);
+    });
   }
   var curve = curveFor(ex, goal, isAnchor);
   var setPlan = buildSetPlan(curve, p.sets, p.reps, p.rest);
@@ -3383,19 +3402,32 @@ function parseSession(text) {
 // full-body circuit that is always valid and INDEPENDENT of the library, so even a
 // pathological request yields a real, coherent session. (Rung 3, all-fatigued ->
 // recovery day, arrives with the fatigue state in Phase 7.)
-function absoluteFloorExercises() {
+// Phase 5.5 (Coaching Integrity Patch, Task 1): every fallback move is checked
+// against the SAME isExerciseInjuryFlagged gate every other selection path
+// already uses, via its real LIBRARY entry (these named moves all exist in
+// LIBRARY with real joint_stress tags -- falls back to the bare fx object,
+// which still gets a real tier-4 name-substring check, if a name is ever
+// added here without a matching LIBRARY entry). "Safety always overrides
+// convenience" -- the never-hollow guarantee must never buy convenience by
+// silently prescribing a flagged move.
+function floorMoveSafe(fx, injuries) {
+  var lib = libEntryByName(fx.name);
+  return !isExerciseInjuryFlagged(lib || fx, injuries);
+}
+function absoluteFloorExercises(injuries) {
   function fx(name, sets, reps, cue) {
     return { name: name, type: "strength", equipment: "bodyweight", group: "",
       sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
       notes: cue, curve: "straight", setPlan: [], why: "Bodyweight foundation, no equipment needed" };
   }
-  return [
+  var all = [
     fx("Bodyweight Squat", 3, "12-15", "Setup: feet shoulder-width, chest tall. Key: sit between the hips to depth, drive up through the whole foot. Fault: knees caving or heels lifting."),
     fx("Push-Up", 3, "8-15", "Setup: hands under shoulders, body in one line. Key: brace, lower the chest to the floor, press away. Fault: hips sagging or elbows flaring wide."),
     fx("Reverse Lunge", 3, "8-10 each", "Setup: tall stance, hands on hips. Key: step back, drop the back knee under control, drive through the front heel. Fault: leaning forward or the front knee caving."),
     fx("Glute Bridge", 3, "15-20", "Setup: on your back, knees bent, feet flat. Key: drive the hips up squeezing the glutes, ribs down. Fault: arching the low back instead of extending the hips."),
     fx("Plank", 3, "30-45 sec", "Setup: forearms under shoulders, body in one line. Key: brace the abs and glutes, breathe. Fault: hips sagging or piking up.")
   ];
+  return all.filter(function (e) { return floorMoveSafe(e, injuries); });
 }
 // Role-appropriate bodyweight staples to top up a THIN day (not just an empty
 // one). When the kit can't fill a role's compound slots -- e.g. bodyweight-only
@@ -3405,7 +3437,7 @@ function absoluteFloorExercises() {
 // fill it with movements that need no kit and belong to the role -- including a
 // no-equipment Table Row so even a pure-bodyweight pull/upper day gets real
 // back work (selection already prefers a bar or rings when the kit has one).
-function roleFloorMoves(role) {
+function roleFloorMoves(role, injuries) {
   function fx(name, sets, reps, cue) {
     return { name: name, type: "strength", equipment: "bodyweight", group: "",
       sets: sets, reps: reps, weight: 0, target: "Bodyweight · move with control", rest: "60 s",
@@ -3418,13 +3450,19 @@ function roleFloorMoves(role) {
   var lunge = fx("Reverse Lunge", 3, "8-10 each", "Setup: tall stance, hands on hips. Key: step back, drop the back knee under control, drive through the front heel. Fault: leaning forward or the front knee caving.");
   var bridge = fx("Glute Bridge", 3, "15-20", "Setup: on your back, knees bent, feet flat. Key: drive the hips up squeezing the glutes, ribs down. Fault: arching the low back instead of extending the hips.");
   var plank = fx("Plank", 3, "30-45 sec", "Setup: forearms under shoulders, body in one line. Key: brace the abs and glutes, breathe. Fault: hips sagging or piking up.");
+  var candidates;
   switch (role) {
-    case "push": return [pushU, dip, plank];
-    case "upper": return [pushU, row, dip, plank];
-    case "pull": return [row, plank];
-    case "lower": case "legs": return [squat, lunge, bridge];
-    default: return [squat, pushU, bridge, plank];
+    case "push": candidates = [pushU, dip, plank]; break;
+    case "upper": candidates = [pushU, row, dip, plank]; break;
+    case "pull": candidates = [row, plank]; break;
+    case "lower": case "legs": candidates = [squat, lunge, bridge]; break;
+    default: candidates = [squat, pushU, bridge, plank];
   }
+  // Phase 5.5 Task 1: same injury gate as every other selection path -- the
+  // never-hollow guarantee must never buy convenience by silently including
+  // a flagged move (Programming Philosophy: safety always overrides
+  // convenience).
+  return candidates.filter(function (e) { return floorMoveSafe(e, injuries); });
 }
 // Top up a day with role-appropriate bodyweight moves when it came up short:
 // fewer than 2 strength moves at all, OR no move in the day's PRIMARY patterns
@@ -3478,9 +3516,15 @@ function rebalanceRolePairs(blueprint) {
     }
   });
 }
-function topUpThinDay(strengthEx, role) {
+// Returns an array of honestly-reported gaps (Programming Philosophy: if
+// every candidate is unsafe, report that rather than silently prescribing
+// one) -- empty when the day was topped up fine, or was never thin to begin
+// with. Same {patterns, reason} shape selectComplementary's own
+// unfilledSlots already uses for a safety-emptied slot (Phase 4), not a new
+// reporting mechanism.
+function topUpThinDay(strengthEx, role, injuries) {
   var prim = ROLE_PRIMARY[role];
-  if (!prim) return; // no known role (power / free-text request) -> don't pad with off-theme moves
+  if (!prim) return []; // no known role (power / free-text request) -> don't pad with off-theme moves
   var libByName = {}; LIBRARY.forEach(function (e) { libByName[e.name.toLowerCase()] = e; });
   var have = {}, primCount = 0;
   strengthEx.forEach(function (e) {
@@ -3488,12 +3532,17 @@ function topUpThinDay(strengthEx, role) {
     var lib = libByName[e.name.toLowerCase()], pat = lib ? lib.pattern : "";
     if (prim.indexOf(pat) >= 0) primCount++;
   });
-  var floor = roleFloorMoves(role);
+  var wasThin = strengthEx.length < 2 || primCount < 1;
+  var floor = roleFloorMoves(role, injuries);
   for (var i = 0; i < floor.length && (strengthEx.length < 2 || primCount < 1); i++) {
     if (have[floor[i].name]) continue;
     strengthEx.push(floor[i]); have[floor[i].name] = 1;
     if (prim.indexOf(FLOOR_PATTERN[floor[i].name]) >= 0) primCount++; // only a real on-role move counts
   }
+  if (wasThin && (strengthEx.length < 2 || primCount < 1) && !roleFloorMoves(role, []).every(function (e) { return floorMoveSafe(e, injuries); })) {
+    return [{ patterns: prim, reason: "No safe fallback exercise for this role -- every option matched a flagged injury/restriction." }];
+  }
+  return [];
 }
 // ===================== Gold-Standard Phase A: session architecture =====================
 // A generated session is not just a flat exercise list -- it's four TIME-BUDGETED
@@ -3633,14 +3682,24 @@ function applyDensityFormat(session, minutes) {
 // omitted (or a session with no exercises even after the floor) leaves the
 // session exactly as before -- the day view feature-detects `ses.blocks` and
 // renders the old flat-list style whenever it's absent, so nothing regresses.
-function guaranteeSession(session, minutes) {
+function guaranteeSession(session, minutes, injuries) {
+  var priorGaps = (session && session.unfilledSlots) || [];
   if (!(session && Array.isArray(session.exercises) && session.exercises.length > 0)) {
+    var floor = absoluteFloorExercises(injuries);
     session = {
       name: (session && session.name) || "Session",
       focus: "Minimum effective dose · bodyweight, no equipment needed",
-      exercises: absoluteFloorExercises()
+      exercises: floor
     };
+    // Phase 5.5 Task 1: if literally every default floor move is injury-
+    // flagged, report that honestly rather than silently returning a session
+    // with no exercises at all and no explanation (safety over convenience --
+    // the "never hollow" guarantee yields to safety, not the reverse).
+    if (!floor.length) {
+      priorGaps = priorGaps.concat([{ patterns: [], reason: "No safe fallback exercise found -- every default option matched a flagged injury/restriction." }]);
+    }
   }
+  if (priorGaps.length) session.unfilledSlots = priorGaps;
   session = attachBlocks(session, minutes);
   return applyDensityFormat(session, minutes);
 }
@@ -3836,7 +3895,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   // generateSession has no such calendar concept, so it's ALWAYS the anchor's
   // own decision here. Reuses the existing deload prescription math verbatim.
   picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k], weeklyVolume)); });
-  topUpThinDay(strengthEx, parsed.role);
+  var floorGaps = topUpThinDay(strengthEx, parsed.role, athlete && athlete.injuries);
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (includeMob) {
     // A fresh COPY of ctx.used, not the shared reference: warm-up/cool-down
@@ -3862,7 +3921,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   // here lets the existing UI fallback show the exercise count instead, which is
   // genuinely different information rather than an echo.
   var focus = parsed.role ? (ROLE_FOCUS[parsed.role] || "") : "";
-  return guaranteeSession({ name: name, focus: focus, exercises: strengthEx.concat(extraEx) }, minutes);
+  return guaranteeSession({ name: name, focus: focus, exercises: strengthEx.concat(extraEx), unfilledSlots: floorGaps.length ? floorGaps : undefined }, minutes, athlete && athlete.injuries);
 }
 // Real run-workout structures for the Endurance goal: easy / long / tempo / intervals,
 // polarized across the week, run as the day's focus. Emitted as conditioning so the
@@ -3999,7 +4058,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
       // exercise in the same session that isn't itself a frozen anchor is
       // only ever affected by the calendar deload, exactly as before.
       picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weeklyVolume)); });
-      topUpThinDay(strengthEx, role);
+      var floorGaps = topUpThinDay(strengthEx, role, athlete && athlete.injuries);
 
       if (includeCon) {
         if (isEnd) {
@@ -4063,8 +4122,9 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
       var built = guaranteeSession({
         name: dayName,
         focus: dayFocus,
-        exercises: leadEx.concat(strengthEx).concat(extraEx)
-      }, minutes);
+        exercises: leadEx.concat(strengthEx).concat(extraEx),
+        unfilledSlots: floorGaps.length ? floorGaps : undefined
+      }, minutes, athlete && athlete.injuries);
       if (nmeta) built._nmeta = nmeta;
       return built;
     });
@@ -4357,6 +4417,26 @@ function fatigueBandForAnchorPattern(fatigue, anchorPattern) {
   var pct = (fatigue && mp && fatigue.byPattern && fatigue.byPattern[mp] != null) ? fatigue.byPattern[mp] : 0;
   return fatigueBand(pct);
 }
+// Phase 5.5 Task 2 (Coaching Integrity Patch): fatigue must degrade only the
+// pattern(s) actually being trained today -- a fatigued squat pattern must
+// never force an unrelated upper-body session into recovery. Generalises
+// fatigueBandForAnchorPattern's translation (short pattern code -> LIBRARY's
+// granular movement_pattern) from one anchor pattern to a whole focus-pattern
+// list. When no pattern list is known (a free-text/areas-only request with
+// neither a role nor explicit patterns), falls back to the athlete's overall
+// worst-pattern band -- the pre-existing, safe default for "we don't know
+// what's being trained," not a new behaviour.
+function fatigueBandForPatterns(fatigue, patterns) {
+  if (!fatigue) return "green";
+  if (!patterns || !patterns.length) return fatigue.band || "green";
+  var worst = 0;
+  patterns.forEach(function (p) {
+    var mp = ANCHOR_PATTERN_TO_MOVEMENT_PATTERN[p] || p;
+    var pct = (fatigue.byPattern && fatigue.byPattern[mp] != null) ? fatigue.byPattern[mp] : 0;
+    if (pct > worst) worst = pct;
+  });
+  return fatigueBand(worst);
+}
 // Resolve-stage stubs (block-week / readiness land in Phases 9 / 2.1b).
 function stubBlockWeek() { return { _stub: true, current_week: 1, phase: "accumulation", note: "block periodisation lands in Phase 9 (2.4)" }; }
 // ---- Phase 7 (2.1b): reactive layer -- manual readiness + fatigue-triggered degradation ----
@@ -4378,15 +4458,20 @@ function getReadinessToday(state) {
 // recovery session instead of forcing load), eased (drop a set + tighten the
 // fatigue budget), or normal. Either signal alone can trigger the stronger state;
 // readiness is the more direct signal so it takes precedence when both fire.
-function degradation(fatigue, readinessValue) {
-  if (readinessValue === 0 || (fatigue && fatigue.band === "red")) return "recovery";
-  if (readinessValue === 1 || (fatigue && fatigue.band === "amber")) return "eased";
+function degradation(fatigue, readinessValue, patterns) {
+  // Phase 5.5 Task 2: scoped to today's own focus patterns via
+  // fatigueBandForPatterns -- omitting patterns preserves the exact pre-patch
+  // behaviour (the athlete's overall worst-pattern band), so every existing
+  // caller that doesn't yet know today's patterns is unaffected.
+  var band = fatigueBandForPatterns(fatigue, patterns);
+  if (readinessValue === 0 || band === "red") return "recovery";
+  if (readinessValue === 1 || band === "amber") return "eased";
   return "normal";
 }
 // An active-recovery session: mobility-led with one easy movement piece. A valid,
 // intelligent output per the brief, not a failure -- falls through to the
 // absolute floor via guaranteeSession if even mobility/conditioning can't be filled.
-function recoverySession(allowed, seed) {
+function recoverySession(allowed, seed, injuries) {
   var used = {}, mobs = [];
   for (var i = 0; i < 4; i++) {
     var m = pickByType("mobility", allowed, used, seed + i * 3);
@@ -4394,19 +4479,25 @@ function recoverySession(allowed, seed) {
   }
   var extra = [], con = pickConditioning("z2", allowed, used, seed + 20);
   if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {}, false, "Active recovery, easy effort only")); }
-  return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) }, 30);
+  return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) }, 30, injuries);
 }
 // Resolve: RequestObject + user state -> a Session Spec. Weekly debt, fatigue, and
 // readiness are now real; block-week remains a stub until Phase 9.
 function resolveSpec(request, state) {
   var fatigue = computeFatigueState(state), readinessValue = getReadinessToday(state);
+  // Phase 5.5 Task 2: reuses buildIntent's own focusPatterns derivation (the
+  // Intent layer already the single place a request's patterns are derived,
+  // Programming Philosophy §3.1) via the existing requestToParsed adapter --
+  // not a new pattern-inference mechanism, just wiring an existing one into
+  // degradation's scope.
+  var patterns = buildIntent(requestToParsed(request), state && state.athlete).primary.focusPatterns;
   return {
     request: request,
     debt: computeWeeklyDebt(state),
     fatigue: fatigue,
     block: stubBlockWeek(),
     readiness: { _stub: false, score: readinessValue },
-    degradation: degradation(fatigue, readinessValue)
+    degradation: degradation(fatigue, readinessValue, patterns)
   };
 }
   /*__COACH_END__*/
@@ -6778,7 +6869,7 @@ function resolveSpec(request, state) {
       if (deg === "recovery") {
         // Phase 7 (2.1b) / Phase 6 rung 3: rough readiness or a red fatigue reading
         // gets a real recovery session instead of forcing today's requested load.
-        pendingToday = recoverySession(req.equipment, todaySeed);
+        pendingToday = recoverySession(req.equipment, todaySeed, state.athlete && state.athlete.injuries);
         var why = spec.readiness.score === 0 ? "You flagged today as rough" : "This week's fatigue reading is high";
         banner = '<div class="preview__fatigue preview__fatigue--red">' + esc(why) + ' · recovery day instead of forcing load</div>';
         // "Propose, never force": pre-build exactly what was requested (ease=false,
