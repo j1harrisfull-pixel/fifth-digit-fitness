@@ -28,6 +28,18 @@
 
 If implementation reveals a case that seems to require crossing one of these lines, **stop and raise it** rather than quietly proceeding.
 
+**Three concepts that must stay explicit and never blur into one another (James's amendment, approved before coding began):**
+
+| # | Concept | What it is | Lifetime | Where it lives |
+|---|---|---|---|---|
+| 1 | **Frozen Anchor Identity** | The athlete's long-term chosen anchor for a movement pattern (e.g. `horizontal_push -> bench-press`). | Permanent until an explicit, deliberate reassignment (not built in this phase -- see below). | `athlete.metrics.anchors[pattern].exerciseId`, via `getAnchorState()` / `freezeAnchor()`. |
+| 2 | **Today's Anchor Assignment** | The actual exercise object placed in *this* session's anchor slot. Usually equals concept 1. | One session. | The return value of `resolveTodaysAnchor()` (new, Task 4.1) -- never written back into athlete state except through concept 1's own recording path. |
+| 3 | **Temporary Substitute** | A one-session-only stand-in used when concept 1 is unavailable (equipment/injury/skill). | One session. Discarded afterward. | Only ever a *value* returned by `resolveTodaysAnchor()`, tagged `source: "substitute"`. It is never written to `athlete.metrics.anchors`, never passed to `recordAnchorExposure`, and never seen by `anchorProgressionDecision`. |
+
+The function that produces concept 2 (`resolveTodaysAnchor`) must return which of concept 1 or concept 3 it used (`source: "frozen" | "substitute"`), so every downstream consumer -- exposure recording, weight suggestion, the per-exercise "why" line -- can tell them apart without re-deriving availability itself. Progression state (exposure count, stall streak, weight) is **only ever read or written keyed by the frozen identity (concept 1)**; a substitute session contributes nothing to it, in either direction.
+
+**Reassignment is explicitly out of scope for Phase 3.** `freezeAnchor()` is freeze-once and there is no `reassignAnchor()` in this phase. If a real need to permanently change an athlete's frozen anchor ever arises (new equipment access, injury retiring a lift for good), that is a deliberate future feature -- almost certainly a Settings-level user action -- never a side effect of any automatic selection or substitution logic. This phase's tests include an explicit assertion that no code path silently overwrites an existing frozen identity.
+
 **Known data gap, disclosed up front:** the ideal "smallest available increment" (tier 1 of the increment rule) would come from per-exercise/equipment metadata (microplate size, machine stack increment, dumbbell jump) that does not exist anywhere in `LIBRARY` today. This plan builds the mechanism to be metadata-driven (checks for it first) but, since the metadata doesn't exist yet, every real exercise will resolve through tier 2 (compound-type default) or tier 3 (existing app fallback) until a future content pass adds it. That follow-up content task is out of scope here and will be flagged as a candidate for a separate task, not silently done inline.
 
 ---
@@ -243,20 +255,59 @@ Tests -- one per branch, checked in priority order (a case engineered to trigger
 
 ---
 
-## 4. Wire Selection: consume the frozen anchor, freeze on first use
+## 4. Wire Selection: `resolveTodaysAnchor()` -- consume the frozen anchor, substitute or freeze on first use
 
-**File:** `index.html`, `selectComplementary()` (~line 2236) and its caller in `generateSession`/`generateProgram` (~line 3550s).
+**File:** `index.html`, new function near `getAnchorState`/`freezeAnchor` (~line 1494), consumed by `selectComplementary()` (~line 2236) and its caller in `generateSession`/`generateProgram` (~line 3550s).
 
-### Task 4.1: Pass the athlete + today's target pattern into `selectComplementary`
+### Task 4.1: `resolveTodaysAnchor(athlete, pattern, isAvailable)`
+
+This is the one function that is allowed to blur concepts 1-3 together -- everything else must consume its output, never re-derive availability itself. `isAvailable(exerciseId)` is a caller-supplied predicate (wraps the existing `pickStrength` `ok()` filters: equipment/injury/skill/dedup) so this function stays pure and Node-testable without needing the full LIBRARY/ctx machinery.
+
+```js
+// Concept 2 producer: resolves what goes in TODAY's anchor slot. Concept 1
+// (frozen identity) is read-only here -- this function NEVER calls freezeAnchor
+// or recordAnchorExposure itself; callers do that explicitly, so the "who is
+// allowed to freeze/record" responsibility stays in exactly one place (Task 4.2
+// / Section 5), not scattered across every call site that happens to resolve a
+// session.
+function resolveTodaysAnchor(athlete, pattern, isAvailable) {
+  var frozen = getAnchorState(athlete, pattern);
+  if (frozen && isAvailable(frozen.exerciseId)) {
+    return { exerciseId: frozen.exerciseId, source: "frozen" };
+  }
+  if (frozen) {
+    // Frozen anchor exists but isn't usable today (equipment/injury/skill).
+    // Concept 3: caller must pick a substitute via its normal ranker and pass
+    // it back in -- this function only reports that a substitute is needed,
+    // it does not choose one (it has no access to the exercise pool).
+    return { exerciseId: null, source: "needs-substitute" };
+  }
+  // No frozen anchor yet at all -- caller runs the normal ranker and must
+  // freeze whatever it picks (Task 4.2), a decision this function does not make.
+  return { exerciseId: null, source: "unset" };
+}
+```
+
+### Task 4.2: Wire into `selectComplementary`
 
 `selectComplementary` already receives `o.ctx`, `o.baseSlots`, etc. Add `o.athlete`. Before the `k === 0` (anchor) slot is filled by the existing ranker:
 
 1. Determine the day's anchor pattern from `slots[0].patterns` (existing data -- the day's own movement family, already computed as `roleFamily`).
-2. If `getAnchorState(o.athlete, pattern)` exists AND that exact exercise is still selectable (passes the existing `ok()` filters in `pickStrength` -- equipment/injury/skill/dedup), force-select it instead of running the ranker for that slot.
-3. If the frozen anchor exists but fails those filters today (kit/injury), fall through to the normal ranker for *this session only* -- do not call `freezeAnchor` and do not touch `getAnchorState`'s stored identity. This is the "temporary substitution, frozen identity untouched" rule.
-4. If no frozen anchor exists for the pattern yet, let the existing ranker choose slot 0 exactly as today, then call `freezeAnchor(athlete, pattern, chosen.id, startingWeight)` where `startingWeight` is whatever `suggestedWeight`/`weightMap` already resolves for that exercise (reuse, don't reinvent).
+2. Call `resolveTodaysAnchor(o.athlete, pattern, isAvailable)` where `isAvailable` wraps `pickStrength`'s existing `ok()` filters for that exact exercise id.
+3. `source === "frozen"` -> force-select that exact exercise into slot 0. Do **not** call `freezeAnchor` or `recordAnchorExposure` here (Task 4.2 only assigns; Section 5 records the outcome after the session is logged).
+4. `source === "needs-substitute"` -> run the existing ranker exactly as today to fill slot 0 (concept 3, temporary substitute). Tag the placed exercise `isSubstitute: true` in the `placed`/`why` bookkeeping so downstream code (weight suggestion, exposure recording) can see it never touches concept 1's state.
+5. `source === "unset"` -> run the existing ranker exactly as today, then call `freezeAnchor(athlete, pattern, chosen.id, startingWeight)` where `startingWeight` is whatever `suggestedWeight`/`weightMap` already resolves for that exercise (reuse, don't reinvent). This is the ONLY call site anywhere in Phase 3 that ever creates a new frozen identity.
 
-- [ ] Write a Node test proving: (a) a frozen anchor is force-selected over what the ranker would otherwise pick; (b) an unavailable frozen anchor (equipment removed) falls back without mutating the stored state; (c) a first-ever squat day freezes whatever slot-0 selected.
+**Required tests (Node, `tools/tests/test-phase3-anchor.js`) -- every one below must exist before this task is considered done:**
+
+- [ ] Frozen anchor is created once per pattern (already covered in Task 1.1 -- cross-reference, don't duplicate).
+- [ ] A second, later `resolveTodaysAnchor` call for the same pattern returns `source: "frozen"` with the SAME `exerciseId` -- future sessions reuse the same frozen anchor, they don't re-roll it.
+- [ ] When `isAvailable(frozen.exerciseId)` is false, `resolveTodaysAnchor` returns `source: "needs-substitute"`, never forcing the unavailable exercise into the result -- the unavailable/injured frozen anchor is never forced into the session.
+- [ ] After a `needs-substitute` session runs end-to-end through `selectComplementary` with a substitute placed, `getAnchorState(athlete, pattern)` is **byte-for-byte unchanged** from before that session -- the substitute never overwrites the frozen anchor.
+- [ ] A substitute session's `placed` entry is tagged `isSubstitute: true`, and calling `recordAnchorExposure` is skippable/no-op-checked for that entry -- progression history (exposureCount/consecutiveStalls/weight) remains attached to the frozen anchor only, never to a temporary substitute's id.
+- [ ] Calling `freezeAnchor` a second time for a pattern that already has a frozen identity is a no-op (already covered in Task 1.1) -- re-asserted here in the context of `resolveTodaysAnchor`'s `"unset"` path to prove the wiring never calls it twice for the same pattern across two sessions.
+- [ ] Grep-level/structural check: no function introduced in this phase is named or behaves like a silent `reassignAnchor` -- permanent anchor change stays an explicit, unbuilt future feature, not a side effect of selection or substitution.
+
 - [ ] Implement, confirm pass, confirm the **existing** `test-progression.js` (369 assertions) and `test-phase-a-blocks.js` (22988 assertions) are unaffected when no athlete/frozen-anchor is passed (backward compatibility -- `o.athlete` optional, identical behaviour to today when absent).
 - [ ] Commit.
 
