@@ -2526,7 +2526,18 @@ function selectComplementary(o) {
       // deliberately NOT here: the debt term two lines up already achieves
       // them (equal WEEKLY_SET_TARGETS per antagonist pair), and a second term
       // for the same pair would score the same fact twice.
-      if (balance) {
+      // Recovery interaction (Architecture Freeze Review fix): a candidate
+      // whose OWN pattern currently reads amber/red fatigue has its Balance
+      // nudge suppressed entirely -- reuses fatigueBandForPatterns exactly as
+      // Phase 5.5 already scoped it (per-pattern, not the athlete's overall
+      // worst band), no new fatigue logic, no change to how fatigue itself is
+      // computed. A fatigued pattern should never be pushed harder just
+      // because Balance considers it "owed" volume.
+      var balancePatternFatigued = o.fatigueSnapshot && (function () {
+        var band = fatigueBandForPatterns(o.fatigueSnapshot, [mp]);
+        return band === "red" || band === "amber";
+      })();
+      if (balance && !balancePatternFatigued) {
         // Unilateral presence: a threshold, not a ratio (confirmed judgement
         // call) -- favour a unilateral candidate only while NONE has been
         // done yet this week and some bilateral work already has (a real
@@ -4308,8 +4319,16 @@ var WEEKLY_SET_TARGETS = {
 // isolation, not trunk-plane), isolation_calf, power. Targets for the ratio
 // below are DERIVED by summing these patterns' own already-approved
 // WEEKLY_SET_TARGETS values -- no new coaching numbers invented here.
-var ANTERIOR_PATTERNS = ["squat", "hpush", "vpush", "lunge", "isolation_quads", "isolation_chest", "isolation_shoulders", "anti_extension"];
-var POSTERIOR_PATTERNS = ["hinge", "hpull", "vpull", "isolation_hamstrings", "isolation_glutes", "isolation_back", "carry"];
+// Architecture Freeze Review fix: these MUST use the real movement_pattern
+// vocabulary (horiz_push/vert_push/horiz_pull/vert_pull -- what every LIBRARY
+// entry's movement_pattern field, WEEKLY_SET_TARGETS, and the ranker's own
+// `mp = e.movement_pattern || e.pattern` all actually use), not the abbreviated
+// hpush/vpush/hpull/vpull spelling from the older, separate ANTAGONIST_MAP --
+// that spelling never matches `mp`, so the original version of this list
+// silently excluded all horizontal/vertical push and pull work (the largest-
+// volume patterns in WEEKLY_SET_TARGETS) from the anterior:posterior signal.
+var ANTERIOR_PATTERNS = ["squat", "horiz_push", "vert_push", "lunge", "isolation_quads", "isolation_chest", "isolation_shoulders", "anti_extension"];
+var POSTERIOR_PATTERNS = ["hinge", "horiz_pull", "vert_pull", "isolation_hamstrings", "isolation_glutes", "isolation_back", "carry"];
 // Programming Philosophy Phase 5, §3.4: weekly volume targets, sets per muscle.
 // MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum
 // recoverable volume. Named constants (not inlined numbers) so a later phase

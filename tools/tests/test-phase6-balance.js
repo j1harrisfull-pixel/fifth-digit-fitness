@@ -11,11 +11,12 @@ const fs = require('fs');
 const lines = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8').split('\n');
 const helper = lines.slice(lines.findIndex(l => /function clampInt\(/.test(l)), lines.findIndex(l => /function migrateV1toV2\(/.test(l))).join('\n');
 const cs = lines.findIndex(l => l.includes('/*__COACH_START__*/')), ce = lines.findIndex(l => l.includes('/*__COACH_END__*/'));
-const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,ANTERIOR_PATTERNS,POSTERIOR_PATTERNS,WEEKLY_SET_TARGETS,computeWeeklyDebt,weakPointMuscles,selectComplementary,generateSession,generateProgram,MUSCLE_VOLUME_LANDMARKS};';
+const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,ANTERIOR_PATTERNS,POSTERIOR_PATTERNS,WEEKLY_SET_TARGETS,computeWeeklyDebt,weakPointMuscles,selectComplementary,generateSession,generateProgram,MUSCLE_VOLUME_LANDMARKS,fatigueBandForPatterns};';
 const m = { exports: {} }; new Function('module', 'exports', src)(m, m.exports);
 const {
   LIBRARY, ANTERIOR_PATTERNS, POSTERIOR_PATTERNS, WEEKLY_SET_TARGETS, computeWeeklyDebt,
-  weakPointMuscles, selectComplementary, generateSession, generateProgram, MUSCLE_VOLUME_LANDMARKS
+  weakPointMuscles, selectComplementary, generateSession, generateProgram, MUSCLE_VOLUME_LANDMARKS,
+  fatigueBandForPatterns
 } = m.exports;
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
@@ -29,8 +30,28 @@ const byName = (name) => LIBRARY.filter(e => e.name === name)[0];
   ok(Array.isArray(ANTERIOR_PATTERNS) && Array.isArray(POSTERIOR_PATTERNS), "both pattern-group constants exist");
   const overlap = ANTERIOR_PATTERNS.filter(p => POSTERIOR_PATTERNS.indexOf(p) >= 0);
   ok(overlap.length === 0, `no pattern is classified as both anterior and posterior (found: ${overlap.join(',')})`);
-  ["squat", "hpush", "vpush", "lunge"].forEach(p => ok(ANTERIOR_PATTERNS.indexOf(p) >= 0, `${p} is anterior`));
-  ["hinge", "hpull", "vpull", "carry"].forEach(p => ok(POSTERIOR_PATTERNS.indexOf(p) >= 0, `${p} is posterior`));
+  // Architecture Freeze Review finding, confirmed bug: the ranker keys candidates
+  // by `e.movement_pattern || e.pattern`, and every real LIBRARY entry's
+  // movement_pattern uses the horiz_push/vert_push/horiz_pull/vert_pull spelling
+  // -- never the abbreviated hpush/vpush/hpull/vpull ANTAGONIST_MAP vocabulary.
+  // These constants must use the REAL vocabulary, or the anterior:posterior
+  // signal silently never fires for push/pull work.
+  ["squat", "horiz_push", "vert_push", "lunge"].forEach(p => ok(ANTERIOR_PATTERNS.indexOf(p) >= 0, `${p} is anterior (real movement_pattern vocabulary, not hpush/vpush)`));
+  ["hinge", "horiz_pull", "vert_pull", "carry"].forEach(p => ok(POSTERIOR_PATTERNS.indexOf(p) >= 0, `${p} is posterior (real movement_pattern vocabulary, not hpull/vpull)`));
+  ["hpush", "vpush", "hpull", "vpull"].forEach(p => {
+    ok(ANTERIOR_PATTERNS.indexOf(p) === -1 && POSTERIOR_PATTERNS.indexOf(p) === -1, `the abbreviated ANTAGONIST_MAP spelling "${p}" must NOT appear in either list -- it never matches a real movement_pattern and would be dead weight`);
+  });
+}
+
+{
+  // End-to-end proof the vocabulary fix actually feeds computeWeeklyDebt:
+  // Bench Press (movement_pattern "horiz_push") must count toward
+  // doneAnterior/anteriorTarget now that the real key is used.
+  const debt = computeWeeklyDebt(fixtureState([{ name: "Bench Press", sets: 5 }]));
+  ok(debt.byBalance.doneAnterior === 5, `Bench Press (horiz_push, anterior) credits doneAnterior now that the real vocabulary is used (got ${debt.byBalance.doneAnterior})`);
+  ok(debt.byBalance.anteriorTarget >= WEEKLY_SET_TARGETS.horiz_push, `anteriorTarget includes horiz_push's own weekly target (got ${debt.byBalance.anteriorTarget}, horiz_push target is ${WEEKLY_SET_TARGETS.horiz_push})`);
+  const debt2 = computeWeeklyDebt(fixtureState([{ name: "Deadlift", sets: 5 }]));
+  ok(debt2.byBalance.donePosterior === 5, `Deadlift (hinge, posterior) still credits donePosterior (regression)`);
 }
 
 // ================= Task 6.1: computeWeeklyDebt's byBalance extension =================
@@ -197,6 +218,71 @@ function rankOne(ex, o) {
   const intake = { days: 3, goal: "hypertrophy", minutes: 45, weeks: 2, includes: [], equipment: null };
   const prog = generateProgram(intake, {}, 4, {}, null, null, null, null);
   ok(prog && Array.isArray(prog.weeks) && prog.weeks.length === 2, "generateProgram with no balance argument (backward-compatible) still builds a valid program");
+}
+
+// ================= Task 6.5: fatigue suppresses the Balance nudge =================
+// Skill: architecture reasoning (composition between two existing systems,
+// not a redesign of either) + S&C reasoning (a fatigued pattern shouldn't be
+// pushed harder just because it's "owed" volume) + test engineering.
+//
+// Reuses the existing Phase 5.5 fatigueBandForPatterns -- no new fatigue
+// logic. A single-slot selectComplementary call (goal "hypertrophy", so the
+// anchor-tier bonus never applies) draws from every real squat- and hinge-
+// pattern candidate the library has (patterns: ["squat","hinge"], full
+// equipment) -- balance data is skewed so ONLY squat-pattern candidates get a
+// nonzero anterior:posterior nudge (anteriorTarget far short of done,
+// posterior already fully done), capped at -6, which reliably beats
+// seededJitter's <5-point spread. This makes the WINNING PATTERN squat every
+// seed with no fatigue present (which specific squat exercise wins varies --
+// several real squat variations exist in the pool, so the test checks the
+// pattern, not one exercise id). With squat's own pattern fatigue-red, that
+// nudge must be suppressed -- proven by sweeping many seeds and confirming
+// squat no longer wins every time (a real behavioural change).
+
+function sweepPatternWins(fatigueSnapshot, tries) {
+  var wins = 0;
+  for (var seed = 0; seed < tries; seed++) {
+    var placed = selectComplementary({
+      baseSlots: [{ patterns: ["squat", "hinge"], compound: true }], count: 1, selGoal: "hypertrophy",
+      allowed: null, ctx: { used: {}, pat: {}, dl: 0 }, seed: seed, patCap: 2, dlCap: 1,
+      focusPatterns: null, role: null, debt: null, lastLogs: {}, fatigueBudget: 2, unlocked: null,
+      athlete: null, weightMap: {}, fatigueSnapshot: fatigueSnapshot,
+      balance: { doneUnilateral: 0, doneBilateral: 0, doneAnterior: 0, anteriorTarget: 20, donePosterior: 20, posteriorTarget: 20, doneSpineLoad: 0 }
+    });
+    if (placed[0] && placed[0].pattern === "squat") wins++;
+  }
+  return wins;
+}
+
+{
+  ok(fatigueBandForPatterns({ byPattern: { squat: 25 } }, ["squat"]) === "red", "sanity: fatigueBandForPatterns reads squat as red at 25% (reused, not reimplemented)");
+}
+
+{
+  const winsNoFatigue = sweepPatternWins(null, 20);
+  ok(winsNoFatigue === 20, `with no fatigue data, the anterior nudge (capped -6, beats jitter's <5 spread) makes a squat-pattern candidate win every seed (got ${winsNoFatigue}/20)`);
+
+  const winsFatigued = sweepPatternWins({ byPattern: { squat: 25 } }, 20);
+  ok(winsFatigued < 20, `with squat's OWN pattern fatigue-red, its balance nudge is suppressed -- a squat-pattern candidate no longer wins every seed (got ${winsFatigued}/20, expected < 20)`);
+}
+
+{
+  // Regression: amber does not accidentally escape suppression (only green
+  // should leave the nudge active), and a fatigued OTHER pattern (not the
+  // candidate's own) must not suppress a candidate it doesn't apply to.
+  const winsAmber = sweepPatternWins({ byPattern: { squat: 12 } }, 20); // 12% = amber (>=10, <20)
+  ok(winsAmber < 20, `amber fatigue on squat's own pattern also suppresses the nudge (got ${winsAmber}/20, expected < 20)`);
+
+  const winsOtherPatternFatigued = sweepPatternWins({ byPattern: { hinge: 25 } }, 20); // hinge red, NOT squat
+  ok(winsOtherPatternFatigued === 20, `fatigue on a DIFFERENT pattern (hinge) never suppresses squat's own nudge -- a squat-pattern candidate still wins every seed (got ${winsOtherPatternFatigued}/20)`);
+}
+
+{
+  // Regression: omitting fatigueSnapshot entirely (every pre-existing call
+  // site until this fix) behaves exactly as before -- balance nudges active.
+  const parsed = { role: "lower", minutes: 45, goal: "hypertrophy", equipment: null, includes: [] };
+  const sess = generateSession(parsed, {}, 7, {}, null, false, null, null, null, null, { doneUnilateral: 0, doneBilateral: 10, doneAnterior: 0, anteriorTarget: 0, donePosterior: 0, posteriorTarget: 0, doneSpineLoad: 0 });
+  ok(sess && sess.exercises.length > 0, "regression: generateSession with balance but no fatigueSnapshot still builds successfully");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
