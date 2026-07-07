@@ -1324,6 +1324,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     return { id: id, name: str(e.name, "Exercise"), type: EX_TYPES.indexOf(e.type) >= 0 ? e.type : "strength",
       equipment: EQUIPMENTS.indexOf(e.equipment) >= 0 ? e.equipment : "", group: str(e.group, "").trim().slice(0, 6),
       sets: clampInt(e.sets, 1, 12, 3), reps: e.reps == null ? "" : String(e.reps), weight: Math.max(0, numOr(e.weight, 0)),
+      // Programming Philosophy Phase 5: rir is a genuine numeric prescription
+      // field now (not just baked into `target`) -- preserved here the same
+      // way every other real field is, so it doesn't get silently dropped on
+      // save/reload the way session.blocks once did.
+      rir: (typeof e.rir === "number") ? e.rir : undefined,
       target: str(e.target, ""), rest: str(e.rest, ""), notes: str(e.notes, ""),
       curve: ["ramp", "straight", "power", "none"].indexOf(e.curve) >= 0 ? e.curve : "straight",
       setPlan: Array.isArray(e.setPlan) ? e.setPlan.map(function (s) {
@@ -6855,7 +6860,10 @@ function resolveSpec(request, state) {
     if (!week) return;
     var sid = "wk" + aw + "_today" + week.sessions.length + "_" + Math.floor(new Date().getTime() / 1000);
     var session = { id: sid, name: pendingToday.name, focus: pendingToday.focus, exercises: pendingToday.exercises.map(function (e, i) {
-      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block, densityMode: e.densityMode };
+      // rir carried through explicitly (Programming Philosophy Phase 5) --
+      // this hand-rolled reconstruction would otherwise silently drop it,
+      // the same whitelist-drop bug class that bit session.blocks earlier.
+      return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, rir: (typeof e.rir === "number") ? e.rir : undefined, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block, densityMode: e.densityMode };
     }) };
     // Gold-standard Phase A: carry the block/time-budget summary through too --
     // pendingToday came from generateSession/guaranteeSession, which already
