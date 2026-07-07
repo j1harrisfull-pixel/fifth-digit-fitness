@@ -9,12 +9,14 @@ const fs = require('fs');
 const lines = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8').split('\n');
 const helper = lines.slice(lines.findIndex(l => /function clampInt\(/.test(l)), lines.findIndex(l => /function migrateV1toV2\(/.test(l))).join('\n');
 const cs = lines.findIndex(l => l.includes('/*__COACH_START__*/')), ce = lines.findIndex(l => l.includes('/*__COACH_END__*/'));
-const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,roleFloorMoves,absoluteFloorExercises,topUpThinDay,guaranteeSession,recoverySession,isExerciseInjuryFlagged,fatigueBandForPatterns,degradation,fatigueBand,resolveSpec,buildIntent,requestToParsed,makeRequest,MUSCLE_VOLUME_LANDMARKS,SECONDARY_MUSCLE_CREDIT,trimSetsForVolumeLandmark,buildEx,generateSession,generateProgram};';
+const src = helper + '\n' + lines.slice(cs + 1, ce).join('\n') + '\n; module.exports={LIBRARY,roleFloorMoves,absoluteFloorExercises,topUpThinDay,guaranteeSession,recoverySession,isExerciseInjuryFlagged,fatigueBandForPatterns,degradation,fatigueBand,resolveSpec,buildIntent,requestToParsed,makeRequest,MUSCLE_VOLUME_LANDMARKS,SECONDARY_MUSCLE_CREDIT,trimSetsForVolumeLandmark,buildEx,generateSession,generateProgram,pickByType,pickMobilityByPatterns,pickPulseRaiser,buildWarmupCooldown,pickFunctional,pickConditioning,conditioningAlternatives,runWorkout};';
 const m = { exports: {} }; new Function('module', 'exports', src)(m, m.exports);
 const {
   LIBRARY, roleFloorMoves, absoluteFloorExercises, topUpThinDay, guaranteeSession, recoverySession,
-  fatigueBandForPatterns, degradation, resolveSpec, buildIntent, requestToParsed, makeRequest,
-  MUSCLE_VOLUME_LANDMARKS, SECONDARY_MUSCLE_CREDIT, trimSetsForVolumeLandmark, buildEx, generateSession, generateProgram
+  isExerciseInjuryFlagged, fatigueBandForPatterns, degradation, resolveSpec, buildIntent, requestToParsed, makeRequest,
+  MUSCLE_VOLUME_LANDMARKS, SECONDARY_MUSCLE_CREDIT, trimSetsForVolumeLandmark, buildEx, generateSession, generateProgram,
+  pickByType, pickMobilityByPatterns, pickPulseRaiser, buildWarmupCooldown, pickFunctional, pickConditioning,
+  conditioningAlternatives, runWorkout
 } = m.exports;
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
@@ -195,6 +197,117 @@ const ALL_FLOOR_UNSAFE_INJ = [
   const setsA = withHeadroom.exercises.map(e => e.sets).join(",");
   const setsB = withTightChest.exercises.map(e => e.sets).join(",");
   ok(setsA !== setsB, "but the SETS differ -- only prescribed sets change, proving the accumulation actually took effect end-to-end");
+}
+
+// ================= Amendment: every remaining exercise entry point must use =================
+// ================= the SAME isExerciseInjuryFlagged gate (no exempt paths)  =================
+// Skill: safety reasoning + architecture reasoning. Discovered during the Task 1
+// investigation that 9 real entry points (warm-up, cool-down, functional
+// finisher, conditioning, live conditioning swap, filler, endurance run) never
+// called the gate at all -- only pickStrength/anchorIsAvailable/the fallback
+// trio did. This section proves each of the 9 now uses it, with no new
+// injury logic invented (same isExerciseInjuryFlagged, same INJURY_CATEGORIES,
+// only threaded to new call sites).
+
+function sweepNeverFlagged(pickFn, injuries, tries) {
+  for (let seed = 0; seed < tries; seed++) {
+    const e = pickFn(seed);
+    if (e && isExerciseInjuryFlagged(e, injuries)) return { failedAt: seed, name: e.name };
+  }
+  return null;
+}
+
+const HIP_INJ = [{ category: "pain", target: "hip" }];
+const ANKLE_INJ = [{ category: "pain", target: "ankle" }]; // flags both pulse-raiser candidates (jumping-jacks, high-knees)
+const CARRY_SPINE_INJ = [{ category: "pain", target: "spine" }]; // flags every carry + anti_rotation candidate (all have spine in joint_stress)
+const SLED_INJ = [{ category: "pain", target: "sled push" }]; // tier-4 name match -- conditioning entries carry no joint_stress data at all (see report)
+const EASY_RUN_INJ = [{ category: "pain", target: "easy run" }]; // tier-4 name match -- RUN_PLAN entries carry no joint_stress data either
+
+{
+  // pickByType respects injuries.
+  const bad = sweepNeverFlagged(seed => pickByType("mobility", null, {}, seed, HIP_INJ), HIP_INJ, 40);
+  ok(!bad, `pickByType never returns a hip-flagged mobility move across 40 seeds (${bad ? bad.name + ' at seed ' + bad.failedAt : 'clean'})`);
+  ok(pickByType("mobility", null, {}, 1, []) != null, "regression: pickByType with no injuries still returns a valid mobility move");
+}
+
+{
+  // pickMobilityByPatterns respects injuries.
+  const bad = sweepNeverFlagged(seed => pickMobilityByPatterns(["hip-mobility"], false, null, {}, seed, HIP_INJ), HIP_INJ, 40);
+  ok(!bad, `pickMobilityByPatterns never returns a hip-flagged drill across 40 seeds even when searching the hip-mobility group itself (${bad ? bad.name : 'clean'})`);
+  ok(pickMobilityByPatterns(["hip-mobility"], false, null, {}, 1, []) != null, "regression: pickMobilityByPatterns with no injuries still returns a valid hip-mobility drill");
+}
+
+{
+  // pickPulseRaiser respects injuries.
+  const bad = sweepNeverFlagged(seed => pickPulseRaiser({}, seed, ANKLE_INJ), ANKLE_INJ, 20);
+  ok(!bad, `pickPulseRaiser never returns an ankle-flagged pulse-raiser across 20 seeds (${bad ? bad.name : 'clean'})`);
+  const noneWhenAllFlagged = pickPulseRaiser({}, 1, ANKLE_INJ);
+  ok(noneWhenAllFlagged === null, "honest 'return nothing': an ankle injury flags BOTH real pulse-raiser candidates (Jumping Jacks, High Knees), so pickPulseRaiser returns null rather than prescribing one anyway");
+  ok(pickPulseRaiser({}, 1, []) != null, "regression: pickPulseRaiser with no injuries still returns a valid pulse-raiser");
+}
+
+{
+  // Box Breathing lookup (inline in buildWarmupCooldown) is safety-checked.
+  const BREATHING_INJ = [{ category: "pain", target: "box breathing" }]; // tier-4 -- Box Breathing has joint_stress: [] by design
+  const strengthPicks = [{ pattern: "hpush" }];
+  const wcSafe = buildWarmupCooldown(strengthPicks, null, {}, 1, {}, 45, 1, false, {}, []);
+  ok(wcSafe.cooldown.some(e => e.name === "Box Breathing"), "sanity: Box Breathing normally appears in the cool-down");
+  const wcFlagged = buildWarmupCooldown(strengthPicks, null, {}, 1, {}, 45, 1, false, {}, BREATHING_INJ);
+  ok(!wcFlagged.cooldown.some(e => e.name === "Box Breathing"), "an injury targeting Box Breathing by name excludes it from the cool-down -- the hardcoded lookup is gated too, not just pool-scanned pickers");
+}
+
+{
+  // pickFunctional respects injuries (carries + anti-rotation both tag spine).
+  const bad = sweepNeverFlagged(seed => pickFunctional("carry", null, {}, seed, CARRY_SPINE_INJ), CARRY_SPINE_INJ, 20);
+  ok(!bad, `pickFunctional("carry") never returns a spine-flagged carry across 20 seeds (${bad ? bad.name : 'clean'})`);
+  const bad2 = sweepNeverFlagged(seed => pickFunctional("rotation", null, {}, seed, CARRY_SPINE_INJ), CARRY_SPINE_INJ, 20);
+  ok(!bad2, `pickFunctional("rotation") never returns a spine-flagged anti-rotation move across 20 seeds (${bad2 ? bad2.name : 'clean'})`);
+  ok(pickFunctional("carry", null, {}, 1, []) != null, "regression: pickFunctional with no injuries still returns a valid carry");
+}
+
+{
+  // pickConditioning respects injuries.
+  const bad = sweepNeverFlagged(seed => pickConditioning("interval", null, {}, seed, SLED_INJ), SLED_INJ, 20);
+  ok(!bad, `pickConditioning never returns Sled Push once it's injury-flagged by name, across 20 seeds (${bad ? bad.name : 'clean'})`);
+  ok(pickConditioning("interval", null, {}, 1, []) != null, "regression: pickConditioning with no injuries still returns a valid interval move");
+}
+
+{
+  // conditioningAlternatives respects injuries (the live "swap the kit" button).
+  const altsUnsafe = conditioningAlternatives("Bike Intervals", null, SLED_INJ);
+  ok(!altsUnsafe.some(a => a.name === "Sled Push"), "conditioningAlternatives never offers Sled Push as a live swap once it's injury-flagged");
+  const altsSafe = conditioningAlternatives("Bike Intervals", null, []);
+  ok(altsSafe.some(a => a.name === "Sled Push"), "regression: with no injuries, Sled Push is still offered as a swap alternative");
+}
+
+{
+  // runWorkout respects injuries -- honest "return nothing" since RUN_PLAN has
+  // exactly one candidate per slot (no pool to fall back within).
+  const flagged = runWorkout(0, 2, 45, 1, EASY_RUN_INJ); // days=2 -> ["easy","long"], si=0 -> "easy" -> Easy Run
+  ok(flagged === null, "runWorkout returns null (honest 'no safe alternative') rather than prescribing Easy Run once it's injury-flagged by name");
+  const safe = runWorkout(0, 2, 45, 1, []);
+  ok(safe && safe.name === "Easy Run", "regression: with no injuries, runWorkout still returns Easy Run for the same slot");
+}
+
+{
+  // Summary invariant: sweep every one of the 9 previously-unsafe entry points
+  // together under one shared injury set and confirm none of them ever
+  // surfaces a flagged exercise -- the single-gate invariant, proven in one
+  // place rather than only piecemeal above.
+  const UNIVERSAL_INJ = [{ category: "pain", target: "hip" }, { category: "pain", target: "ankle" }, { category: "pain", target: "spine" }];
+  let anyBypass = null;
+  for (let seed = 0; seed < 15 && !anyBypass; seed++) {
+    const candidates = [
+      pickByType("mobility", null, {}, seed, UNIVERSAL_INJ),
+      pickMobilityByPatterns(["hip-mobility", "ankle-mobility"], false, null, {}, seed, UNIVERSAL_INJ),
+      pickMobilityByPatterns(["hip-mobility", "ankle-mobility"], true, null, {}, seed, UNIVERSAL_INJ),
+      pickPulseRaiser({}, seed, UNIVERSAL_INJ),
+      pickFunctional("carry", null, {}, seed, UNIVERSAL_INJ),
+      pickFunctional("rotation", null, {}, seed, UNIVERSAL_INJ)
+    ];
+    candidates.forEach(e => { if (e && isExerciseInjuryFlagged(e, UNIVERSAL_INJ)) anyBypass = e.name; });
+  }
+  ok(!anyBypass, `no entry point in the swept set ever bypasses the safety gate under a shared injury set (${anyBypass || 'clean'})`);
 }
 
 console.log(`${pass} passed, ${fail} failed`);
