@@ -2415,21 +2415,26 @@ function weakPointMuscles(baseSlots, lastLogs) {
   // nudge accessories toward its primary muscle (sticking-point proxy).
   return []; // placeholder body; wired through opts.biasMuscles, filled in Phase 7
 }
-// Availability check for Phase 3's frozen-anchor consumption: equipment/skill/
-// dedup/compound-type-match, exactly the mechanics pickStrength's own ok()
-// already enforces for every other candidate. Injury-based exclusion is
-// deliberately NOT checked here -- it isn't enforced anywhere in real exercise
-// selection yet (a pre-existing gap; injuries are collected in Settings and
-// threaded through Intent's purposeSlots as passthrough data, but no selection
-// path -- including this one -- filters on them today). Fixing that is a
-// separate, later task, not something to silently add inside Phase 3.
-function anchorIsAvailable(exerciseId, slot, allowed, unlocked, ctx) {
+// Availability check for the frozen-anchor consumption: equipment/skill/dedup/
+// compound-type-match, exactly the mechanics pickStrength's own ok() already
+// enforces for every other candidate -- PLUS (Phase 4) the same hard injury
+// check every other slot now uses. This is a narrow, explicit extension of
+// AVAILABILITY, not a change to ranking: the frozen anchor stays completely
+// immune to ranking/preference/recency (those never run for it at all), but
+// "immune to ranking" and "exempt from safety" are NOT the same claim -- only
+// the first one is true. An injury-flagged frozen anchor is not available;
+// resolveTodaysAnchor already knows what to do with an unavailable anchor
+// (report "needs-substitute"), because Phase 3 built that path for equipment/
+// skill unavailability -- injury is just one more reason the same path exists
+// for. It never blindly force-selects a flagged movement.
+function anchorIsAvailable(exerciseId, slot, allowed, unlocked, ctx, injuries) {
   var e = LIBRARY.filter(function (x) { return x.id === exerciseId; })[0];
   if (!e || e.type !== "strength") return false;
   if (slot.compound !== null && slot.compound !== undefined && !!e.compound !== !!slot.compound) return false;
   if (!equipOk(e, allowed)) return false;
   if (!skillAllowed(e, unlocked)) return false;
   if (ctx.used[e.id]) return false;
+  if (isExerciseInjuryFlagged(e, injuries)) return false;
   return true;
 }
 function selectComplementary(o) {
@@ -2514,7 +2519,7 @@ function selectComplementary(o) {
     var isSubstitute = false, anchorSource = null, anchorDeloadDue = false;
     var ex = null;
     if (k === 0 && anchorPattern && athlete) {
-      var res = resolveTodaysAnchor(athlete, anchorPattern, function (exId) { return anchorIsAvailable(exId, slot, o.allowed, o.unlocked, ctx); });
+      var res = resolveTodaysAnchor(athlete, anchorPattern, function (exId) { return anchorIsAvailable(exId, slot, o.allowed, o.unlocked, ctx, athlete && athlete.injuries); });
       anchorSource = res.source;
       if (res.source === "frozen") {
         ex = LIBRARY.filter(function (x) { return x.id === res.exerciseId; })[0] || null;

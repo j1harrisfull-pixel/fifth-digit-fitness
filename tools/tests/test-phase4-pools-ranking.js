@@ -206,5 +206,56 @@ function baseCtxOpts(extra) {
   ok(!sawFlagged, "an athlete with a nogo injury on a specific accessory exercise (Barbell Curl) never sees it appear anywhere in a generated session, across many seeds");
 }
 
+// ================= Task 3.1: anchor boundary -- ranking-immune, not safety-exempt =================
+// Skill lens: architecture reasoning. "Immune to ranking" and "exempt from
+// safety" are different claims; only the first is true. These tests prove
+// both halves explicitly.
+
+{
+  // Regression (re-asserted here, per plan): a frozen anchor still bypasses
+  // the ranker entirely under normal conditions.
+  const athlete = normalizeAthlete({});
+  const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  generateSession(parsed, {}, 1, {}, null, false, null, athlete); // freezes squat
+  const frozen = getAnchorState(athlete, "squat");
+  ok(frozen !== null, "a squat anchor is frozen on the first build");
+  const res = resolveTodaysAnchor(athlete, "squat", () => true);
+  ok(res.source === "frozen" && res.exerciseId === frozen.exerciseId, "under normal conditions, resolveTodaysAnchor reports 'frozen' with the exact frozen id -- never re-ranked");
+}
+
+{
+  // Injury-flagged frozen anchor -> reports needs-substitute, never blindly
+  // force-selected onto the flagged movement.
+  const athlete = normalizeAthlete({});
+  freezeAnchor(athlete, "squat", "back-squat", 60);
+  const availableIfNotInjured = anchorIsAvailable("back-squat", { compound: true }, null, null, { used: {} }, []);
+  ok(availableIfNotInjured === true, "sanity: back-squat is available with no injuries");
+  const availableIfInjured = anchorIsAvailable("back-squat", { compound: true }, null, null, { used: {} }, [{ category: "pain", target: "Back Squat" }]);
+  ok(availableIfInjured === false, "an injury-flagged frozen anchor is reported UNAVAILABLE by anchorIsAvailable");
+  const res = resolveTodaysAnchor(athlete, "squat", (exId) => anchorIsAvailable(exId, { compound: true }, null, null, { used: {} }, [{ category: "pain", target: "Back Squat" }]));
+  ok(res.source === "needs-substitute", "resolveTodaysAnchor reports 'needs-substitute' when the frozen anchor is injury-flagged, exactly like the existing equipment-unavailable path");
+}
+
+{
+  // Substitute never overwrites frozen identity; progression history stays
+  // attached to the frozen id, not the substitute -- exercised end-to-end.
+  const athlete = normalizeAthlete({});
+  const fullGym = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  generateSession(fullGym, {}, 1, {}, null, false, null, athlete); // freezes squat (likely back-squat)
+  const frozenBefore = JSON.stringify(getAnchorState(athlete, "squat"));
+  const frozenId = getAnchorState(athlete, "squat").exerciseId;
+  // Inject an injury on the frozen exercise's own name and rebuild.
+  const frozenLib = LIBRARY.filter(e => e.id === frozenId)[0];
+  athlete.injuries = [{ category: "medical", target: frozenLib.name }];
+  const s2 = generateSession(fullGym, {}, 2, {}, null, false, null, athlete);
+  const squatPick = s2.exercises.find(e => { const lib = byName(e.name); return lib && lib.pattern === "squat" && lib.compound; });
+  ok(squatPick && squatPick.name !== frozenLib.name, `the injury-flagged frozen anchor (${frozenLib.name}) is never used -- a substitute is picked instead (got ${squatPick && squatPick.name})`);
+  const frozenAfter = JSON.stringify(getAnchorState(athlete, "squat"));
+  ok(frozenBefore === frozenAfter, "the substitute session never overwrites the frozen anchor identity or its progression state");
+  recordAnchorExposure(athlete, "squat", { hitTop: true, newWeight: 999, action: "increase" });
+  ok(getAnchorState(athlete, "squat").exerciseId === frozenId, "progression history is recorded against the frozen id, never a substitute's");
+  ok(!isExerciseInjuryFlagged(squatPick && byName(squatPick.name), athlete.injuries), "the substitute itself is never a flagged exercise (it went through the same hard-filtered pickStrength as every other slot)");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('FAIL:', f)); process.exit(1); }
