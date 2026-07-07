@@ -2327,9 +2327,27 @@ function weakPointMuscles(baseSlots, lastLogs) {
   // nudge accessories toward its primary muscle (sticking-point proxy).
   return []; // placeholder body; wired through opts.biasMuscles, filled in Phase 7
 }
+// Availability check for Phase 3's frozen-anchor consumption: equipment/skill/
+// dedup/compound-type-match, exactly the mechanics pickStrength's own ok()
+// already enforces for every other candidate. Injury-based exclusion is
+// deliberately NOT checked here -- it isn't enforced anywhere in real exercise
+// selection yet (a pre-existing gap; injuries are collected in Settings and
+// threaded through Intent's purposeSlots as passthrough data, but no selection
+// path -- including this one -- filters on them today). Fixing that is a
+// separate, later task, not something to silently add inside Phase 3.
+function anchorIsAvailable(exerciseId, slot, allowed, unlocked, ctx) {
+  var e = LIBRARY.filter(function (x) { return x.id === exerciseId; })[0];
+  if (!e || e.type !== "strength") return false;
+  if (slot.compound !== null && slot.compound !== undefined && !!e.compound !== !!slot.compound) return false;
+  if (!equipOk(e, allowed)) return false;
+  if (!skillAllowed(e, unlocked)) return false;
+  if (ctx.used[e.id]) return false;
+  return true;
+}
 function selectComplementary(o) {
   var ctx = o.ctx, debt = o.debt || null, selGoal = o.selGoal;
   var biasMuscles = o.biasMuscles || [], fatigueBudget = o.fatigueBudget != null ? o.fatigueBudget : 2;
+  var athlete = o.athlete || null;
   // high-axial count and muscle-spread are PER SESSION; used/pat/dl on ctx stay
   // week-level (shared across a week's sessions by generateProgram) so dedup and
   // pattern/deadlift caps span the week while the fatigue budget resets each day.
@@ -2345,6 +2363,16 @@ function selectComplementary(o) {
   // the day is led by a compound that actually belongs to it.
   var roleFamily = {};
   o.baseSlots.forEach(function (s) { (s.patterns || []).forEach(function (p) { roleFamily[p] = 1; }); });
+  // Phase 3: the day's anchor pattern, ONLY when slot 0 unambiguously targets a
+  // single anchor-bearing movement pattern (role-based days always resolve to
+  // exactly one; a free-text request spanning several anchor patterns at once
+  // is deliberately left alone -- no frozen-anchor mechanism engages, identical
+  // to today's behaviour, rather than guessing which pattern "the" anchor is).
+  var anchorPattern = null;
+  if (slots.length) {
+    var s0anchorPats = (slots[0].patterns || []).filter(function (p) { return ANCHOR_PATTERNS.indexOf(p) >= 0; });
+    if (s0anchorPats.length === 1) anchorPattern = s0anchorPats[0];
+  }
   function ranker(slotCompound, seedForSlot, isAnchor) {
     return function (e) {
       var mp = e.movement_pattern || e.pattern, s = 0;
@@ -2377,7 +2405,7 @@ function selectComplementary(o) {
       return s;
     };
   }
-  var placed = [], why = [];
+  var placed = [], why = [], anchorPatternPlaced = [], isSubstitutePlaced = [];
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
     // The day's lead compound (slot 0) is the point of the session, so give its
@@ -2389,8 +2417,27 @@ function selectComplementary(o) {
     // The cap is a hard count check, so this can only lift a pattern to patCap+1,
     // never higher; accessories still respect the base cap.
     var slotPatCap = k === 0 ? o.patCap + 1 : o.patCap;
-    var ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
-      { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK, k === 0), unlocked: o.unlocked });
+    // Phase 3: today's anchor slot (concept 2) consumes the athlete's frozen
+    // anchor (concept 1) when one exists and is available; a real ranker run
+    // only happens to CHOOSE a temporary substitute (concept 3) or to make the
+    // first-ever pick that then gets frozen. This function never calls
+    // freezeAnchor/recordAnchorExposure itself -- that happens once, right
+    // after, using resolveTodaysAnchor's own reported source.
+    var isSubstitute = false, anchorSource = null;
+    var ex = null;
+    if (k === 0 && anchorPattern && athlete) {
+      var res = resolveTodaysAnchor(athlete, anchorPattern, function (exId) { return anchorIsAvailable(exId, slot, o.allowed, o.unlocked, ctx); });
+      anchorSource = res.source;
+      if (res.source === "frozen") {
+        ex = LIBRARY.filter(function (x) { return x.id === res.exerciseId; })[0] || null;
+      } else {
+        isSubstitute = (res.source === "needs-substitute");
+      }
+    }
+    if (!ex) {
+      ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
+        { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK, k === 0), unlocked: o.unlocked });
+    }
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
     if (ex && !roleFamily[ex.pattern]) ex = null; // never an off-family lift (no split squat leading a pull day)
     // Hard fatigue cap: avoidHigh is a soft preference that yields when a slot's
@@ -2398,6 +2445,15 @@ function selectComplementary(o) {
     // spent, so no session ever exceeds it (never 3 heavy squat/hinge lifts).
     if (ex && ex.fatigue_cost === "high" && high >= fatigueBudget) ex = null;
     if (!ex) continue;
+    // Phase 3: the ONLY call site anywhere that ever creates a new frozen
+    // anchor identity -- exactly the "unset" path (no frozen anchor existed for
+    // this pattern yet), and only once ex has survived every other filter
+    // above. A substitute pick (isSubstitute) never reaches here as a freeze --
+    // freezeAnchor is freeze-once anyway, but this keeps the intent explicit.
+    if (k === 0 && anchorSource === "unset" && athlete && !isSubstitute) {
+      var startW = (o.weightMap && o.weightMap[canonicalExName(ex.name)]) || ex.weight || 0;
+      freezeAnchor(athlete, anchorPattern, ex.id, startW);
+    }
     // An honest plain-language reason, computed from the SAME real inputs the
     // ranker just used above -- never a fabricated/plausible-sounding line.
     // Priority: real weekly debt (quantified) > the lengthened-bias signal >
@@ -2438,8 +2494,18 @@ function selectComplementary(o) {
     if (pm2) mus[pm2] = (mus[pm2] || 0) + 1;
     placed.push(ex);
     why.push(reason);
+    // Phase 3 bookkeeping (parallel arrays, same order/length as placed): which
+    // movement pattern (if any) this slot's pick is today's anchor for, and
+    // whether it's a temporary substitute -- so Section 5 (weight suggestion +
+    // exposure recording) can tell a real frozen-anchor exposure apart from a
+    // substitute session without re-deriving availability itself. null/false
+    // for every non-anchor slot and for anchor slots with no athlete passed.
+    anchorPatternPlaced.push(k === 0 ? anchorPattern : null);
+    isSubstitutePlaced.push(k === 0 ? isSubstitute : false);
   }
   placed.why = why; // parallel array (same order/length as placed); does not affect array semantics
+  placed.anchorPattern = anchorPatternPlaced;
+  placed.isSubstitute = isSubstitutePlaced;
   return placed; // order follows the split-ordered slots: anchors first, isolation last
 }
 function pickByType(type, allowed, used, seed) {
@@ -3490,7 +3556,8 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   var picks = selectComplementary({
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
-    debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null
+    debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null,
+    athlete: athlete || null, weightMap: weightMap
   });
   picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease, picks.why && picks.why[k])); });
   topUpThinDay(strengthEx, parsed.role);
@@ -3618,7 +3685,8 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete) {
     var picks = selectComplementary({
       baseSlots: slots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: bpCtx,
       seed: seed + si * 7, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
-      debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null
+      debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null,
+      athlete: athlete || null, weightMap: weightMap
     });
     return { role: role, slots: slots, occ: occ, picks: picks };
   });
