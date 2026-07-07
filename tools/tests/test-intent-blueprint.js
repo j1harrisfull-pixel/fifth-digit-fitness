@@ -64,16 +64,18 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(buildIntent({}).goal === 'general', 'missing goal defaults to "general"');
 }
 
-// ================= purposeSlots (Phase 2 amendment) =================
-const ALLOWED_SLOT_KEYS = ['role', 'reason', 'required', 'selectionStatus', 'target', 'pattern', 'stimulus', 'demand', 'constraints'];
+// ================= purposeSlots (Phase 2 amendment v2 -- priority-driven) =================
+const ALLOWED_SLOT_KEYS = ['role', 'priority', 'reason', 'required', 'selectionStatus', 'target', 'pattern', 'stimulus', 'demand', 'status', 'constraints'];
 const FORBIDDEN_KEYS = ['exerciseId', 'exerciseName', 'sets', 'reps', 'load', 'progression', 'variation'];
+const VALID_PRIORITIES = ['required', 'critical', 'high', 'medium', 'low', 'optional'];
 
-// ---------- returns purposeSlots; every slot is well-formed; no exercise selection ----------
+// ---------- returns purposeSlots; every slot is well-formed, has a valid priority; no exercise selection ----------
 {
   const i = buildIntent({ goal: 'strength', role: 'upper', minutes: 60, includes: ['conditioning'] });
   ok(Array.isArray(i.purposeSlots) && i.purposeSlots.length > 0, 'buildIntent() returns a non-empty purposeSlots array');
   i.purposeSlots.forEach(s => {
     ok(PURPOSE_SLOT_ROLES.indexOf(s.role) >= 0, `slot role "${s.role}" is one of the allowed PURPOSE_SLOT_ROLES`);
+    ok(VALID_PRIORITIES.indexOf(s.priority) >= 0, `slot "${s.role}" has a valid priority ("${s.priority}")`);
     ok(typeof s.reason === 'string' && s.reason.length > 0, `slot "${s.role}" has a non-empty reason`);
     ok(typeof s.required === 'boolean', `slot "${s.role}" has a boolean required flag`);
     ok(s.selectionStatus === 'unfilled', `slot "${s.role}" has selectionStatus "unfilled"`);
@@ -90,74 +92,106 @@ const FORBIDDEN_KEYS = ['exerciseId', 'exerciseName', 'sets', 'reps', 'load', 'p
   ok(JSON.stringify(a) === JSON.stringify(b), 'purposeSlots are deterministic for identical requests');
 }
 
-// ---------- slot order is fixed (canonical order, filtered) ----------
+// ---------- slot order is fixed (canonical sequencing order), regardless of priority ----------
 {
   const roles = buildIntent({ goal: 'strength', role: 'upper', minutes: 90, includes: ['conditioning'], patterns: ['power'] }).purposeSlots.map(s => s.role);
   const canonical = ['prep', 'power_skill', 'anchor', 'secondary_compound', 'accessory_balance', 'accessory_weak_point', 'isolation', 'finisher', 'cooldown'];
-  ok(JSON.stringify(roles) === JSON.stringify(canonical), `a long, fully-loaded session has ALL slots in the exact canonical order (got ${JSON.stringify(roles)})`);
+  ok(JSON.stringify(roles) === JSON.stringify(canonical), `a long, fully-loaded (90min) session has ALL slots in the exact canonical SEQUENCING order, not priority order (got ${JSON.stringify(roles)})`);
 }
 
-// ---------- required slots always present (normal mode: prep/anchor/cooldown) ----------
+// ---------- required slots (priority "required"/"critical") always present, never budget-limited ----------
 {
   const roles = buildIntent({ goal: 'general', minutes: 15 }).purposeSlots;
   const req = roles.filter(s => s.required).map(s => s.role);
-  ok(JSON.stringify(req) === JSON.stringify(['prep', 'anchor', 'cooldown']), `even the shortest session keeps exactly the 3 required slots (got ${JSON.stringify(req)})`);
+  ok(JSON.stringify(req) === JSON.stringify(['prep', 'anchor', 'cooldown']), `even the shortest (15min) session keeps exactly the 3 required slots -- required status is NEVER dropped by the budget (got ${JSON.stringify(req)})`);
+  ok(roles.find(s => s.role === 'prep').priority === 'required', 'prep priority is "required"');
+  ok(roles.find(s => s.role === 'anchor').priority === 'critical', 'anchor priority is "critical" (ranks above every optional slot, though structurally required regardless)');
+  ok(roles.find(s => s.role === 'cooldown').priority === 'required', 'cooldown priority is "required"');
 }
 
-// ---------- optional slots appear only when appropriate; short sessions reduce them ----------
+// ---------- PRIORITY (not duration) governs which optional slots fit the coaching budget ----------
+// Real, discovered outputs of the priority/budget algorithm (spent on required
+// slots: prep 5 + anchor 12 + cooldown 5 = 22 "coaching minutes"; optional
+// slots then compete for what's left, highest priority first).
 {
-  const short = buildIntent({ goal: 'general', minutes: 20 }).purposeSlots.map(s => s.role);
-  ok(JSON.stringify(short) === JSON.stringify(['prep', 'anchor', 'cooldown']), `a 20-min session has NO optional slots (got ${JSON.stringify(short)})`);
+  const at15 = buildIntent({ goal: 'general', minutes: 15 }).purposeSlots.map(s => s.role);
+  ok(JSON.stringify(at15) === JSON.stringify(['prep', 'anchor', 'cooldown']), `15min: budget is negative/zero once required slots are costed -- no optional slots fit (got ${JSON.stringify(at15)})`);
 
-  const mid30 = buildIntent({ goal: 'general', minutes: 30 }).purposeSlots.map(s => s.role);
-  ok(mid30.indexOf('secondary_compound') >= 0, '30-min session adds secondary_compound');
-  ok(mid30.indexOf('accessory_balance') === -1, '30-min session does NOT yet add accessory_balance (needs 45+)');
+  const at20 = buildIntent({ goal: 'general', minutes: 20 }).purposeSlots.map(s => s.role);
+  ok(JSON.stringify(at20) === JSON.stringify(['prep', 'anchor', 'cooldown']), `20min: still no budget left for any optional slot (got ${JSON.stringify(at20)})`);
 
-  const mid45 = buildIntent({ goal: 'general', minutes: 45 }).purposeSlots.map(s => s.role);
-  ok(mid45.indexOf('accessory_balance') >= 0 && mid45.indexOf('isolation') >= 0, '45-min session adds accessory_balance + isolation');
-  ok(mid45.indexOf('accessory_weak_point') === -1, '45-min session does NOT yet add accessory_weak_point (needs 60+)');
+  const at30 = buildIntent({ goal: 'general', minutes: 30 }).purposeSlots.map(s => s.role);
+  ok(at30.indexOf('secondary_compound') >= 0, '30min: budget (8) exactly covers the highest-priority optional slot, secondary_compound (cost 8)');
+  ok(at30.length === 4, `30min: exactly ONE optional slot fits (got ${JSON.stringify(at30)})`);
 
-  const long60 = buildIntent({ goal: 'general', minutes: 60 }).purposeSlots.map(s => s.role);
-  ok(long60.indexOf('accessory_weak_point') >= 0, '60-min session adds accessory_weak_point');
+  // 29min proves the algorithm tries EVERY candidate in priority order rather
+  // than stopping at the first one that doesn't fit: secondary_compound
+  // (high, cost 8) does NOT fit a budget of 7, but accessory_balance
+  // (medium, cost 6) DOES -- so the lower-priority slot still gets a chance.
+  const at29 = buildIntent({ goal: 'general', minutes: 29 }).purposeSlots.map(s => s.role);
+  ok(at29.indexOf('secondary_compound') === -1, '29min: the highest-priority optional slot (secondary_compound, cost 8) does NOT fit a budget of 7');
+  ok(at29.indexOf('accessory_balance') >= 0, '29min: a LOWER-priority slot that costs less (accessory_balance, cost 6) DOES fit -- proves the algorithm keeps trying after a miss, it does not just stop');
 
-  // Longer sessions strictly ADD to shorter ones -- never fewer optional slots as time grows.
-  ok(short.length < mid30.length && mid30.length < mid45.length && mid45.length <= long60.length, 'optional slot count is monotonically non-decreasing as minutes increase');
+  const at45 = buildIntent({ goal: 'general', minutes: 45 }).purposeSlots.map(s => s.role);
+  ok(at45.indexOf('secondary_compound') >= 0 && at45.indexOf('accessory_balance') >= 0 && at45.indexOf('accessory_weak_point') >= 0, `45min: budget (23) fits secondary_compound + accessory_balance + accessory_weak_point (got ${JSON.stringify(at45)})`);
+  ok(at45.indexOf('isolation') === -1, '45min: isolation (cost 5) does NOT fit the remaining budget of 3 after the three higher-costed slots are seated');
+
+  const at60 = buildIntent({ goal: 'general', minutes: 60 }).purposeSlots.map(s => s.role);
+  ok(at60.indexOf('isolation') >= 0, '60min: the larger budget now covers isolation too');
+
+  // Longer sessions strictly ADD to shorter ones for this fixed request shape --
+  // never fewer optional slots as the coaching budget grows.
+  ok(at15.length <= at20.length && at20.length <= at29.length && at29.length <= at30.length && at30.length <= at45.length && at45.length <= at60.length, 'optional slot count is monotonically non-decreasing as minutes increase');
 }
 
-// ---------- finisher only when conditioning was actually requested ----------
+// ---------- finisher depends on REQUEST + READINESS only -- never on duration ----------
 {
-  const withCon = buildIntent({ goal: 'general', minutes: 60, includes: ['conditioning'] }).purposeSlots.map(s => s.role);
-  const withoutCon = buildIntent({ goal: 'general', minutes: 60, includes: [] }).purposeSlots.map(s => s.role);
-  ok(withCon.indexOf('finisher') >= 0, 'conditioning requested -> finisher slot present');
-  ok(withoutCon.indexOf('finisher') === -1, 'conditioning NOT requested -> no finisher slot, even at 60 minutes');
+  const withCon15 = buildIntent({ goal: 'general', minutes: 15, includes: ['conditioning'] }).purposeSlots.map(s => s.role);
+  const withCon60 = buildIntent({ goal: 'general', minutes: 60, includes: ['conditioning'] }).purposeSlots.map(s => s.role);
+  const withoutCon60 = buildIntent({ goal: 'general', minutes: 60, includes: [] }).purposeSlots.map(s => s.role);
+  ok(withCon15.indexOf('finisher') >= 0, 'conditioning requested -> finisher slot present even at the shortest duration (15min) -- duration plays no part in this decision');
+  ok(withCon60.indexOf('finisher') >= 0, 'conditioning requested -> finisher slot present at 60min too');
+  ok(withoutCon60.indexOf('finisher') === -1, 'conditioning NOT requested -> no finisher slot, even at 60 minutes');
+  const f = buildIntent({ goal: 'general', minutes: 60, includes: ['conditioning'] }).purposeSlots.find(s => s.role === 'finisher');
+  ok(f.priority === 'optional', 'finisher priority is "optional" (lowest tier)');
 }
 
-// ---------- power_skill only when requested AND there is time ----------
+// ---------- power_skill: requires the request signal; NOT itself duration-gated ----------
 {
-  const withPower = buildIntent({ goal: 'general', minutes: 45, patterns: ['power'] }).purposeSlots.map(s => s.role);
-  const shortPower = buildIntent({ goal: 'general', minutes: 20, patterns: ['power'] }).purposeSlots.map(s => s.role);
-  const noPower = buildIntent({ goal: 'general', minutes: 45 }).purposeSlots.map(s => s.role);
-  ok(withPower.indexOf('power_skill') >= 0, 'power requested + enough time -> power_skill slot present');
-  ok(shortPower.indexOf('power_skill') === -1, 'power requested but too short (20 min) -> no power_skill slot');
-  ok(noPower.indexOf('power_skill') === -1, 'power not requested -> no power_skill slot');
+  const withPower15 = buildIntent({ goal: 'general', minutes: 15, patterns: ['power'] }).purposeSlots.map(s => s.role);
+  const withPower45 = buildIntent({ goal: 'general', minutes: 45, patterns: ['power'] }).purposeSlots.map(s => s.role);
+  const noPower45 = buildIntent({ goal: 'general', minutes: 45 }).purposeSlots.map(s => s.role);
+  ok(withPower45.indexOf('power_skill') >= 0, 'power requested + budget available -> power_skill slot present');
+  ok(withPower15.indexOf('power_skill') === -1, 'power requested but the required-slot floor alone exceeds a 15min budget -- power_skill loses the SAME budget competition every other optional slot loses, not a hardcoded duration rule');
+  ok(noPower45.indexOf('power_skill') === -1, 'power not requested -> power_skill is not even a candidate');
 }
 
-// ---------- readiness tunes emphasis/presence WITHOUT silently overriding the theme ----------
+// ---------- readiness tunes emphasis/budget WITHOUT silently overriding the theme ----------
 {
-  const normal = buildIntent({ goal: 'strength', role: 'upper', minutes: 60, includes: ['conditioning'] }).purposeSlots;
-  const eased = buildIntent({ goal: 'strength', role: 'upper', minutes: 60, includes: ['conditioning'], readiness: 'eased' }).purposeSlots;
+  const normal = buildIntent({ goal: 'strength', role: 'upper', minutes: 45, includes: ['conditioning'] }).purposeSlots;
+  const eased = buildIntent({ goal: 'strength', role: 'upper', minutes: 45, includes: ['conditioning'], readiness: 'eased' }).purposeSlots;
   const anchorNormal = normal.find(s => s.role === 'anchor'), anchorEased = eased.find(s => s.role === 'anchor');
   ok(anchorNormal.demand === 'normal', 'normal readiness -> anchor demand is "normal"');
   ok(anchorEased.demand === 'reduced', 'eased readiness -> anchor demand is "reduced" (emphasis tuned)');
   ok(anchorEased.target === anchorNormal.target && anchorEased.stimulus === anchorNormal.stimulus, 'eased readiness does NOT change the anchor\'s target/stimulus -- the requested theme is preserved');
-  ok(eased.map(s => s.role).indexOf('finisher') === -1, 'eased readiness drops the finisher slot (reduces optional load)');
-  ok(eased.map(s => s.role).indexOf('accessory_weak_point') === -1, 'eased readiness drops the accessory_weak_point slot');
-  ok(eased.some(s => s.role === 'anchor'), 'eased readiness still keeps a real anchor -- it tunes, it does not replace the session with recovery');
+  ok(eased.map(s => s.role).indexOf('finisher') === -1, 'eased readiness excludes the finisher (request+readiness gate -- conditioning was requested but readiness says not today)');
+  ok(eased.length < normal.length, 'eased readiness has FEWER slots than normal readiness for the identical request -- modelled as a genuinely reduced coaching budget (recoverable capacity), not a hardcoded per-slot cut list');
+  ok(eased.some(s => s.role === 'anchor'), 'eased readiness still keeps a real anchor -- it tunes the session, it does not replace it with recovery');
 
   const rough = buildIntent({ goal: 'strength', role: 'upper', minutes: 60, includes: ['conditioning'], readiness: 'rough' }).purposeSlots;
   const roughRoles = rough.map(s => s.role);
   ok(JSON.stringify(roughRoles) === JSON.stringify(['prep', 'recovery', 'cooldown']), `rough readiness collapses to the recovery-shaped slot list (got ${JSON.stringify(roughRoles)}) -- mirrors the EXISTING readiness->recovery path, not a new override`);
   ok(rough.filter(s => s.required).length === 3, 'in recovery mode, all 3 slots (prep/recovery/cooldown) are required');
+  ok(rough.find(s => s.role === 'recovery').priority === 'required', 'the recovery slot itself carries priority "required"');
+}
+
+// ---------- accessory_weak_point is honestly marked dormant -- never fakes real coaching intelligence ----------
+{
+  const s = buildIntent({ goal: 'general', minutes: 60 }).purposeSlots.find(x => x.role === 'accessory_weak_point');
+  ok(s !== undefined, 'accessory_weak_point slot exists at 60min (enough budget)');
+  ok(s.status === 'dormant', 'accessory_weak_point is explicitly marked status:"dormant" -- honest about not yet having real weak-point detection');
+  ok(/dormant|awaiting|not yet/i.test(s.reason), 'its reason string plainly says this is not yet real, rather than pretending the engine knows a weak point it does not');
+  ok(s.priority === 'medium', 'accessory_weak_point still carries a real priority (medium) for when detection lands -- dormant status does not mean deprioritised, just not yet implemented');
 }
 
 // ---------- injuries/experience pass through as constraints only (never interpreted here) ----------

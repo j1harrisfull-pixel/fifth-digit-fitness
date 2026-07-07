@@ -3223,65 +3223,113 @@ function guaranteeSession(session, minutes) {
 var PURPOSE_SLOT_ROLES = ["prep", "power_skill", "anchor", "secondary_compound", "accessory_balance", "accessory_weak_point", "isolation", "finisher", "cooldown", "recovery"];
 // Purpose slots describe WHAT a session needs and WHY -- never which exercise,
 // load, or progression fills it (that's Phase 3+). Every slot is a placeholder:
-// { role, target?, pattern?, stimulus?, demand?, reason, required, selectionStatus:"unfilled", constraints? }.
+// { role, priority, target?, pattern?, stimulus?, demand?, status?, reason,
+//   required, selectionStatus:"unfilled", constraints? }.
 // Deterministic and pure: same ctx in -> same slots out, always.
+//
+// COACHING PRIORITY, NOT DURATION, DECIDES INCLUSION (architectural correction):
+// slots compete for a coaching TIME BUDGET in descending priority order; a
+// slot's presence is never gated on "is this session >=X minutes." Duration is
+// one input to the budget, not the mechanism itself. Sequencing (the fixed
+// §3.7 neurological-demand order) is a SEPARATE, later concern -- priority
+// decides WHICH slots make the cut; the canonical order below decides WHERE
+// the survivors sit. required:true slots (prep/anchor/cooldown/recovery) sit
+// outside the competition entirely -- they are the coaching floor, never
+// dropped by a budget shortfall.
+var SLOT_PRIORITY_RANK = { required: 0, critical: 1, high: 2, medium: 3, low: 4, optional: 5 };
+// Coaching-ESTIMATED minutes each slot roughly costs -- used only to decide how
+// many optional slots fit a budget, never a hard per-slot duration rule.
+var SLOT_TIME_ESTIMATE = {
+  prep: 5, power_skill: 8, anchor: 12, secondary_compound: 8,
+  accessory_balance: 6, accessory_weak_point: 6, isolation: 5,
+  finisher: 8, cooldown: 5, recovery: 20
+};
+var PURPOSE_SLOT_ORDER = ["prep", "power_skill", "anchor", "secondary_compound", "accessory_balance", "accessory_weak_point", "isolation", "finisher", "cooldown"];
 function derivePurposeSlots(ctx) {
-  var slots = [];
-  function add(role, f) {
-    var s = { role: role, reason: f.reason, required: !!f.required, selectionStatus: "unfilled" };
+  function make(role, priority, f) {
+    var s = { role: role, priority: priority, reason: f.reason, required: !!f.required, selectionStatus: "unfilled" };
     if (f.target !== undefined) s.target = f.target;
     if (f.pattern !== undefined) s.pattern = f.pattern;
     if (f.stimulus !== undefined) s.stimulus = f.stimulus;
     if (f.demand !== undefined) s.demand = f.demand;
+    if (f.status !== undefined) s.status = f.status;
     if (f.constraints !== undefined) s.constraints = f.constraints;
-    slots.push(s);
+    return s;
   }
   var shared = { equipment: ctx.equipment, injuries: ctx.injuries };
-  // Readiness TUNES emphasis/slot presence -- it never silently swaps the
-  // requested theme for something else. "rough" mirrors the app's EXISTING
+  // Readiness TUNES emphasis/budget -- it never silently swaps the requested
+  // theme for something else. "rough" mirrors the app's EXISTING
   // readiness->recovery path (a real recoverySession is already what happens
   // today), so collapsing to a recovery-shaped slot list here is consistent
   // with current behaviour, not a new override.
   var isRough = ctx.readiness === "rough" || ctx.readiness === "recovery";
   var isEased = ctx.readiness === "eased" || ctx.readiness === "so-so";
 
-  add("prep", { required: true, reason: "General movement preparation before loading." });
+  var prep = make("prep", "required", { required: true, reason: "General movement preparation before loading." });
+  var cooldown = make("cooldown", "required", { required: true, reason: "Mandatory cool-down and breathing to close the session." });
 
   if (isRough) {
-    add("recovery", { required: true, reason: "Readiness is rough -- active recovery in place of the requested load.", constraints: shared });
-    add("cooldown", { required: true, reason: "Mandatory cool-down and breathing to close the session." });
-    return slots;
-  }
-
-  if (ctx.wantsPower && ctx.minutes >= 30) {
-    add("power_skill", { required: false, stimulus: "power", reason: "Explosive/skill work was requested and there's time for it.", constraints: shared });
+    var recovery = make("recovery", "required", { required: true, reason: "Readiness is rough -- active recovery in place of the requested load.", constraints: shared });
+    return [prep, recovery, cooldown];
   }
 
   var targetLabel = Array.isArray(ctx.target) ? ctx.target.join("/") : ctx.target;
-  add("anchor", {
+  // The athlete's anchor is structurally required in Phase 2 -- a session with
+  // no primary lift isn't calling for an anchor at all, it's calling for
+  // recovery (the isRough branch above already covers that). "critical"
+  // priority still applies for cross-slot ranking/reporting, but unlike every
+  // other non-required slot, this one is never dropped by the budget below.
+  var anchor = make("anchor", "critical", {
     required: true, target: ctx.target, stimulus: ctx.stimulus,
     demand: isEased ? "reduced" : "normal",
     reason: "Primary " + ctx.stimulus + " driver for the requested session" + (targetLabel ? " (" + targetLabel + ")" : "") + ".",
     constraints: shared
   });
 
-  if (ctx.minutes >= 30) {
-    add("secondary_compound", { required: false, target: ctx.target, stimulus: ctx.stimulus, reason: "A second compound movement to build additional volume toward the session's target.", constraints: shared });
-  }
-  if (ctx.minutes >= 45) {
-    add("accessory_balance", { required: false, reason: "Balances the day's primary movement pattern (antagonist coverage).", constraints: shared });
-  }
-  if (ctx.minutes >= 60 && !isEased) {
-    add("accessory_weak_point", { required: false, reason: "Reserved for weak-point emphasis -- not yet driven by tracked data, provisional until a later phase.", constraints: shared });
-  }
-  if (ctx.minutes >= 45) {
-    add("isolation", { required: false, reason: "Isolated single-joint work to finish the muscle group.", constraints: shared });
-  }
+  // Finisher depends on REQUEST + READINESS only -- never on duration/time
+  // alone. Richer factors (weekly conditioning debt, session-specific
+  // recoverable fatigue, intent nuance) are explicitly deferred, not faked.
+  var finisher = null;
   if (ctx.includesConditioning && !isEased) {
-    add("finisher", { required: false, stimulus: "conditioning", reason: "Conditioning finisher requested for this session.", constraints: shared });
+    finisher = make("finisher", "optional", { required: false, stimulus: "conditioning", reason: "Conditioning finisher requested for this session.", constraints: shared });
   }
-  add("cooldown", { required: true, reason: "Mandatory cool-down and breathing to close the session." });
-  return slots;
+
+  // Everything else COMPETES for the remaining coaching budget, in descending
+  // priority order (pushed here in the canonical sequence, which stable-sort
+  // then uses as the tie-break among equal-priority candidates).
+  var candidates = [];
+  if (ctx.wantsPower) {
+    candidates.push(make("power_skill", "high", { required: false, stimulus: "power", reason: "Explosive/skill work was requested.", constraints: shared }));
+  }
+  candidates.push(make("secondary_compound", "high", { required: false, target: ctx.target, stimulus: ctx.stimulus, reason: "A second compound movement to build additional volume toward the session's target.", constraints: shared }));
+  candidates.push(make("accessory_balance", "medium", { required: false, reason: "Balances the day's primary movement pattern (antagonist coverage).", constraints: shared }));
+  // Honesty rule: no real weak-point detection exists yet. This slot is
+  // structurally present (the fixed role list requires it to exist) but
+  // explicitly DORMANT -- the engine must never pretend to know a weak point
+  // it hasn't actually detected. Real teeth arrive once athlete-imbalance
+  // tracking exists (a later phase).
+  candidates.push(make("accessory_weak_point", "medium", { required: false, status: "dormant", reason: "Reserved for weak-point emphasis -- dormant until real athlete-imbalance detection exists (a later phase).", constraints: shared }));
+  candidates.push(make("isolation", "low", { required: false, reason: "Isolated single-joint work to finish the muscle group.", constraints: shared }));
+
+  var requiredSlots = [prep, anchor, cooldown].concat(finisher ? [finisher] : []);
+  var spent = requiredSlots.reduce(function (sum, s) { return sum + SLOT_TIME_ESTIMATE[s.role]; }, 0);
+  // Reduced readiness = reduced recoverable capacity today -- modelled as a
+  // genuine budget constraint (one input among several), not a hardcoded
+  // per-slot carve-out. Halving is a coaching estimate, not a precise figure.
+  var budget = Math.max(0, ctx.minutes - spent) * (isEased ? 0.5 : 1);
+
+  var ranked = candidates.slice().sort(function (a, b) { return SLOT_PRIORITY_RANK[a.priority] - SLOT_PRIORITY_RANK[b.priority]; });
+  var included = [];
+  ranked.forEach(function (s) {
+    var cost = SLOT_TIME_ESTIMATE[s.role];
+    if (cost <= budget) { included.push(s); budget -= cost; }
+  });
+
+  // Re-assemble in the FIXED coaching sequence (§3.7) -- priority decided
+  // WHICH slots made the cut; it never decides the order they run in.
+  var byRole = {};
+  [prep, anchor, cooldown, finisher].concat(included).forEach(function (s) { if (s) byRole[s.role] = s; });
+  return PURPOSE_SLOT_ORDER.filter(function (r) { return byRole[r]; }).map(function (r) { return byRole[r]; });
 }
 function buildIntent(opts, athlete) {
   opts = opts || {};
