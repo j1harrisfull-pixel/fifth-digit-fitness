@@ -1492,6 +1492,60 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     athlete.prefs[name] = next;
     return next;
   }
+  // ===== Injury hard-filtering (Phase 4) =====
+  // Bridge-tier matching, deliberately temporary (Programming Philosophy §3.3 /
+  // James's explicit direction). Matching hierarchy, most to least authoritative:
+  //   1. Structured injury tags on the athlete -- FUTURE, not built now (injuries
+  //      stay free-text {category, target} in Phase 4).
+  //   2. Structured exercise metadata tags -- ALREADY EXIST in LIBRARY
+  //      (joint_stress, movement_pattern, primary_muscles...), reused as-is.
+  //   3. Normalised keyword/synonym matching against those existing tags -- the
+  //      bridge THIS phase builds.
+  //   4. Exact exercise-name substring match -- lowest priority, existing-data
+  //      fallback for named-movement injuries the keyword map can't infer.
+  // isExerciseInjuryFlagged is the ONLY entry point every caller uses (pickStrength's
+  // hard filter, the anchor availability check, the unfilled-slot diagnostic) --
+  // when structured injury objects and richer exercise tags eventually exist,
+  // only this file's internals change, not any caller.
+  function normalizeInjuryText(s) {
+    return String(s || "").toLowerCase().trim()
+      // Whitespace-bounded only (not \b) -- \b treats the hyphen in "L-Sit" as
+      // a word boundary too, which would corrupt that exercise's own name into
+      // "left-sit" and silently break its tier-4 self-match. A real safety gap,
+      // not just a test artefact: an athlete typing "L-Sit" as a named-movement
+      // exclusion must still match the L-Sit exercise.
+      .replace(/(^| )l( |$)/g, "$1left$2").replace(/(^| )r( |$)/g, "$1right$2")
+      .replace(/shoulders?/g, "shoulder").replace(/knees?/g, "knee")
+      .replace(/(lower\s*)?backs?|lumbar/g, "spine").replace(/necks?|cervical/g, "neck")
+      .replace(/wrists?/g, "wrist").replace(/hips?/g, "hip").replace(/ankles?/g, "ankle")
+      .replace(/overheads?|ohp/g, "overhead");
+  }
+  // Keyword -> the exercise METADATA fields it should be checked against.
+  var INJURY_KEYWORD_TAGS = {
+    shoulder: { joints: ["shoulder"] }, knee: { joints: ["knee"] }, spine: { joints: ["spine"] },
+    neck: { joints: ["neck"] }, wrist: { joints: ["wrist"] }, hip: { joints: ["hip"] }, ankle: { joints: ["ankle"] },
+    overhead: { patterns: ["vpush"] }
+  };
+  function isExerciseFlaggedByInjury(exercise, injury) {
+    var norm = normalizeInjuryText(injury.target);
+    if (norm && exercise.name.toLowerCase().indexOf(norm) >= 0) return true; // Tier 4: named movement
+    var tokens = norm.split(/\s+/);
+    for (var i = 0; i < tokens.length; i++) {
+      var tags = INJURY_KEYWORD_TAGS[tokens[i]]; if (!tags) continue;        // Tier 2/3: metadata + keyword
+      if (tags.joints && exercise.joint_stress && tags.joints.some(function (j) { return exercise.joint_stress.indexOf(j) >= 0; })) return true;
+      if (tags.patterns && tags.patterns.indexOf(exercise.movement_pattern) >= 0) return true;
+      if (tags.patterns && tags.patterns.indexOf(exercise.pattern) >= 0) return true;
+    }
+    return false;
+  }
+  // Revision 2: ALL FOUR categories are hard, unconditional exclusions. No soft
+  // tier, no last-resort fallback -- "never trade safety for a filled slot."
+  var INJURY_CATEGORIES_ALL_HARD = ["pain", "restricted", "medical", "nogo"];
+  function isExerciseInjuryFlagged(exercise, injuries) {
+    return (injuries || []).some(function (inj) {
+      return INJURY_CATEGORIES_ALL_HARD.indexOf(inj.category) >= 0 && isExerciseFlaggedByInjury(exercise, inj);
+    });
+  }
   // ===== Anchor & Progression (Phase 3) =====
   // Three concepts, kept deliberately separate (never blur into one another):
   //   1. Frozen Anchor Identity  -- athlete.metrics.anchors[pattern] (permanent
@@ -2221,6 +2275,19 @@ var ANCHOR_T2 = {};
  "pendlay-row"].forEach(function (id) { ANCHOR_T2[id] = 1; });
 var RAMP_ANCHORS = {};
 Object.keys(ANCHOR_T1).concat(Object.keys(ANCHOR_T2)).forEach(function (id) { RAMP_ANCHORS[id] = 1; });
+// Pool tier (Programming Philosophy §3.3): Core/Quality/Fringe. Only Core and
+// Quality are eligible in normal programming. Every exercise WITHOUT an
+// explicit pool_tier defaults to "quality" -- identical eligibility to today,
+// zero reclassification risk across the ~200 existing entries. Fringe is
+// derived only from two signals that were ALREADY the app's "specialist,
+// opt-in" markers (skillAllowed's skill_tier gate; the accommodating-
+// resistance gate) -- naming an existing distinction, not a new content audit.
+function poolTierOf(exercise) {
+  if (exercise.pool_tier) return exercise.pool_tier; // explicit override always wins
+  if (ANCHOR_T1[exercise.id]) return "core";
+  if (exercise.skill_tier === "advanced" || exercise.accommodating) return "fringe";
+  return "quality";
+}
 // The accessible-substitute bodyweight moves: real training when they're all a
 // kit offers, but a loaded gym should never PROGRAM them over a barbell squat or
 // a real row. Deprioritised whenever the slot has any non-basic option (so they
@@ -2249,7 +2316,7 @@ function skillAllowed(e, unlocked) {
 }
 function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
   opts = opts || {};
-  function ok(e, pats, comp, useGoal) {
+  function ok(e, pats, comp, useGoal, allowFringe) {
     return e.type === "strength"
       && pats.indexOf(e.pattern) >= 0
       && (useGoal ? e.goals.indexOf(selGoal) >= 0 : true)
@@ -2264,7 +2331,14 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
       && !ctx.used[e.id]
       && (ctx.pat[e.pattern] || 0) < patCap
       && !(DEADLIFT_FAMILY.indexOf(e.id) >= 0 && ctx.dl >= dlCap)
-      && (comp === null ? true : (comp ? e.compound : !e.compound));
+      && (comp === null ? true : (comp ? e.compound : !e.compound))
+      && (allowFringe || poolTierOf(e) !== "fringe")
+      // Phase 4, non-negotiable: injury hard-filter, ALL FOUR categories, no
+      // bypass at ANY tier of the widening ladder below (including the Fringe
+      // rung) -- "never trade safety for a filled slot." There is no last-
+      // resort rung that re-admits a flagged exercise; if nothing survives
+      // this condition, pickStrength returns null and the slot stays unfilled.
+      && !isExerciseInjuryFlagged(e, opts.injuries);
   }
   var pats = slot.patterns;
   // Widen in an order that protects the slot's compound/isolation INTENT as
@@ -2276,6 +2350,9 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, slot.compound, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, pats, null, false); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, ALL_PATTERNS, null, false); });
+  // Fringe is a pool-TIER concession (last, most-permissive rung) -- unrelated
+  // to safety, which has already been enforced unconditionally inside ok().
+  if (!pool.length) pool = LIBRARY.filter(function (e) { return ok(e, ALL_PATTERNS, null, false, /*allowFringe*/ true); });
   if (!pool.length) return null;
   // Prefer real external load over band-ONLY isolation: on an equipped gym a band
   // lateral raise reads as rehab, not training. Drop band lifts whenever the slot
