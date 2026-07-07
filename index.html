@@ -454,6 +454,13 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .stepper { display: inline-flex; align-items: center; gap: 10px; }
 .stepper__val { min-width: 22px; text-align: center; font-family: "Spline Sans Mono", monospace; font-size: 20px; font-weight: 600; }
 .reps__input { width: 130px; resize: none; }
+/* Per-set delete chips (Edit sets & swap panel). Hairline chips, danger-tinted
+   on hover -- destructive but recoverable (every delete shows an undo toast). */
+.setdel { margin-top: 16px; }
+.setdel__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.setdel__chip { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--ink-dim); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 7px 11px; min-height: 36px; cursor: pointer; transition: color .12s ease, border-color .12s ease; }
+.setdel__chip:hover { color: var(--danger); border-color: var(--danger); }
+.setdel__x { font-size: 11px; line-height: 1; }
 
 /* ---------- Sheets (settings + plan) ---------- */
 dialog.sheet { width: 100%; max-width: 560px; margin: auto auto 0; padding: 0; border: 0; border-top: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); box-shadow: none; max-height: 92svh; }
@@ -2806,7 +2813,14 @@ function parseSession(text) {
   else if (/\b(build|muscle|hypertroph|grow|growth|size|pump|mass|gains?|tone|toned)\b/.test(s)) goal = "hypertrophy";
   else goal = "general";
   var includes = [];
-  if (/\b(mobility|stretch|stretching|warm.?ups?|cooldown|cool.?down)\b/.test(s)) includes.push("mobility");
+  // A Just-Today session should warm up and cool down by DEFAULT -- a coached
+  // session always does, and the free-text box has no toggle to ask for it. So
+  // mobility (which drives buildWarmupCooldown in generateSession) is on unless
+  // the text explicitly opts out ("no warm-up", "skip stretch", "without
+  // cooldown", "no mobility"). The week builder keeps its own Mobility toggle;
+  // this default only affects the text-parsed Just-Today path.
+  var noMob = /\bno\s+(?:warm.?ups?|cool.?downs?|stretch(?:ing)?|mobility)\b|\bskip\s+(?:the\s+)?(?:warm.?up|cool.?down|stretch(?:ing)?|mobility)\b|\bwithout\s+(?:a\s+)?(?:warm.?up|cool.?down|stretch(?:ing)?|mobility)\b/.test(s);
+  if (!noMob) includes.push("mobility");
   if (/\b(cardio|conditioning|hiit|metcon|finisher|intervals?)\b/.test(s)) includes.push("conditioning");
   var equipment = null;
   if (/\b(bodyweight|body weight|no (?:gym|equipment|weights?|kit)|at home)\b/.test(s)) equipment = ["bodyweight"];
@@ -4816,6 +4830,20 @@ function resolveSpec(request, state) {
     }
     return html;
   }
+  // Per-set delete chips for the "Edit sets & swap" panel. The main logging grid
+  // is deliberately tight (5 fixed columns at 375px), so a specific-set delete
+  // lives here rather than crowding every row -- one chip per set, each removes
+  // THAT index (not just the last, which the Sets stepper already does). Hidden
+  // when at the set floor. Kept out of the panel entirely for density blocks
+  // (they log rounds, not sets).
+  function setDelRowHtml(e) {
+    if (!(e.sets > SETS_MIN)) return '<div class="setdel" hidden></div>';
+    var chips = "";
+    for (var k = 0; k < e.sets; k++) {
+      chips += '<button type="button" class="setdel__chip" data-act="setdel" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Remove set ' + (k + 1) + '">Set ' + (k + 1) + ' <span class="setdel__x" aria-hidden="true">✕</span></button>';
+    }
+    return '<div class="setdel"><span class="field-label">Remove a set</span><div class="setdel__chips">' + chips + '</div></div>';
+  }
   function strengthFoot(e, lg, unit) {
     var best = 0, n = e.sets, top = repsTop(e);
     // Uses each set's own effective weight (default or override), not the shared
@@ -5053,6 +5081,7 @@ function resolveSpec(request, state) {
       metaBlock + notesCue +
       '<div class="scheme"><div class="scheme__item"><span class="field-label">Sets</span><div class="stepper"><button type="button" class="step" data-act="sets-" data-ex="' + e.id + '" aria-label="One fewer set">−</button><span class="stepper__val">' + total + '</span><button type="button" class="step" data-act="sets+" data-ex="' + e.id + '" aria-label="One more set">+</button></div></div>' +
       '<div class="scheme__item"><label class="field-label" for="reps-' + e.id + '">Reps target</label><input class="reps__input mono" id="reps-' + e.id + '" type="text" value="' + esc(e.reps) + '" data-act="reps" data-ex="' + e.id + '" aria-label="Reps target"></div></div>' +
+      setDelRowHtml(e) +
       '<button type="button" class="card__skipbtn" data-act="skipex" data-ex="' + e.id + '">Skip this exercise today</button>' +
       '</div></div>' +
       '</div></article>';
@@ -5340,6 +5369,37 @@ function resolveSpec(request, state) {
           save(); renderList(true); toast("Set restored");
         });
       }
+    } else if (act === "setdel") {
+      // Delete ONE specific set (any index, not just the last). Splices the
+      // chosen row out of both the logged sets array and the per-set curve so
+      // the remaining sets keep their own targets, then drops the count by one.
+      // Never below SETS_MIN. Fully undoable, same snapshot pattern as sets-.
+      var xIdx = parseInt(btn.getAttribute("data-set"), 10);
+      if (!(e.sets > SETS_MIN) || xIdx < 0 || xIdx >= e.sets) return;
+      var xSid = ses.id, xExId = e.id, xOldSets = e.sets;
+      writeLog(ses, e); // ensure the logged array is sized to e.sets before splicing
+      var slX = state.log[xSid], elX = slX && slX.ex ? slX.ex[e.id] : null;
+      var xSnap = elX ? JSON.parse(JSON.stringify(elX)) : null;
+      var xPlan = Array.isArray(e.setPlan) ? JSON.parse(JSON.stringify(e.setPlan)) : null;
+      if (elX && Array.isArray(elX.sets) && elX.sets.length > xIdx) elX.sets.splice(xIdx, 1);
+      if (Array.isArray(e.setPlan) && e.setPlan.length > xIdx) e.setPlan.splice(xIdx, 1);
+      e.sets = e.sets - 1; save();
+      var cardX = btn.closest(".card"), lgX = readLog(ses, e), dcX = lgX.sets.filter(function (s) { return s.completed; }).length;
+      if (e.type === "strength") { var utX = refreshTargetLine(cardX, lgX, state.program.unit); cardX.querySelector(".setlist").innerHTML = setRowsInner(e, lgX, !!utX); refreshFoot(cardX, e, ses); }
+      else cardX.querySelector(".setlist--simple").innerHTML = pillsHtml(e, lgX.sets.map(function (s) { return s.completed; }));
+      cardX.querySelector(".setcount__total").textContent = e.sets;
+      cardX.querySelector(".setcount__done").textContent = dcX;
+      var svX = cardX.querySelector(".stepper__val"); if (svX) svX.textContent = e.sets;
+      var sdX = cardX.querySelector(".setdel"); if (sdX) sdX.outerHTML = setDelRowHtml(e);
+      cardX.classList.toggle("is-complete", e.sets > 0 && dcX === e.sets);
+      applyGlance();
+      toastUndo("Set removed", function () {
+        e.sets = xOldSets;
+        if (xPlan) e.setPlan = xPlan;
+        var sl3 = state.log[xSid]; if (!sl3) { sl3 = { date: null, ex: {} }; state.log[xSid] = sl3; }
+        if (xSnap) sl3.ex[xExId] = xSnap;
+        save(); renderList(true); toast("Set restored");
+      });
     } else if (act === "exhist") {
       openExerciseHistory(e.name);
     } else if (act === "setdone") {
