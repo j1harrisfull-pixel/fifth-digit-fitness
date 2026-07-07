@@ -2383,6 +2383,17 @@ function pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
   }
   return pool[Math.abs(seed) % pool.length];
 }
+// Diagnostic ONLY -- re-runs the exact same call with injuries stripped out,
+// purely to explain an empty slot honestly. NEVER used to select anything;
+// if it finds a candidate, that only means "this slot is empty BECAUSE OF
+// safety filtering", which becomes an honest note on the session, not a pick.
+// "A reduced session is better than unsafe confidence" includes being honest
+// about WHY it's reduced, not just going quiet.
+function wasSlotEmptiedBySafety(slot, selGoal, allowed, ctx, seed, patCap, dlCap, opts) {
+  if (!opts || !opts.injuries || !opts.injuries.length) return false;
+  var withoutInjuries = Object.assign({}, opts, { injuries: null });
+  return pickStrength(slot, selGoal, allowed, ctx, seed, patCap, dlCap, withoutInjuries) !== null;
+}
 // Deterministic per-exercise jitter in [0,1) from id+seed, so "Try again" varies
 // picks within a ranking tier without breaking determinism.
 function seededJitter(id, seed) {
@@ -2482,7 +2493,7 @@ function selectComplementary(o) {
       return s;
     };
   }
-  var placed = [], why = [], anchorPatternPlaced = [], isSubstitutePlaced = [], anchorDeloadPlaced = [];
+  var placed = [], why = [], anchorPatternPlaced = [], isSubstitutePlaced = [], anchorDeloadPlaced = [], unfilledSlots = [];
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
     // The day's lead compound (slot 0) is the point of the session, so give its
@@ -2525,7 +2536,8 @@ function selectComplementary(o) {
     }
     if (!ex) {
       ex = pickStrength(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap,
-        { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK, k === 0), unlocked: o.unlocked });
+        { avoidHigh: high >= fatigueBudget, avoidAcc: acc >= 1, rank: ranker(slot.compound, seedK, k === 0), unlocked: o.unlocked,
+          injuries: athlete && athlete.injuries });
     }
     if (o.focusPatterns && ex && o.focusPatterns.indexOf(ex.pattern) < 0) ex = null; // stay on-target
     if (ex && !roleFamily[ex.pattern]) ex = null; // never an off-family lift (no split squat leading a pull day)
@@ -2533,7 +2545,16 @@ function selectComplementary(o) {
     // only candidates are high-axial; this drops such a slot once the budget is
     // spent, so no session ever exceeds it (never 3 heavy squat/hinge lifts).
     if (ex && ex.fatigue_cost === "high" && high >= fatigueBudget) ex = null;
-    if (!ex) continue;
+    if (!ex) {
+      // Honest "unfilled, here's why" (Phase 4 Task 2.4): distinguish a slot
+      // that's empty for an ordinary reason (equipment, dedup, pattern cap)
+      // from one emptied specifically by safety filtering, so a thinner
+      // session always explains itself rather than going quiet.
+      if (wasSlotEmptiedBySafety(slot, selGoal, o.allowed, ctx, seedK, slotPatCap, o.dlCap, { unlocked: o.unlocked, injuries: athlete && athlete.injuries })) {
+        unfilledSlots.push({ patterns: slot.patterns, reason: "Skipped for safety -- every option for this slot matched a flagged injury/restriction." });
+      }
+      continue;
+    }
     // Phase 3: the ONLY call site anywhere that ever creates a new frozen
     // anchor identity -- exactly the "unset" path (no frozen anchor existed for
     // this pattern yet), and only once ex has survived every other filter
@@ -2597,6 +2618,7 @@ function selectComplementary(o) {
   placed.anchorPattern = anchorPatternPlaced;
   placed.isSubstitute = isSubstitutePlaced;
   placed.anchorDeload = anchorDeloadPlaced;
+  placed.unfilledSlots = unfilledSlots; // Phase 4 Task 2.4: honest "unfilled, here's why" for safety-emptied slots only
   return placed; // order follows the split-ordered slots: anchors first, isolation last
 }
 function pickByType(type, allowed, used, seed) {

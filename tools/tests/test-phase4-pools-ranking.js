@@ -158,5 +158,53 @@ const UNLOCK_MUSCLE_UP = { "muscle-up": 1 };
   ok(picked && picked.id !== "pull-up" && picked.id !== "chin-up", "once Pull-Up/Chin-Up are safety-excluded, neither is ever returned, regardless of which rung rescues the slot");
 }
 
+// ================= Task 2.4: honest "unfilled, here's why" reporting =================
+
+function baseCtxOpts(extra) {
+  return Object.assign({
+    baseSlots: [{ patterns: ALL_PATTERNS_LOCAL, compound: null }], count: 1, selGoal: "general",
+    allowed: [], ctx: freshCtx(), seed: 1, patCap: 12, dlCap: 1, focusPatterns: null, role: null,
+    debt: null, lastLogs: {}, fatigueBudget: 2, unlocked: UNLOCK_ALL_BW_ADVANCED, athlete: null
+  }, extra);
+}
+
+{
+  // Empty for an ORDINARY reason (equipment so narrow nothing at all matches,
+  // no injury involved) -> no safety note. (Using a slot pattern with zero
+  // real candidates under any equipment, e.g. a pattern-only, non-existent
+  // combination is hard to construct honestly; instead we confirm the
+  // POSITIVE case below is the only one that produces a note, and this
+  // negative case reuses the exact same bodyweight-only setup MINUS injuries.)
+  const athlete = normalizeAthlete({});
+  const placed = selectComplementary(baseCtxOpts({ athlete: athlete }));
+  ok(Array.isArray(placed.unfilledSlots) && placed.unfilledSlots.length === 0, "no injuries -> no unfilled-for-safety notes (the slot fills normally)");
+}
+
+{
+  // Empty SPECIFICALLY because injury filtering removed every candidate ->
+  // a safety note IS produced, with an honest, non-alarming explanation.
+  const athlete = normalizeAthlete({ injuries: injuriesFor(BW_REACHABLE, "nogo") });
+  const placed = selectComplementary(baseCtxOpts({ athlete: athlete }));
+  ok(Array.isArray(placed.unfilledSlots) && placed.unfilledSlots.length === 1, `a slot emptied entirely by injury filtering produces exactly one unfilled-slot note (got ${placed.unfilledSlots.length})`);
+  ok(placed.unfilledSlots[0] && /safety/i.test(placed.unfilledSlots[0].reason), "the note's reason honestly references safety, not a vague or misleading explanation");
+  ok(placed.length === 0, "the slot itself is genuinely empty (not silently filled with a flagged exercise)");
+}
+
+// ================= Task 2.5: athlete.injuries threaded end-to-end via generateSession =================
+
+{
+  ok(!!byName("Barbell Curl"), "sanity check: Barbell Curl is a real LIBRARY entry (the test below is meaningful, not vacuous)");
+  const athlete = normalizeAthlete({ injuries: [{ category: "nogo", target: "Barbell Curl" }] });
+  const parsed = { role: "upper", minutes: 45, goal: "general", equipment: null, includes: [] };
+  // Run several seeds -- a single seed could avoid Barbell Curl by chance even
+  // without any injury filter, since it's one of several biceps candidates.
+  let sawFlagged = false;
+  for (let seed = 1; seed <= 15; seed++) {
+    const s = generateSession(parsed, {}, seed, {}, null, false, null, athlete);
+    if (s.exercises.some(e => e.name === "Barbell Curl")) sawFlagged = true;
+  }
+  ok(!sawFlagged, "an athlete with a nogo injury on a specific accessory exercise (Barbell Curl) never sees it appear anywhere in a generated session, across many seeds");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('FAIL:', f)); process.exit(1); }
