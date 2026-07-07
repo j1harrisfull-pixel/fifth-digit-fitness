@@ -2405,7 +2405,7 @@ function selectComplementary(o) {
       return s;
     };
   }
-  var placed = [], why = [], anchorPatternPlaced = [], isSubstitutePlaced = [];
+  var placed = [], why = [], anchorPatternPlaced = [], isSubstitutePlaced = [], anchorDeloadPlaced = [];
   for (var k = 0; k < slots.length; k++) {
     var slot = slots[k], seedK = o.seed + k * 13 + 7;
     // The day's lead compound (slot 0) is the point of the session, so give its
@@ -2423,13 +2423,25 @@ function selectComplementary(o) {
     // first-ever pick that then gets frozen. This function never calls
     // freezeAnchor/recordAnchorExposure itself -- that happens once, right
     // after, using resolveTodaysAnchor's own reported source.
-    var isSubstitute = false, anchorSource = null;
+    var isSubstitute = false, anchorSource = null, anchorDeloadDue = false;
     var ex = null;
     if (k === 0 && anchorPattern && athlete) {
       var res = resolveTodaysAnchor(athlete, anchorPattern, function (exId) { return anchorIsAvailable(exId, slot, o.allowed, o.unlocked, ctx); });
       anchorSource = res.source;
       if (res.source === "frozen") {
         ex = LIBRARY.filter(function (x) { return x.id === res.exerciseId; })[0] || null;
+        // Section 6: is THIS pattern due for a deload, decided at build time
+        // (before today's sets are ever logged)? Reuses the same priority
+        // hierarchy as the post-session decision -- hitTop is irrelevant to
+        // whether a deload is due, so it's passed false; if a higher-priority
+        // branch (fatigue-red / stalled / exposure-backstop) doesn't already
+        // fire, the result can never spuriously read "deload" from a false
+        // hitTop (the hit/miss branch only ever produces increase/hold).
+        var anchorStateForDeload = getAnchorState(athlete, anchorPattern);
+        if (anchorStateForDeload) {
+          var deloadBand = fatigueBandForAnchorPattern(o.fatigueSnapshot, anchorPattern);
+          anchorDeloadDue = anchorProgressionDecision(anchorStateForDeload, deloadBand, false).action === "deload";
+        }
       } else {
         isSubstitute = (res.source === "needs-substitute");
       }
@@ -2502,10 +2514,12 @@ function selectComplementary(o) {
     // for every non-anchor slot and for anchor slots with no athlete passed.
     anchorPatternPlaced.push(k === 0 ? anchorPattern : null);
     isSubstitutePlaced.push(k === 0 ? isSubstitute : false);
+    anchorDeloadPlaced.push(k === 0 ? anchorDeloadDue : false);
   }
   placed.why = why; // parallel array (same order/length as placed); does not affect array semantics
   placed.anchorPattern = anchorPatternPlaced;
   placed.isSubstitute = isSubstitutePlaced;
+  placed.anchorDeload = anchorDeloadPlaced;
   return placed; // order follows the split-ordered slots: anchors first, isolation last
 }
 function pickByType(type, allowed, used, seed) {
@@ -3522,7 +3536,7 @@ function buildIntent(opts, athlete) {
     })
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
   // (Programming Philosophy §3.1) -- everything below reads from it rather
@@ -3557,9 +3571,13 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
     debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null,
-    athlete: athlete || null, weightMap: weightMap
+    athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null
   });
-  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, false, lastLogs, ease, picks.why && picks.why[k])); });
+  // Section 6: a per-pattern anchor deload (fatigue-red / stalled / exposure-
+  // backstop) is decided independently of the whole-program calendar deload --
+  // generateSession has no such calendar concept, so it's ALWAYS the anchor's
+  // own decision here. Reuses the existing deload prescription math verbatim.
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k])); });
   topUpThinDay(strengthEx, parsed.role);
   if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
   if (includeMob) {
@@ -3624,7 +3642,7 @@ function runWorkout(si, days, minutes, wn) {
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete) {
+function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, fatigueSnapshot) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
@@ -3686,7 +3704,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete) {
       baseSlots: slots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: bpCtx,
       seed: seed + si * 7, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
       debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null,
-      athlete: athlete || null, weightMap: weightMap
+      athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null
     });
     return { role: role, slots: slots, occ: occ, picks: picks };
   });
@@ -3717,7 +3735,12 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete) {
       var strengthEx = [], extraEx = [], leadEx = [];
       // Frozen strength: same exercises every week, only the week's prescription
       // (RIR wave, deload, per-set curve) changes via buildEx's weekNum/isDeload.
-      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload, lastLogs, false, picks.why && picks.why[k])); });
+      // Section 6: OR the whole-program calendar deload with this specific
+      // anchor's own due-for-deload decision -- either can trigger the
+      // existing deload prescription math for that one exercise; a sibling
+      // exercise in the same session that isn't itself a frozen anchor is
+      // only ever affected by the calendar deload, exactly as before.
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k])); });
       topUpThinDay(strengthEx, role);
 
       if (includeCon) {
@@ -6287,7 +6310,7 @@ function resolveSpec(request, state) {
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
-      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete);
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null);
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
         '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · ' + equipSummaryLabel(p.equipment) + '</div>' +
@@ -6458,7 +6481,7 @@ function resolveSpec(request, state) {
         // "Propose, never force": pre-build exactly what was requested (ease=false,
         // ignoring the degradation entirely) so a single explicit tap can have it --
         // never by silently reinterpreting the text, only this named escape hatch.
-        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete);
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue);
         anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
@@ -6466,7 +6489,7 @@ function resolveSpec(request, state) {
         // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
         // exercise and tightens the fatigue budget, same mechanism as the existing
         // per-exercise RPE ease.
-        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete);
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue);
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so · easing off</div>';
       }

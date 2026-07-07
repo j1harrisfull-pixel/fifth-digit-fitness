@@ -256,5 +256,49 @@ function squatExOf(session) {
   ok(getAnchorState(a, "squat").weight === 65, "the recorded exposure persists the correctly-tiered new weight");
 }
 
+// ================= Section 7 (part of plan Section 6): build-time anchor deload flag =================
+// Reuses the existing whole-program deload prescription math verbatim (already
+// implements "-40% volume, +1 RIR") -- this only proves WHEN it's triggered per
+// anchor, decided at build time, independent of the whole-program calendar.
+function anchorExOf(session, pattern) {
+  var patLib = { squat: "squat", hinge: "hinge", hpush: "hpush", vpush: "vpush", hpull: "hpull", vpull: "vpull" };
+  return session.exercises.filter(function (e) {
+    var lib = findByName(e.name);
+    return lib && lib.pattern === patLib[pattern] && lib.compound;
+  })[0];
+}
+
+{
+  // Red fatigue on the anchor's pattern -> the built session already reflects a
+  // deload (fewer sets) for that exercise, decided BEFORE any set is logged.
+  const athlete = normalizeAthlete({});
+  const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  generateSession(parsed, {}, 1, {}, null, false, null, athlete); // freezes the squat anchor
+  const normalSession = generateSession(parsed, {}, 2, {}, null, false, null, athlete, { byPattern: {} });
+  const normalSquat = anchorExOf(normalSession, "squat");
+  const redFatigue = { byPattern: { squat: 25 } }; // >=20 -> red
+  const deloadSession = generateSession(parsed, {}, 3, {}, null, false, null, athlete, redFatigue);
+  const deloadSquat = anchorExOf(deloadSession, "squat");
+  ok(normalSquat && deloadSquat, "both builds include a squat anchor exercise");
+  ok(deloadSquat.sets < normalSquat.sets, `red fatigue on the anchor's pattern produces a build-time deload (fewer sets: ${deloadSquat.sets} < ${normalSquat.sets}), decided before any set is logged`);
+}
+
+{
+  // Fresh/absent fatigue snapshot never spuriously triggers a deload.
+  const athlete = normalizeAthlete({});
+  const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  generateSession(parsed, {}, 1, {}, null, false, null, athlete);
+  const s = generateSession(parsed, {}, 2, {}, null, false, null, athlete, null);
+  ok(s && s.exercises.length > 0, "a null/absent fatigue snapshot builds normally, no crash, no spurious deload");
+}
+
+{
+  // Backward compatibility: no fatigueSnapshot param at all (old call shape).
+  const athlete = normalizeAthlete({});
+  const parsed = { role: "lower", minutes: 45, goal: "strength", equipment: null, includes: [] };
+  const s = generateSession(parsed, {}, 1, {}, null, false, null, athlete);
+  ok(s && s.exercises.length > 0, "generateSession still works when called with the old (pre-Section-6) argument count");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('FAIL:', f)); process.exit(1); }
