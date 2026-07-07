@@ -3663,7 +3663,7 @@ function resolveSpec(request, state) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "" };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "", todaySeedCounter: 0 };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
@@ -3681,7 +3681,8 @@ function resolveSpec(request, state) {
         log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null,
         readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null,
         unlockedSkills: Array.isArray(parsed.unlockedSkills) ? parsed.unlockedSkills.filter(function (x) { return typeof x === "string"; }) : [],
-        userName: typeof parsed.userName === "string" ? parsed.userName.slice(0, 40) : "" };
+        userName: typeof parsed.userName === "string" ? parsed.userName.slice(0, 40) : "",
+        todaySeedCounter: typeof parsed.todaySeedCounter === "number" ? parsed.todaySeedCounter : 0 };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
@@ -5951,7 +5952,12 @@ function resolveSpec(request, state) {
       var eqFromText = !!req.equipment;
       if (!req.equipment) req.equipment = buildPrefs().equipment;
       var parsed = requestToParsed(req);
-      todaySeed++;
+      // Persisted in state (not just this page-lifetime var) so the seed keeps
+      // advancing across a reload/reopen -- otherwise every fresh app launch's
+      // FIRST Just-Today build reset to the same seed and could repeat the
+      // exact same session as the last app open's first build.
+      state.todaySeedCounter = (state.todaySeedCounter || 0) + 1; save();
+      todaySeed = state.todaySeedCounter;
       var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
       var deg = spec.degradation, banner = "", anywayBtn = "";
       pendingTodayAnyway = null;
