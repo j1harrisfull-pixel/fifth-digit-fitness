@@ -4607,10 +4607,26 @@ function degradation(fatigue, readinessValue, patterns) {
   if (readinessValue === 1 || band === "amber") return "eased";
   return "normal";
 }
+// Phase 7 (Recovery Session Path, Programming Philosophy §3.8): "light pump
+// work" -- restorative, not a training stressor. Low fatigue_cost + non-
+// compound is the same idiom pickFiller's elig() already uses for "won't tax
+// what you just did"; here there's no "main lift" to avoid, so the filter is
+// simply: real strength work, low fatigue cost, not compound, and safe under
+// every gate every other picker in this file already enforces. Exactly ONE
+// movement -- a light touch, not a training block. If nothing safe exists,
+// omit it honestly (never forces a pick to avoid an "empty" slot).
+function pickLightPump(allowed, used, seed, unlocked, injuries) {
+  var pool = LIBRARY.filter(function (e) {
+    return e.type === "strength" && !e.compound && e.fatigue_cost === "low"
+      && equipOk(e, allowed) && !used[e.id] && skillAllowed(e, unlocked)
+      && !isExerciseInjuryFlagged(e, injuries);
+  });
+  return pool.length ? pool[Math.abs(seed) % pool.length] : null;
+}
 // An active-recovery session: mobility-led with one easy movement piece. A valid,
 // intelligent output per the brief, not a failure -- falls through to the
 // absolute floor via guaranteeSession if even mobility/conditioning can't be filled.
-function recoverySession(allowed, seed, injuries) {
+function recoverySession(allowed, seed, injuries, unlocked) {
   var used = {}, mobs = [];
   for (var i = 0; i < 4; i++) {
     var m = pickByType("mobility", allowed, used, seed + i * 3, injuries);
@@ -4618,6 +4634,21 @@ function recoverySession(allowed, seed, injuries) {
   }
   var extra = [], con = pickConditioning("z2", allowed, used, seed + 20, injuries);
   if (con) { used[con.id] = 1; extra.push(buildEx(con, "general", false, {}, 30, 1, false, {}, false, "Active recovery, easy effort only")); }
+  // Phase 7: one light-pump movement, omitted honestly if none is safe.
+  var pump = pickLightPump(allowed, used, seed + 27, unlocked, injuries);
+  if (pump) { used[pump.id] = 1; extra.push(buildEx(pump, "general", false, {}, 30, 1, false, {}, false, "A light pump, easy on the joints -- not a training stressor today")); }
+  // Phase 7: deterministic breathing close, same lookup + same safety gate
+  // buildWarmupCooldown already uses for this exact exercise -- reused
+  // directly rather than duplicated with different wording. Recovery
+  // sessions don't share buildWarmupCooldown's shape (no strengthPicks to
+  // derive prep groups from, no pulse-raiser/joint-prep content wanted
+  // here), so the small lookup is reused on its own rather than routing
+  // through the whole function.
+  var breathing = LIBRARY.filter(function (e) { return e.id === "box-breathing"; })[0];
+  if (breathing && !used[breathing.id] && !isExerciseInjuryFlagged(breathing, injuries)) {
+    used[breathing.id] = 1;
+    extra.push(buildEx(breathing, "general", false, {}, 30, 1, false, {}, false, "A steady close, heart rate down before you go"));
+  }
   return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) }, 30, injuries);
 }
 // Resolve: RequestObject + user state -> a Session Spec. Weekly debt, fatigue, and
@@ -7006,9 +7037,15 @@ function resolveSpec(request, state) {
       var deg = spec.degradation, banner = "", anywayBtn = "";
       pendingTodayAnyway = null;
       if (deg === "recovery") {
-        // Phase 7 (2.1b) / Phase 6 rung 3: rough readiness or a red fatigue reading
-        // gets a real recovery session instead of forcing today's requested load.
-        pendingToday = recoverySession(req.equipment, todaySeed, state.athlete && state.athlete.injuries);
+        // Phase 7 (2.1b) -- an old, pre-Programming-Philosophy phase number,
+        // not the same "Phase 7" as the official build order's Phase 7
+        // (Recovery Session Path, §3.8). This reactive readiness/fatigue
+        // trigger was built earlier under a different numbering scheme; the
+        // official Phase 7 is the light-pump/breathing work inside
+        // recoverySession() itself (see that function). Rough readiness or
+        // a red fatigue reading gets a real recovery session instead of
+        // forcing today's requested load.
+        pendingToday = recoverySession(req.equipment, todaySeed, state.athlete && state.athlete.injuries, unlockedSkillMap());
         var why = spec.readiness.score === 0 ? "You flagged today as rough" : "This week's fatigue reading is high";
         banner = '<div class="preview__fatigue preview__fatigue--red">' + esc(why) + ' · recovery day instead of forcing load</div>';
         // "Propose, never force": pre-build exactly what was requested (ease=false,

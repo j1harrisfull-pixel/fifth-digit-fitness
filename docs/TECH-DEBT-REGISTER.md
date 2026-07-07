@@ -74,13 +74,27 @@ Being on this list is not an invitation to fix it opportunistically.
 - **Why deferred:** The official build order (`PROGRAMMING-PHILOSOPHY.md §4`) only has 8 phases, ending at "Elite rubric and dogfood battery" — there is no "Phase 9." This is a leftover from an earlier, different numbering.
 - **Suggested handling:** Correct the comment the next time `stubBlockWeek` is touched for any reason.
 
-### 9. Old ad-hoc "Phase 7" numbering collision
-- **Where:** `index.html` comments like `// Phase 7 (2.1b)` near `recoverySession`/`degradation`/the readiness UI flow — these refer to fatigue-sensing/reactive-layer/concurrent-training-interference work built *before* the Programming-Philosophy-aligned numbering was adopted. The *official* Phase 7 (per `PROGRAMMING-PHILOSOPHY.md §4`) is "Recovery session path," a different thing that happens to already be substantially built by that same earlier work.
-- **Risk:** Low (naming/comment confusion only — this project already handled an identical collision for an old "Phase 5" reference by adding a clarifying note).
-- **Architecture impact:** None.
-- **Coaching impact:** None.
-- **Why deferred:** Cosmetic, but worth fixing precisely because it's confusing for a future reader (or a future session) trying to figure out what "Phase 7" means.
-- **Suggested handling:** Add one clarifying comment near the old `// Phase 7 (2.1b)` markers, matching the note style already used for the old "Phase 5" collision. Candidate for inclusion in the Phase 7 (Recovery Session Path) work itself, since that phase is the one that makes the collision concrete.
+### 9. Old ad-hoc "Phase 7" numbering collision — **RESOLVED in Phase 7 (Recovery Session Path)**
+- **Where:** `index.html` comments like `// Phase 7 (2.1b)` near `recoverySession`/`degradation`/the readiness UI flow.
+- **Resolution:** A clarifying comment was added at the `deg === "recovery"` UI branch (near the old `// Phase 7 (2.1b)` marker) explaining the numbering collision and pointing to the real official-Phase-7 work inside `recoverySession()` itself. No further action needed.
+
+### 10. `INJURY_KEYWORD_TAGS` has no `"elbow"` entry
+- **Where:** `index.html`, `INJURY_KEYWORD_TAGS` (near `normalizeInjuryText`/`isExerciseFlaggedByInjury`) — covers shoulder, knee, spine, neck, wrist, hip, ankle, overhead. No `elbow` key exists.
+- **Discovered:** While writing Phase 7's test-first work (`test-phase7-recovery.js`) — a real, reproducible gap, not fixed as part of Phase 7 per the "no new safety logic" guardrail.
+- **Risk:** Low-Medium. Every elbow-only-tagged exercise (curls, pushdowns, wrist work, most arm isolation — roughly 15+ LIBRARY entries) can only be excluded from a candidate pool via an exact tier-4 name match, never via joint-tag matching, unlike every other tracked joint region.
+- **Architecture impact:** None — this is a data/vocabulary gap in the existing bridge-tier matcher (Phase 4), not a structural issue.
+- **Coaching impact:** An athlete who tags an "elbow" injury (rather than naming a specific exercise) will not have elbow-stressing isolation work filtered out.
+- **Why deferred:** Extending `INJURY_KEYWORD_TAGS` is itself new safety logic — explicitly out of scope for Phase 7, and not something to patch opportunistically without its own review.
+- **Suggested handling:** Add an `elbow: { joints: ["elbow"] }` entry to `INJURY_KEYWORD_TAGS` as a small, explicitly-scoped safety task — should get the same test-first + safety-reasoning treatment as any other injury-filtering change, not be folded into an unrelated phase.
+
+### 11. `normalizeInjuryText`'s back→spine replacement has no word boundary
+- **Where:** `index.html`, `normalizeInjuryText`, the `.replace(/(lower\s*)?backs?|lumbar/g, "spine")` line.
+- **Discovered:** While writing Phase 7's test-first work — confirmed directly: `normalizeInjuryText("Triceps Kickback")` corrupts to `"...kickspine"` (the regex matches "back" inside "Kickback" with no word-boundary guard), so a full-name tier-4 injury match against "Triceps Kickback" silently fails.
+- **Risk:** Medium. This is the same class of bug the project already found and fixed once before for "L-Sit" (the `l`/`r` single-letter replacement was made whitespace-bounded specifically because it was corrupting real exercise names) — the back/spine replacement was never given the same treatment.
+- **Architecture impact:** None — contained entirely within `normalizeInjuryText`.
+- **Coaching impact:** Any exercise whose name contains "back" as a raw substring of a longer word (currently known: "Triceps Kickback"; there may be others not yet audited) silently fails to match a same-name injury target, the same way "L-Sit" once did before that fix.
+- **Why deferred:** Fixing this is new safety logic (a change to the injury-matching bridge itself) — explicitly out of scope for Phase 7's two approved judgement calls.
+- **Suggested handling:** Apply the same word-boundary fix already used for the `l`/`r` replacement (e.g. `\bbacks?\b` with a `lower\s+` prefix allowance) as its own small, explicitly-scoped safety task, with a full audit of LIBRARY names for any other substring collisions (not just "kickback") before shipping the fix.
 
 ---
 
