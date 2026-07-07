@@ -2422,12 +2422,24 @@ function seededJitter(id, seed) {
 // muscle-spread fill via the ranker ("debt fills"). Fatigue budget caps high-axial
 // lifts. Antagonist balance on broad days comes from the split itself; explicit
 // cross-session forcing is deferred (would fight the PPL structure on narrow days).
-// Weak-point bias is a light hook now (single-session "not ready" proxy) -- true
-// multi-session plateau detection arrives with the fatigue system in Phase 7.
-function weakPointMuscles(baseSlots, lastLogs) {
-  // If a likely anchor lift missed the top of its rep range last time (not "ready"),
-  // nudge accessories toward its primary muscle (sticking-point proxy).
-  return []; // placeholder body; wired through opts.biasMuscles, filled in Phase 7
+// Phase 6 (Balance & Safety): real implementation, volume-debt based (confirmed
+// choice over a performance/fatigue-based definition) -- reuses computeWeeklyDebt's
+// existing byMuscleVolume, no new data source. A single muscle only (the worst
+// MEV gap), matching the Philosophy's own wording ("weak points earn ADDITIONAL
+// accessory work when time allows") -- a light, opportunistic hook, not a broad
+// bias across many muscles at once. Feeds the ranker's ALREADY-EXISTING
+// biasMuscles hook (`s -= 4` for a matching primary muscle) -- no new scoring
+// mechanism, just supplying real data to code that already runs.
+function weakPointMuscles(byMuscleVolume) {
+  if (!byMuscleVolume) return [];
+  var worst = null, worstGap = 0;
+  Object.keys(byMuscleVolume).forEach(function (m) {
+    var v = byMuscleVolume[m];
+    if (!v || v.band !== "under-mev") return;
+    var gap = v.mev - v.done;
+    if (gap > worstGap) { worstGap = gap; worst = m; }
+  });
+  return worst ? [worst] : [];
 }
 // Availability check for the frozen-anchor consumption: equipment/skill/dedup/
 // compound-type-match, exactly the mechanics pickStrength's own ok() already
@@ -2472,6 +2484,7 @@ var PREF_WEIGHT = 1.5;
 function selectComplementary(o) {
   var ctx = o.ctx, debt = o.debt || null, selGoal = o.selGoal;
   var biasMuscles = o.biasMuscles || [], fatigueBudget = o.fatigueBudget != null ? o.fatigueBudget : 2;
+  var balance = o.balance || null; // Phase 6 (Balance & Safety)
   var athlete = o.athlete || null;
   var recentByPattern = mostRecentByPattern(o.lastLogs);
   // high-axial count and muscle-spread are PER SESSION; used/pat/dl on ctx stay
@@ -2508,6 +2521,35 @@ function selectComplementary(o) {
       s += (mus[pm] || 0) * 3;                                             // non-competing: spread muscles
       if ((selGoal === "hypertrophy" || selGoal === "general") && e.lengthened) s -= 3; // preserve lengthened bias
       if (pm && biasMuscles.indexOf(pm) >= 0) s -= 4;                       // weak-point hook
+      // Phase 6 (Balance & Safety) -- three signals, same weighted-sum ranker,
+      // no new scoring mechanism. Push:pull/horiz:vert/squat:hinge are
+      // deliberately NOT here: the debt term two lines up already achieves
+      // them (equal WEEKLY_SET_TARGETS per antagonist pair), and a second term
+      // for the same pair would score the same fact twice.
+      if (balance) {
+        // Unilateral presence: a threshold, not a ratio (confirmed judgement
+        // call) -- favour a unilateral candidate only while NONE has been
+        // done yet this week and some bilateral work already has (a real
+        // week-in-progress signal, not an empty week). Stops nudging the
+        // moment any real unilateral work has happened.
+        if (e.is_unilateral && balance.doneUnilateral === 0 && balance.doneBilateral > 0) s -= 3;
+        // Anterior:posterior -- same debt-style idiom as the per-pattern term
+        // above (target minus done), aggregated over the canonical grouping,
+        // scaled to HALF the per-pattern debt's max swing (6 vs 24) since this
+        // is a coarser, secondary signal layered on top of the finer-grained
+        // per-pattern debt, not a replacement for it.
+        var antDebt = Math.max(0, balance.anteriorTarget - balance.doneAnterior);
+        var postDebt = Math.max(0, balance.posteriorTarget - balance.donePosterior);
+        if (ANTERIOR_PATTERNS.indexOf(mp) >= 0) s -= Math.min(Math.max(0, antDebt - postDebt), 6);
+        else if (POSTERIOR_PATTERNS.indexOf(mp) >= 0) s -= Math.min(Math.max(0, postDebt - antDebt), 6);
+        // Lower-back / spinal load -- SOFT de-prioritisation only, never a
+        // hard cap (confirmed judgement call: no equivalent to Phase 5's
+        // muscle-MRV literature exists for spinal volume). Scales with how
+        // much spine-tagged volume is already done this week; capped small.
+        if (e.joint_stress && e.joint_stress.indexOf("spine") >= 0) {
+          s += Math.min(balance.doneSpineLoad || 0, 10) * 0.4;               // max +4
+        }
+      }
       // The anchor (slot 0) on a strength-oriented goal is the point of the day:
       // it should be the heaviest, most progressable barbell compound the kit can
       // give -- the "money lift" -- not a random same-pattern compound the jitter
@@ -3883,7 +3925,7 @@ function buildIntent(opts, athlete) {
     })
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot, weeklyVolume) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot, weeklyVolume, balance) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
   // (Programming Philosophy §3.1) -- everything below reads from it rather
@@ -3918,7 +3960,8 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
     debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null,
-    athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null
+    athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null,
+    balance: balance || null, biasMuscles: weakPointMuscles(weeklyVolume)
   });
   // Section 6: a per-pattern anchor deload (fatigue-red / stalled / exposure-
   // backstop) is decided independently of the whole-program calendar deload --
@@ -3995,7 +4038,7 @@ function runWorkout(si, days, minutes, wn, injuries) {
   var reps = (typeof tpl.reps === "function") ? tpl.reps(minutes) : tpl.reps;
   return { name: libEx ? libEx.name : "Run", type: "conditioning", equipment: "bodyweight", group: "", sets: tpl.sets, reps: reps, weight: 0, target: tpl.target, rest: tpl.rest, notes: libEx ? libEx.cue : "" };
 }
-function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, fatigueSnapshot, weeklyVolume) {
+function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, fatigueSnapshot, weeklyVolume, balance) {
   intake = intake || {};
   weightMap = weightMap || {};
   seed = seed || 0;
@@ -4056,8 +4099,13 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
     var picks = selectComplementary({
       baseSlots: slots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: bpCtx,
       seed: seed + si * 7, patCap: patCap, dlCap: 1, focusPatterns: null, role: role,
+      // debt/balance stay null here, matching the pre-existing debt:null choice --
+      // in-progress-weekly-debt-style signals don't apply to a once-per-block
+      // frozen pick. biasMuscles (weak-point) is included, matching the existing
+      // fatigueSnapshot precedent for broader athlete-state reads at this point.
       debt: null, lastLogs: lastLogs, fatigueBudget: 2, unlocked: unlocked || null,
-      athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null
+      athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null,
+      balance: null, biasMuscles: weakPointMuscles(weeklyVolume)
     });
     return { role: role, slots: slots, occ: occ, picks: picks };
   });
@@ -4252,6 +4300,16 @@ var WEEKLY_SET_TARGETS = {
   carry: 4, power: 6, anti_extension: 4, anti_rotation: 4, anti_lateral_flexion: 3,
   rotation: 3, flexion: 4, lateral_flexion: 3
 };
+// Phase 6 (Balance & Safety), canonical anterior/posterior pattern grouping --
+// approved mapping, ONE source of truth (never duplicate this list elsewhere).
+// Deliberately unclassified (neither list): core-family patterns (anti_rotation/
+// anti_lateral_flexion/rotation/flexion/lateral_flexion -- not cleanly trunk-
+// plane anterior or posterior), isolation_biceps/isolation_triceps (arm
+// isolation, not trunk-plane), isolation_calf, power. Targets for the ratio
+// below are DERIVED by summing these patterns' own already-approved
+// WEEKLY_SET_TARGETS values -- no new coaching numbers invented here.
+var ANTERIOR_PATTERNS = ["squat", "hpush", "vpush", "lunge", "isolation_quads", "isolation_chest", "isolation_shoulders", "anti_extension"];
+var POSTERIOR_PATTERNS = ["hinge", "hpull", "vpull", "isolation_hamstrings", "isolation_glutes", "isolation_back", "carry"];
 // Programming Philosophy Phase 5, §3.4: weekly volume targets, sets per muscle.
 // MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum
 // recoverable volume. Named constants (not inlined numbers) so a later phase
@@ -4309,6 +4367,10 @@ function computeWeeklyDebt(state) {
   var byName = {};
   for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
   var donePat = {}, doneMus = {}, doneMusSecondary = {}, seenPat = {};
+  // Phase 6 (Balance & Safety): accumulated alongside donePat/doneMus in the
+  // same per-exercise loop below, reusing the same `lib`/`done` values --
+  // no second pass over the sessions, no new data source.
+  var doneUnilateral = 0, doneBilateral = 0, doneSpineLoad = 0;
   var prog = state && state.program, log = (state && state.log) || {};
   var wk = prog && Array.isArray(prog.weeks) ? prog.weeks[(state.activeWeek || 0)] : null;
   if (wk && Array.isArray(wk.sessions)) {
@@ -4338,6 +4400,11 @@ function computeWeeklyDebt(state) {
         (lib.secondary_muscles || []).forEach(function (sm) {
           doneMusSecondary[sm] = (doneMusSecondary[sm] || 0) + done * SECONDARY_MUSCLE_CREDIT;
         });
+        // Phase 6: unilateral:bilateral presence + spinal-load sum, both from
+        // LIBRARY fields that already exist (is_unilateral, joint_stress) --
+        // no new authoring, no new field.
+        if (lib.is_unilateral) doneUnilateral += done; else doneBilateral += done;
+        if (lib.joint_stress && lib.joint_stress.indexOf("spine") >= 0) doneSpineLoad += done;
       });
     });
   }
@@ -4360,9 +4427,26 @@ function computeWeeklyDebt(state) {
     var band = done >= landmarks.mrv ? "at-or-over-mrv" : done >= landmarks.mav ? "in-mav" : done >= landmarks.mev ? "in-mev" : "under-mev";
     byMuscleVolume[m] = { done: done, mev: landmarks.mev, mav: landmarks.mav, mrv: landmarks.mrv, band: band, remainingToMrv: Math.max(0, landmarks.mrv - done) };
   });
+  // Phase 6 (Balance & Safety): only the genuinely new signals -- push:pull,
+  // horizontal:vertical, and squat:hinge are NOT duplicated here, because the
+  // per-pattern debt above already achieves them (equal WEEKLY_SET_TARGETS for
+  // each antagonist pair + the existing debt-ranking already favours whichever
+  // side is behind; a second scoring term for the same pair would be scoring
+  // the same fact twice). anteriorTarget/posteriorTarget are DERIVED by summing
+  // the already-approved WEEKLY_SET_TARGETS entries for each canonical group --
+  // no new target numbers invented.
+  var doneAnterior = 0, anteriorTarget = 0, donePosterior = 0, posteriorTarget = 0;
+  ANTERIOR_PATTERNS.forEach(function (p) { doneAnterior += donePat[p] || 0; anteriorTarget += WEEKLY_SET_TARGETS[p] || 0; });
+  POSTERIOR_PATTERNS.forEach(function (p) { donePosterior += donePat[p] || 0; posteriorTarget += WEEKLY_SET_TARGETS[p] || 0; });
+  var byBalance = {
+    doneUnilateral: doneUnilateral, doneBilateral: doneBilateral,
+    doneAnterior: doneAnterior, anteriorTarget: anteriorTarget,
+    donePosterior: donePosterior, posteriorTarget: posteriorTarget,
+    doneSpineLoad: doneSpineLoad
+  };
   // byMuscle carries completed-set counts only; per-muscle TARGETS are a documented
   // follow-on (pattern debt is the operative signal for antagonist/pattern balance).
-  return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked };
+  return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked, byBalance: byBalance };
 }
 
 // ---- Phase 7 (2.1): fatigue sensing layer ----
@@ -6740,7 +6824,7 @@ function resolveSpec(request, state) {
     buildSeed++;
     var pv = $("buildPreview");
     function renderPreview() {
-      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null, computeWeeklyDebt(state).byMuscleVolume);
+      pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null, computeWeeklyDebt(state).byMuscleVolume, computeWeeklyDebt(state).byBalance);
       var days = pendingBuild.weeks[0].sessions.length;
       pv.innerHTML = '<div class="preview__title">' + esc(pendingBuild.title) + '</div>' +
         '<div class="preview__meta">' + days + ' day' + (days > 1 ? "s" : "") + ' · ' + p.minutes + ' min · ' + equipSummaryLabel(p.equipment) + '</div>' +
@@ -6911,7 +6995,7 @@ function resolveSpec(request, state) {
         // "Propose, never force": pre-build exactly what was requested (ease=false,
         // ignoring the degradation entirely) so a single explicit tap can have it --
         // never by silently reinterpreting the text, only this named escape hatch.
-        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume);
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance);
         anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
@@ -6919,7 +7003,7 @@ function resolveSpec(request, state) {
         // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
         // exercise and tightens the fatigue budget, same mechanism as the existing
         // per-exercise RPE ease.
-        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume);
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance);
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so · easing off</div>';
       }
