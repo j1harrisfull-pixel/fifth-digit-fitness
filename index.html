@@ -1409,6 +1409,40 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     if (trainDays && trainDays.length) out.trainDays = trainDays;
     return out;
   }
+  // ===== Athlete model (Programming Philosophy §3.6) =====
+  var PREF_MIN = -3, PREF_MAX = 3;
+  var INJURY_CATEGORIES = ["pain", "restricted", "medical", "nogo"];
+  var EXPERIENCE_LEVELS = ["beginner", "intermediate", "advanced"];
+  // The persistent athlete profile: experience + injuries (four categories,
+  // spec §3.5) + learned per-exercise preferences (keyed by canonical name so
+  // they survive id churn, like weight history). Whitelist reconstruction --
+  // any unknown/malformed field is dropped, same discipline as normalizeProgram.
+  function normalizeAthlete(obj) {
+    obj = obj && typeof obj === "object" ? obj : {};
+    var experience = EXPERIENCE_LEVELS.indexOf(obj.experience) >= 0 ? obj.experience : "intermediate";
+    var injuries = (Array.isArray(obj.injuries) ? obj.injuries : []).filter(function (i) {
+      return i && typeof i === "object" && INJURY_CATEGORIES.indexOf(i.category) >= 0 && typeof i.target === "string" && i.target;
+    }).map(function (i) { return { category: i.category, target: i.target }; });
+    var prefsIn = obj.prefs && typeof obj.prefs === "object" ? obj.prefs : {};
+    var prefs = {};
+    Object.keys(prefsIn).forEach(function (k) {
+      var n = Number(prefsIn[k]);
+      if (!isNaN(n)) prefs[k] = Math.max(PREF_MIN, Math.min(PREF_MAX, n));
+    });
+    return { experience: experience, injuries: injuries, prefs: prefs };
+  }
+  // Nudge a learned preference for one exercise (by canonical name) and clamp.
+  // Returns the new score. Tolerates a prefs-less athlete. Phase 1 only COLLECTS
+  // -- nothing reads prefs until the ranker in Phase 4, so a monotone negative
+  // drift here is harmless; positive signals + decay land with consumption.
+  function bumpPref(athlete, name, delta) {
+    if (!athlete || typeof athlete !== "object") return 0;
+    if (!athlete.prefs || typeof athlete.prefs !== "object") athlete.prefs = {};
+    var cur = Number(athlete.prefs[name]); if (isNaN(cur)) cur = 0;
+    var next = Math.max(PREF_MIN, Math.min(PREF_MAX, cur + delta));
+    athlete.prefs[name] = next;
+    return next;
+  }
   function migrateV1toV2(v1) {
     v1 = v1 && typeof v1 === "object" ? v1 : {};
     var v1s = v1.sessions && typeof v1.sessions === "object" ? v1.sessions : {};
@@ -3667,7 +3701,7 @@ function resolveSpec(request, state) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "", todaySeedCounter: 0 };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "", todaySeedCounter: 0, athlete: normalizeAthlete(null) };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
@@ -3686,7 +3720,8 @@ function resolveSpec(request, state) {
         readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null,
         unlockedSkills: Array.isArray(parsed.unlockedSkills) ? parsed.unlockedSkills.filter(function (x) { return typeof x === "string"; }) : [],
         userName: typeof parsed.userName === "string" ? parsed.userName.slice(0, 40) : "",
-        todaySeedCounter: typeof parsed.todaySeedCounter === "number" ? parsed.todaySeedCounter : 0 };
+        todaySeedCounter: typeof parsed.todaySeedCounter === "number" ? parsed.todaySeedCounter : 0,
+        athlete: normalizeAthlete(parsed.athlete) };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
     return null;
