@@ -6061,8 +6061,14 @@ function resolveSpec(request, state) {
     liveTimerStart = (stored > 0 && stored <= Date.now()) ? stored : Date.now();
     try { localStorage.setItem(LIVE_KEY, String(liveTimerStart)); } catch (e) {}
     var el = $("liveBarTimer"); if (!el) return;
+    // Gate 3 (Final Sprint): past ~4h a session has plainly been left open,
+    // not actively timed -- painting a growing clock would be dishonest, so
+    // the readout swaps to a quiet label instead. Display-only: the stored
+    // start stamp, LIVE_KEY semantics, and End/Finish are all untouched.
+    var STALE_SECS = 4 * 60 * 60;
     function paint() {
       var secs = Math.floor((Date.now() - liveTimerStart) / 1000);
+      if (secs >= STALE_SECS) { el.textContent = "Session left open"; return; }
       var m = Math.floor(secs / 60), s = secs % 60;
       el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
     }
