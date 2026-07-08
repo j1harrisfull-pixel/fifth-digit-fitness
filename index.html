@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#14110D">
 <meta name="description" content="A personal offline strength and mobility training log with Claude-driven adaptive programs.">
-<title>Fifth Digit Fitness</title>
+<title>Fifth Digit Coach</title>
 
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.png" type="image/png">
@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Fifth Digit Fitness">
+<meta name="apple-mobile-web-app-title" content="Fifth Digit Coach">
 
 <style>
 /* Self-hosted fonts (no CDN, no Google Fonts <link>).
@@ -1148,7 +1148,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <svg class="brand__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit">
           <path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/>
         </svg>
-        <span class="brand__name">Fitness</span>
+        <span class="brand__name">Coach</span>
       </div>
       <div class="topbar__actions">
         <button class="icon-btn icon-btn--build" id="planBtn" title="Build or load a program" aria-label="Build or load a program" aria-haspopup="dialog">
@@ -1473,7 +1473,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <svg viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-hidden="true">
         <path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/>
       </svg>
-      <span>Fifth Digit Fitness · v2 · works fully offline</span>
+      <span>Fifth Digit Coach · v2 · works fully offline</span>
     </p>
   </div>
 </dialog>
@@ -1707,7 +1707,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) s = fence[1].trim();
     var blob = extractFirstJsonObject(s);
-    if (blob == null) throw new Error("That doesn't look like a Fifth Digit Fitness program. Paste the whole block, including the { … }.");
+    if (blob == null) throw new Error("That doesn't look like a Fifth Digit Coach program. Paste the whole block, including the { … }.");
     try { return JSON.parse(blob); } catch (e) { throw new Error("Couldn't read that as a valid program. Make sure you copied the whole { … } block."); }
   }
   function validateProgram(obj) {
