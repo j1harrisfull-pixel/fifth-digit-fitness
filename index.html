@@ -1613,6 +1613,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <p class="complete__summary" id="completeSummary"></p>
       <p class="complete__pr-banner" id="completePrBanner" hidden></p>
       <div id="completeRead"></div>
+      <p class="complete__read-detail" id="completeCoachNote" hidden></p>
       <div class="receipt-paper__stamp">
         <img class="receipt-paper__thumb" src="thumbprint.png" alt="Fifth Digit thumbprint">
         <p class="receipt-paper__sig">Signed off<b id="completeSigLine"></b></p>
@@ -8557,6 +8558,18 @@ function resolveSpec(request, state) {
           : "New bests · " + honestRead.prs.map(function (p) { return p.name; }).join(", ");
         prBanner.textContent = prText; prBanner.hidden = false;
       } else { prBanner.hidden = true; prBanner.textContent = ""; }
+    }
+    // Pass 2 (finish card upgrade, item 7): a real one-line coach note --
+    // the week's actual phase intent (phaseLabel, e.g. "Accumulation: build
+    // work capacity, 3 reps in reserve" / "Deload: consolidate, 50% volume,
+    // Effort 6"), already computed by generateProgram and shown nowhere else
+    // on this screen. Only real multi-week programs carry a wk.focus value --
+    // a Just Today build's wrapper week has focus: "" by construction, so
+    // this stays honestly hidden rather than inventing a note for it.
+    var coachNoteEl = $("completeCoachNote");
+    if (coachNoteEl) {
+      var noteTxt = (!ended && wk.focus) ? wk.focus : "";
+      coachNoteEl.textContent = noteTxt; coachNoteEl.hidden = !noteTxt;
     }
     // The stamp's sig line: today's date + the real session duration. Measure
     // from the FIRST LOGGED SET (sl.date), not from when the app was opened, so
