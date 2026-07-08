@@ -7151,14 +7151,27 @@ function resolveSpec(request, state) {
   function switchSession(i) {
     var n = curWeek().sessions.length;
     if (i < 0 || i >= n || i === state.activeSession) return false;
-    hideRest(); state.activeSession = i; save();
+    hideRest();
+    // Pass 2 completion-sentinel session-scope fix: same reasoning as openDay --
+    // i !== state.activeSession is already guaranteed by the guard above.
+    if (state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
+    state.activeSession = i; save();
     renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
     return true;
   }
   // Opening a day no longer starts a live session -- it's a preview you can read.
   // The timer + wake lock start on your first logged set (ensureSessionLive). If
   // the day already has a live run going (resumed after reload), it stays live.
-  function openDay(i) { justOpened = false; hideRest(); state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); if (sessionLive()) acquireWakeLock(); }
+  function openDay(i) {
+    justOpened = false; hideRest();
+    // Pass 2 completion-sentinel session-scope fix: "__collapsed__" only means
+    // "nothing chosen on purpose in THIS session" (set on finishing an
+    // exercise's last set) -- it must not survive into a DIFFERENT session, or
+    // currentId() stays collapsed there too: no first-incomplete auto-focus,
+    // and a stale "All sets logged" cue for a session that's actually untouched.
+    if (i !== state.activeSession && state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
+    state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); if (sessionLive()) acquireWakeLock();
+  }
   // Product Polish Phase 1 (item 5, J5): a light-touch readiness check
   // before an un-started SCHEDULED session -- only when nothing's been
   // logged for that day yet AND today's readiness hasn't already been
