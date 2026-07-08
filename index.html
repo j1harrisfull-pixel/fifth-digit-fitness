@@ -7207,7 +7207,19 @@ function resolveSpec(request, state) {
     state.view = "day";
     addTodaySession();
   }
-  function backToWeek() { hideRest(); stopLiveTimer(); releaseWakeLock(); state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload(); }
+  function backToWeek() {
+    hideRest(); stopLiveTimer(); releaseWakeLock();
+    // Pass 2 completion-sentinel: leaving the day view ends the context the
+    // "__collapsed__" sentinel belongs to (it means "nothing chosen on purpose
+    // right after finishing an exercise in THIS session"). Clearing it here --
+    // the single choke point every cross-session route transits (week rows,
+    // hero, readiness/recovery swap, post-delete, finish-card "Start next") --
+    // guarantees re-entering ANY session restores normal first-incomplete focus
+    // and a real log bar, with no stale "All sets logged" cue. The openDay/
+    // switchSession guards stay as harmless defense in depth.
+    if (state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
+    state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload();
+  }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
     if (ni < 0 || ni >= state.program.weeks.length) return;
