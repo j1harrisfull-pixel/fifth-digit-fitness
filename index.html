@@ -5388,6 +5388,12 @@ function resolveSpec(request, state) {
     // navigation. The rest TIMER is global and keeps running.
     hideSuperNext(); hideFiller();
     applyGlance();
+    // Pass 2 (exercise focus scroll, item 8): tapping a card should bring it
+    // comfortably into view, not leave the user hunting for what they just
+    // selected -- reuses scrollToCurrent() verbatim (the same dynamic sticky-
+    // header-offset helper already used when a day first opens), so behaviour
+    // is identical, just triggered on tap too.
+    scrollToCurrent();
   }
   function applyGlance() {
     var items = sessionItems(), cid = currentId(), p = sessionProgress(items);
@@ -6567,6 +6573,13 @@ function resolveSpec(request, state) {
     var statRow = statCells.length
       ? '<p class="card__rx">' + statCells.map(function (c) { return '<span class="card__rx-v mono">' + esc(c.v) + '</span> ' + esc(c.l.toLowerCase()); }).join(' <span class="card__rx-sep">·</span> ') + '</p>'
       : '';
+    // Pass 2 (ramp explainer, item 5): the very first set of a ramp anchor is
+    // deliberately lighter than the working weight shown above it -- gated
+    // strictly on e.curve === "ramp" (set at generation time by curveFor/
+    // buildSetPlan; already "straight" for every non-ramp exercise, including
+    // bodyweight-only and warm-up/cooldown mobility, so this can never appear
+    // where it isn't true). Quiet, reuses the existing .card__why text style.
+    var rampLine = e.curve === "ramp" ? '<p class="card__why">Builds to your working weight on the last set.</p>' : '';
     var swapHtml = "";
     if (e.type === "conditioning" && typeof conditioningAlternatives === "function") {
       var allowedEq = (state.buildPrefs && Array.isArray(state.buildPrefs.equipment)) ? state.buildPrefs.equipment : null;
@@ -6663,6 +6676,7 @@ function resolveSpec(request, state) {
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
       subLine +
       statRow +
+      rampLine +
       formNotes +
       weightCtrl +
       warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
