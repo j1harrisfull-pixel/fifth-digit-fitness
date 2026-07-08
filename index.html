@@ -743,8 +743,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    reads by text brightness + the ring; orange stays reserved for actions. */
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
 /* The Build sheet's mode tabs are wayfinding, not a value choice -- they carry
-   the sheet's single small accent moment (an underline) instead of the ring. */
+   the sheet's single small accent moment (an underline) instead of the ring.
+   Phase 4: stacked label + one-line intent caption (reuses .seg__sub, same
+   pattern as .seg--goal below) so the two modes read as two distinct requests
+   -- "plan the next block" vs "build one session" -- not a generic toggle. */
 #planMode button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 -2px 0 0 var(--accent); }
+#planMode button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px; min-height: 50px; }
 /* GOAL is the decision that defines the whole build -- two-line cards with a
    plain-language descriptor, visibly senior to the Adjust panel's controls. */
 .seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; }
@@ -827,8 +831,29 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .building__spin { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--accent); animation: bspin .7s linear infinite; }
 .building__txt { font-size: 13px; color: var(--ink-dim); font-weight: 600; }
 @keyframes bspin { to { transform: rotate(360deg); } }
+/* Phase 4 (Build sheet only): .sect__label, .adv and .preview are shared with
+   Settings/onboarding/complete-receipt, so overrides are scoped to #planSheet
+   rather than touching the bare classes -- same de-tracking as .blabel below,
+   applied only to the "Ask Claude directly" step labels ("1 Copy this...",
+   "2 Paste Claude's reply"). */
+#planSheet .sect__label { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; }
+/* Quieter disclosure marker: a plain chevron instead of the solid triangle,
+   lower-weight and dimmer -- the "settings-panel" cue Fable flagged. Same
+   details/summary element, same open/close behaviour, only the glyph and its
+   weight change. */
+#planSheet .adv > summary::before { content: "›  "; font-weight: 400; opacity: .55; }
+#planSheet .adv[open] > summary::before { content: "⌄  "; }
+/* "Ask Claude directly" is genuinely tertiary next to Build a week / Just
+   today -- quieter type than the Training days / Adjust disclosures so it
+   reads as an occasional escape hatch, not a third core option. */
+#planSheet .adv--tertiary > summary { font-size: 12px; font-weight: 500; color: var(--faint); }
 .bsect { margin-top: 16px; }
-.blabel { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; margin-bottom: 8px; }
+/* Phase 4: sentence-case, untracked -- the old tracked-uppercase treatment was
+   the same "form field label" cue the Home week-tags moved away from. Copy is
+   already plain sentence case ("Goal", "Days a week", ...); this only stops
+   the CSS from re-shouting it. .blabel is Build-sheet-only, so edited directly
+   rather than scoped (unlike .sect__label/.adv, which are shared elsewhere). */
+.blabel { font-size: 12px; text-transform: none; letter-spacing: 0; color: var(--ink-dim); font-weight: 600; margin-bottom: 8px; }
 .bhint { margin: 9px 0 0; font-size: 12px; line-height: 1.4; color: var(--faint); }
 .seg--full { display: flex; width: 100%; }
 .seg--full button { flex: 1 1 0; padding: 11px 6px; text-align: center; min-height: 44px; }
@@ -1164,11 +1189,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <h2>Build my week</h2>
-    <p class="sheet__lead">Pick what you want. It builds instantly, offline.</p>
+    <p class="sheet__lead">Tell me what you've got, I'll build the session.</p>
 
     <div class="seg seg--full" id="planMode" role="group" aria-label="What to build" style="margin-bottom:18px">
-      <button data-mode="week" type="button" aria-pressed="true">Build a week</button>
-      <button data-mode="today" type="button" aria-pressed="false">Just today</button>
+      <button data-mode="week" type="button" aria-pressed="true">Build a week<span class="seg__sub">Plan the next block</span></button>
+      <button data-mode="today" type="button" aria-pressed="false">Just today<span class="seg__sub">Build one session</span></button>
     </div>
 
     <div id="modeWeek">
@@ -1265,8 +1290,8 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="preview hidden" id="todayPreview"></div>
     </div>
 
-    <details class="adv">
-      <summary>Advanced: import from Claude</summary>
+    <details class="adv adv--tertiary">
+      <summary>Ask Claude directly</summary>
       <div class="sect" style="margin-top:14px">
         <div class="sect__step"><span class="sect__num">1</span><span class="sect__label" style="margin:0">Copy this, paste it to Claude</span></div>
         <p class="sect__hint">Includes your progress and the exact format. Add what you want, then send.</p>
