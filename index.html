@@ -837,6 +837,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    applied only to the "Ask Claude directly" step labels ("1 Copy this...",
    "2 Paste Claude's reply"). */
 #planSheet .sect__label { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; }
+/* Phase 6 (Settings only): same de-tracking as #planSheet above, scoped
+   separately so this rule never collides with it. .sect__label/.sect__hint/
+   .chip/.seg/.intro__name are all shared with the Build sheet, onboarding
+   intro, and/or the complete receipt -- every Settings-specific tweak is
+   scoped to #sheet, the bare classes stay untouched. */
+#sheet .sect__label { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; color: var(--faint); }
 /* Quieter disclosure marker: a plain chevron instead of the solid triangle,
    lower-weight and dimmer -- the "settings-panel" cue Fable flagged. Same
    details/summary element, same open/close behaviour, only the glyph and its
@@ -1327,64 +1333,18 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <h2>Settings &amp; backup</h2>
+
+    <!-- Phase 6: coaching-shaping controls lead the sheet -- tuning the coach,
+         not toggling app controls. Section order below is presentation only:
+         every block is its own id-addressed div, so moving them here has no
+         effect on any handler, sync function, or hidden-attribute logic. -->
     <div class="sect">
-      <div class="sect__label">Your name</div>
-      <input class="intro__name" id="settingsName" type="text" maxlength="40" placeholder="Optional, used for greetings">
-    </div>
-    <div class="sect">
-      <div class="sect__label">Weight unit</div>
-      <div class="seg" id="unitSeg" role="group" aria-label="Weight unit">
-        <button data-unit-val="kg" type="button">kg</button>
-        <button data-unit-val="lb" type="button">lb</button>
-      </div>
-    </div>
-    <div class="sect" id="scheduleSect" hidden>
-      <div class="sect__label">Training days</div>
-      <div class="chips" id="sDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
-      <p class="sect__hint" style="margin-top:8px">Pick the weekdays you train, or tap all off to stay flexible.</p>
-    </div>
-    <div class="sect">
-      <div class="sect__label">Rest timer sound</div>
-      <div class="seg" id="soundSeg" role="group" aria-label="Rest timer sound">
-        <button data-sound-val="on" type="button">On</button>
-        <button data-sound-val="off" type="button">Off</button>
-      </div>
-    </div>
-    <div class="sect">
-      <div class="sect__label">Warm-up sets</div>
-      <div class="seg" id="warmSeg" role="group" aria-label="Warm-up sets">
-        <button data-warm-val="on" type="button">On</button>
-        <button data-warm-val="off" type="button">Off</button>
-      </div>
-    </div>
-    <div class="sect">
-      <div class="sect__label">While-you-rest moves</div>
-      <div class="seg" id="fillerSeg" role="group" aria-label="While-you-rest moves">
-        <button data-filler-val="on" type="button">On</button>
-        <button data-filler-val="off" type="button">Off</button>
-      </div>
-    </div>
-    <div class="sect">
-      <div class="sect__label">My equipment</div>
+      <div class="sect__label">Equipment</div>
       <div class="chips" id="myEquip" role="group" aria-label="Equipment I have"></div>
       <p class="sect__hint" style="margin-top:8px">Saved for every program you build; bodyweight is always included.</p>
     </div>
     <div class="sect">
-      <div class="sect__label">Advanced moves I can do</div>
-      <div class="chips" id="skillChips" role="group" aria-label="Advanced skill moves you can already do"></div>
-      <p class="sect__hint" style="margin-top:8px">Left out until you tick the ones you can already do; you get an easier version in their place.</p>
-    </div>
-    <div class="sect">
-      <div class="sect__label">Your training</div>
-      <div class="chips" id="expChips" role="group" aria-label="Experience level">
-        <button class="chip" data-exp="beginner" type="button">Beginner</button>
-        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
-        <button class="chip" data-exp="advanced" type="button">Advanced</button>
-      </div>
-      <p class="sect__hint" style="margin-top:8px">Sets how hard and how much the coach prescribes. Change it any time.</p>
-    </div>
-    <div class="sect">
-      <div class="sect__label">Injuries &amp; restrictions</div>
+      <div class="sect__label">Injuries and restrictions</div>
       <p class="sect__hint">All optional — skip anything that doesn't apply. The coach will never program anything you add here.</p>
 
       <!-- Product Polish Phase 1 (item 2): one simple front door instead of
@@ -1395,7 +1355,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="chips" id="injChips-quick" role="group" aria-label="Anything hurt, restricted, or off-limits"></div>
       <div class="btn-row" style="margin-top:8px">
         <input class="intro__name" id="injQuickInput" type="text" placeholder="e.g. Left shoulder" aria-label="Add anything hurt, restricted, or off-limits">
-        <button class="btn btn--primary" id="injQuickAdd" type="button">Add</button>
+        <button class="btn" id="injQuickAdd" type="button">Add</button>
       </div>
       <p class="sect__hint" style="margin-top:8px">Tap any entry to remove it.</p>
 
@@ -1432,9 +1392,66 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </details>
     </div>
     <div class="sect">
-      <div class="sect__label">Backup (everything)</div>
+      <div class="sect__label">Training level</div>
+      <div class="chips" id="expChips" role="group" aria-label="Experience level">
+        <button class="chip" data-exp="beginner" type="button">Beginner</button>
+        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
+        <button class="chip" data-exp="advanced" type="button">Advanced</button>
+      </div>
+      <p class="sect__hint" style="margin-top:8px">Sets how hard and how much the coach prescribes. Change it any time.</p>
+    </div>
+    <div class="sect" id="scheduleSect" hidden>
+      <div class="sect__label">Training days</div>
+      <div class="chips" id="sDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
+      <p class="sect__hint" style="margin-top:8px">Pick the weekdays you train, or tap all off to stay flexible.</p>
+    </div>
+
+    <!-- Phase 6: personal/session preferences -- secondary, reachable, not
+         over-promoted. -->
+    <div class="sect">
+      <div class="sect__label">Name</div>
+      <input class="intro__name" id="settingsName" type="text" maxlength="40" placeholder="Optional, used for greetings">
+    </div>
+    <div class="sect">
+      <div class="sect__label">Weight unit</div>
+      <div class="seg" id="unitSeg" role="group" aria-label="Weight unit">
+        <button data-unit-val="kg" type="button">kg</button>
+        <button data-unit-val="lb" type="button">lb</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">Rest timer sound</div>
+      <div class="seg" id="soundSeg" role="group" aria-label="Rest timer sound">
+        <button data-sound-val="on" type="button">On</button>
+        <button data-sound-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">Warm-up sets</div>
+      <div class="seg" id="warmSeg" role="group" aria-label="Warm-up sets">
+        <button data-warm-val="on" type="button">On</button>
+        <button data-warm-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">While-you-rest moves</div>
+      <div class="seg" id="fillerSeg" role="group" aria-label="While-you-rest moves">
+        <button data-filler-val="on" type="button">On</button>
+        <button data-filler-val="off" type="button">Off</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect__label">Advanced moves</div>
+      <div class="chips" id="skillChips" role="group" aria-label="Advanced skill moves you can already do"></div>
+      <p class="sect__hint" style="margin-top:8px">Left out until you tick the ones you can already do; you get an easier version in their place.</p>
+    </div>
+
+    <!-- Phase 6: stewardship group -- tertiary, quieter, still fully reachable.
+         Destructive actions keep their exact confirm mechanics and copy. -->
+    <div class="sect">
+      <div class="sect__label">Backup and restore</div>
       <div class="btn-row">
-        <button class="btn btn--primary" id="exportBtn" type="button">Export backup</button>
+        <button class="btn" id="exportBtn" type="button">Export backup</button>
         <button class="btn" id="importBtn" type="button">Import backup</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
