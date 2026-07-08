@@ -3008,6 +3008,13 @@ function selectComplementary(o) {
       // safety/equipment exclusion (which already removed it from the pool
       // entirely, upstream of this ranker).
       if (recentByPattern && recentByPattern[mp] === e.id) s += 20;
+      // Pass 1 (Programming Trust): Just Today anti-repeat memory. o.recentIds
+      // is only ever populated by Just Today's own build call (never by a
+      // week/4-week generateProgram build) -- a soft nudge, same idiom as the
+      // pattern-recency penalty above, so it can lose a tie but never be the
+      // reason a slot goes unfilled (a tiny equipment pool can still repeat
+      // itself if nothing else is genuinely eligible).
+      if (o.recentIds && o.recentIds[e.id]) s += 8;
       s += seededJitter(e.id, seedForSlot) * 5;                            // variety within ties
       return s;
     };
@@ -3729,6 +3736,17 @@ function canonicalExName(name) {
   var k = String(name).toLowerCase();
   return NAME_ALIASES[k] || k;
 }
+// Pass 1 (Programming Trust): flattens the last few Just-Today builds'
+// exercise ids (state.recentTodayIds, most recent first) into a lookup map
+// for selectComplementary's soft recency penalty. Only ever called from the
+// Just Today build path -- never from generateProgram's week/4-week builds.
+function recentTodayIdMap(state) {
+  var map = {};
+  (state && Array.isArray(state.recentTodayIds) ? state.recentTodayIds : []).forEach(function (ids) {
+    ids.forEach(function (id) { map[id] = 1; });
+  });
+  return map;
+}
 function buildWeightMap(state) {
   var map = {};
   function ingest(program, log) {
@@ -4344,7 +4362,7 @@ function buildIntent(opts, athlete) {
     })
   };
 }
-function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot, weeklyVolume, balance) {
+function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked, athlete, fatigueSnapshot, weeklyVolume, balance, recentIds) {
   parsed = parsed || {}; weightMap = weightMap || {}; seed = seed || 0; lastLogs = lastLogs || {};
   // Intent Blueprint: the ONE place stimulus/pattern/constraints are derived
   // (Programming Philosophy §3.1) -- everything below reads from it rather
@@ -4380,7 +4398,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
     debt: debt || null, lastLogs: lastLogs, fatigueBudget: ease ? 1 : 2, unlocked: unlocked || null,
     athlete: athlete || null, weightMap: weightMap, fatigueSnapshot: fatigueSnapshot || null,
-    balance: balance || null, biasMuscles: weakPointMuscles(weeklyVolume)
+    balance: balance || null, biasMuscles: weakPointMuscles(weeklyVolume), recentIds: recentIds || null
   });
   // Section 6: a per-pattern anchor deload (fatigue-red / stalled / exposure-
   // backstop) is decided independently of the whole-program calendar deload --
@@ -5086,7 +5104,7 @@ function resolveSpec(request, state) {
   }
   function freshState(program, opts) {
     opts = opts || {};
-    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "", todaySeedCounter: 0, athlete: normalizeAthlete(null) };
+    return { version: 2, unit: program.unit, theme: opts.theme || "system", program: program, activeWeek: 0, activeSession: 0, view: "week", log: {}, archive: opts.archive || [], restMuted: false, warmups: true, fillers: true, activeExerciseId: null, buildPrefs: null, readiness: null, unlockedSkills: [], userName: "", todaySeedCounter: 0, recentTodayIds: [], athlete: normalizeAthlete(null) };
   }
   function coerceState(parsed) {
     if (parsed && parsed.program) {
@@ -5106,6 +5124,14 @@ function resolveSpec(request, state) {
         unlockedSkills: Array.isArray(parsed.unlockedSkills) ? parsed.unlockedSkills.filter(function (x) { return typeof x === "string"; }) : [],
         userName: typeof parsed.userName === "string" ? parsed.userName.slice(0, 40) : "",
         todaySeedCounter: typeof parsed.todaySeedCounter === "number" ? parsed.todaySeedCounter : 0,
+        // Pass 1 (Programming Trust): a small rolling memory of recent Just
+        // Today builds' exercise ids, so back-to-back builds can softly avoid
+        // repeating themselves (see selectComplementary's recentIds penalty).
+        // Additive, optional, tolerant of anything malformed -- an old or
+        // hand-edited backup with no such field simply starts with none.
+        recentTodayIds: Array.isArray(parsed.recentTodayIds)
+          ? parsed.recentTodayIds.filter(function (a) { return Array.isArray(a); }).map(function (a) { return a.filter(function (x) { return typeof x === "string"; }); }).slice(0, 3)
+          : [],
         athlete: normalizeAthlete(parsed.athlete) };
     }
     if (parsed && parsed.sessions) return migrateV1toV2(parsed);
@@ -7696,7 +7722,7 @@ function resolveSpec(request, state) {
         // "Propose, never force": pre-build exactly what was requested (ease=false,
         // ignoring the degradation entirely) so a single explicit tap can have it --
         // never by silently reinterpreting the text, only this named escape hatch.
-        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance);
+        pendingTodayAnyway = generateSession(parsed, buildWeightMap(state), todaySeed + 1, buildLastLogs(state), spec.debt.byPattern, false, unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance, recentTodayIdMap(state));
         anywayBtn = '<button class="btn" id="buildAnywayToday" type="button">Build it anyway</button>';
       } else {
         // Phase 4: the selection engine consumes weekly debt so a Just-Today session
@@ -7704,7 +7730,7 @@ function resolveSpec(request, state) {
         // "eased"` (so-so readiness or an amber fatigue reading) drops a set per
         // exercise and tightens the fatigue budget, same mechanism as the existing
         // per-exercise RPE ease.
-        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance);
+        pendingToday = generateSession(parsed, buildWeightMap(state), todaySeed, buildLastLogs(state), spec.debt.byPattern, deg === "eased", unlockedSkillMap(), state.athlete, spec.fatigue, spec.debt.byMuscleVolume, spec.debt.byBalance, recentTodayIdMap(state));
         banner = debtHint(spec);
         if (deg === "eased" && spec.readiness.score === 1) banner += '<div class="preview__fatigue preview__fatigue--amber">You flagged today as so-so · easing off</div>';
       }
@@ -7777,6 +7803,20 @@ function resolveSpec(request, state) {
       // the same whitelist-drop bug class that bit session.blocks earlier.
       return { id: sid + "_e" + i, name: e.name, type: e.type, equipment: e.equipment, group: e.group || "", sets: e.sets, reps: e.reps, rir: (typeof e.rir === "number") ? e.rir : undefined, weight: e.weight || 0, target: e.target, rest: e.rest, notes: e.notes, why: e.why || "", curve: e.curve || "straight", setPlan: Array.isArray(e.setPlan) ? e.setPlan : [], block: e.block, densityMode: e.densityMode };
     }) };
+    // Pass 1 (Programming Trust): remember this build's substantive (strength +
+    // conditioning, not warm-up/cooldown mobility) library ids, so the NEXT Just
+    // Today build can softly avoid repeating them (selectComplementary's
+    // recentIds penalty). Keeps only the last 2 builds -- most recent first.
+    (function () {
+      var byName = {}; LIBRARY.forEach(function (l) { byName[l.name.toLowerCase()] = l; });
+      var ids = pendingToday.exercises
+        .filter(function (e) { return e.type === "strength" || e.type === "conditioning"; })
+        .map(function (e) { var lib = byName[e.name.toLowerCase()]; return lib ? lib.id : null; })
+        .filter(Boolean);
+      if (!Array.isArray(state.recentTodayIds)) state.recentTodayIds = [];
+      state.recentTodayIds.unshift(ids);
+      state.recentTodayIds = state.recentTodayIds.slice(0, 2);
+    })();
     // Gold-standard Phase A: carry the block/time-budget summary through too --
     // pendingToday came from generateSession/guaranteeSession, which already
     // attached it; this hand-rolled reconstruction (like normalizeExercise
