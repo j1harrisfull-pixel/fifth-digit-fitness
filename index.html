@@ -37,8 +37,20 @@
    ============================================================ */
 :root {
   --bg: #14110D; --grid: rgba(255,235,214,.022); --surface: #1C1915; --surface-2: #262119;
+  /* Visual System Phase B: a third, subtly raised elevation tier -- ordinary
+     cards/rows still use --surface; the ONE primary session card (.today-card)
+     uses --surface-3 so it reads as genuinely elevated above the week list,
+     not just a card with more padding. Not used anywhere else, deliberately --
+     a single hero surface, not a general "raised" class applied everywhere. */
+  --surface-3: #2E2820;
   --ink: #F6F1EA; --ink-dim: #9C9287; --line: #29241E; --line-strong: #473F35; --line-soft: #29241E;
-  --accent: #FF4A1C; --accent-ink: #FF4A1C; --on-accent: #14110D; --accent-tint: rgba(255,74,28,.14);
+  /* Visual System Phase A (2026-07): muted brass replaces the old vivid
+     orange-red. #C79A43 -- contrast-checked, not guessed: 7.29:1 as text/icon
+     on --bg, 6.19:1 on --surface-2 (badges), 7.29:1 for --on-accent text on a
+     filled accent button. All comfortably clear AA (4.5:1) and AAA (7:1) for
+     normal text, so no separate lighter "stronger variant" token was needed --
+     the single brass value already carries every real usage in this app. */
+  --accent: #C79A43; --accent-ink: #C79A43; --on-accent: #14110D; --accent-tint: rgba(199,154,67,.14);
   --mob: #26C281; --danger: #FF6B52;
   --ready: #26C281; --ready-tint: rgba(38,194,129,.14); --manage: #E8A23D; --rough: #FF6B52;
   --muted: #9C9287; --faint: #877D71;
@@ -47,11 +59,29 @@
      spends its bold move -- everywhere else stays flat and dark. */
   --paper: #F6F1EA; --paper-ink: #171310; --paper-dim: #8A8178; --paper-line: #DDD4C7;
   --shadow: none;
-  --radius: 5px; --tap: 48px; color-scheme: dark;
+  /* Visual System Phase A, J7 (hybrid): a slightly larger, calmer radius for
+     every ordinary border-radius surface (cards, chips, inputs, secondary
+     buttons). Primary/signature CTAs (.btn--primary, .logbar__btn,
+     .today-card__cta) render their corner via `clip-path`, which is
+     independent of border-radius and therefore untouched by this change --
+     the clipped-corner identity survives automatically, exactly per J7. */
+  --radius: 10px; --tap: 48px; color-scheme: dark;
   /* Swap-ready type system: repoint these two to switch the whole app's
      display/body face (e.g. to real Söhne) without touching any other rule. */
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
+  /* Visual System Phase B: a named type scale, applied only to the small set
+     of elements that genuinely define screen/card hierarchy (onboarding
+     headline, session hero title, active-session/week titles, exercise
+     name). The much larger cluster of 10-15px metadata/label sizes already
+     serves fine-grained UI chrome correctly and is deliberately untouched --
+     rewriting every font-size in the file is a rewrite, not a scale fix. */
+  --fs-display: 36px; --lh-display: 40px;
+  --fs-h1: 24px; --lh-h1: 32px;
+  --fs-h2: 18px; --lh-h2: 24px;
+  --fs-body: 16px; --lh-body: 24px;
+  --fs-small: 13px; --lh-small: 20px;
+  --fs-label: 11px; --lh-label: 16px;
 }
 
 * { box-sizing: border-box; }
@@ -115,15 +145,21 @@ input, textarea { font: inherit; color: inherit; }
 /* Lives inside .appbar, which is already position:sticky; top:0 for the whole
    header -- no sticky positioning of its own needed (nesting a second sticky
    context here just breaks the stick-to-viewport-top behavior). */
+/* Redesign Pass 1: the session top bar reads as an active coaching session,
+   not a broadcast/ops console. The old uppercase "LIVE · CHEST · BACK ·
+   SHOULDERS" tactical strip is gone (JS now sets the focus in normal case, no
+   "LIVE" prefix); the status dot is muted from a bright accent "recording
+   light" to a quiet presence cue; the label is a calm muted focus line; the
+   End control uses the Phase 2 hairline. Timer + End behaviour untouched. */
 .livebar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 12px) 14px 12px; border-bottom: 1px solid var(--line); }
-.livebar__dot { flex: none; width: 7px; height: 7px; background: var(--accent); }
+.livebar__dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
 /* Preview (day opened, not yet started): no live dot, no ticking clock. The
    label carries the focus; the End button reads 'Back' via JS. */
 .livebar--preview .livebar__dot, .livebar--preview .livebar__timer { display: none; }
 .livebar--preview .livebar__label { flex: 1; color: var(--ink); }
-.livebar__label { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--ink-dim); text-transform: uppercase; }
-.livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); }
-.livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; }
+.livebar__label { flex: none; font-size: 12px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink-dim); }
+.livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; }
 .livebar__end::after { content: ""; position: absolute; inset: -3px 0; }
 .livebar__end:hover { border-color: var(--ink); }
 .livebar__end--ready { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
@@ -140,24 +176,31 @@ input, textarea { font: inherit; color: inherit; }
 .daybar { display: flex; align-items: center; gap: 10px; padding: 2px 14px 12px; }
 .daybar__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; border-radius: var(--radius); cursor: pointer; }
 .daybar__back:hover { color: var(--ink); }
-.daybar__title { font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
+.daybar__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: -.01em; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 /* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
-.home-hero { padding: 8px 14px 4px; }
+.home-hero { padding: 12px 14px 4px; }
 /* The one line in the app that speaks directly to you -- time-of-day, named
    when we know a name. Quiet by design: no icon, no card, just a sentence
-   above whatever the hero is already showing. */
-.home-hero__greeting { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -.01em; color: var(--ink); margin: 0 0 12px; }
+   above whatever the hero is already showing. Deliberately smaller and
+   quieter than the session hero below it -- the greeting is a warm lead-in,
+   not a competing headline, so hierarchy reads greeting -> session -> action. */
+.home-hero__greeting { font-family: var(--font-body); font-weight: 600; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-dim); margin: 0 0 14px; }
 .home-hero__win { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 11px 13px; border: 1px solid var(--ready); background: color-mix(in srgb, var(--ready) 9%, transparent); font-size: 14px; font-weight: 600; color: var(--ink); }
 .home-hero__win-check { flex: none; display: grid; place-items: center; color: var(--ready); }
 .home-hero__win-check svg { width: 17px; height: 17px; }
 .home-hero__win b { font-weight: 700; }
 /* Consistency strip: the last 14 days, filled purely on whether a session was
    logged. No red for a gap -- an untrained day and a scheduled rest day look
-   identical, because the app has no opinion on your schedule, only a record. */
-.consistency { display: flex; gap: 5px; padding: 0 14px 14px; }
-.consistency-cell { flex: 1; height: 20px; background: var(--surface-2); border: 1px solid var(--line); }
-.consistency-cell.is-trained { background: var(--ready); border-color: var(--ready); }
+   identical, because the app has no opinion on your schedule, only a record.
+   Deliberately quiet and small -- a secondary reference under the session
+   hero, not a streak/progress widget: low-contrast cells, a muted (not
+   full-saturation) trained fill, and a plain caption instead of any framing
+   that implies a target or a goal. */
+.consistency-label { font-size: var(--fs-small); line-height: var(--lh-small); color: var(--faint); font-weight: 600; padding: 0 14px; margin: 6px 0 6px; }
+.consistency { display: flex; gap: 3px; padding: 0 14px 18px; }
+.consistency-cell { flex: 1; height: 10px; background: var(--surface-2); border: 1px solid var(--line-soft); }
+.consistency-cell.is-trained { background: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); border-color: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); }
 .consistency-cell.is-today { border-color: var(--ink-dim); }
 /* The fatigue reading, demoted from a percentage donut to one honest line:
    semantic dot + sentence, silent when there's no data yet. */
@@ -165,9 +208,17 @@ input, textarea { font: inherit; color: inherit; }
 .home-hero__reading-dot { flex: none; width: 8px; height: 8px; background: var(--ready); }
 .home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
 .home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
-.today-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+/* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
+   --line-strong outline made it a bordered box; pure fill-only elevation
+   (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
+   phone screens in daylight. So a TUNED soft hairline -- --line-strong blended
+   most of the way toward the card fill -- gives a restrained rim-light that's
+   lighter than the fill (so the card lifts) without returning to a frame.
+   --shadow stays none: elevation comes from fill + this quiet rim, not a drop
+   shadow, preserving the flat graphite identity. */
+.today-card { background: var(--surface-3); border: 1px solid color-mix(in srgb, var(--line-strong) 55%, var(--surface-3)); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
 .today-card__label { font-size: 11px; letter-spacing: .01em; color: var(--faint); font-weight: 600; margin-bottom: 6px; }
-.today-card__name { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
+.today-card__name { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: -.01em; margin: 0; }
 .today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
 .today-card__lifts { list-style: none; margin: 14px 0 2px; padding: 0; }
 .today-card__lift { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); }
@@ -186,7 +237,7 @@ input, textarea { font: inherit; color: inherit; }
 .recap-prs__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 6px; }
 .recap-prs__row { font-size: 14px; color: var(--ink); margin: 0 0 3px; }
 .recap-prs__row b { color: var(--accent-ink); font-weight: 700; }
-.today-card__cta { display: block; width: 100%; margin-top: 16px; background: var(--accent); color: var(--on-accent); border: 0; padding: 15px 32px 15px 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
+.today-card__cta { display: block; width: 100%; margin-top: 20px; background: var(--accent); color: var(--on-accent); border: 0; padding: 15px 32px 15px 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
 .weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
 .weekrow { display: flex; align-items: center; width: 100%; border-top: 1px solid var(--line); }
 .weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
@@ -195,23 +246,36 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__open:active { transform: scale(.995); }
 .weekrow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; }
-.weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--line-strong); color: var(--ink-dim); }
-.weekrow__tag--alt { color: var(--accent-ink); border-color: var(--accent-ink); }
-.weekrow__tag--done { color: var(--ready); border-color: var(--ready); }
-.weekrow__tag--prog { color: var(--ink-dim); border-color: var(--line-strong); }
-.weekrow__tag--skipped { color: var(--manage); border-color: var(--manage); border-style: dashed; }
-.weekrow__tag--pending { color: var(--faint); border-color: var(--line); }
-.weekrow__tag--today { color: var(--ready); border-color: var(--ready); }
+/* Visual Reset Phase 2: status tags move from outlined micro-boxes (which read
+   spec-sheet) to calm tinted-fill pills. Each state keeps its exact semantic
+   colour -- the tint carries the hue softly, the text keeps the meaning -- so
+   the week list stops reading like an admin grid while all six states stay
+   distinct. "skipped" retains a dashed rim (its long-standing distinguishing
+   cue) so it can never be mistaken for "pending"; every other tag is
+   borderless. Colours unchanged: alt=brass, done/today=green, prog/pending=
+   neutral (differentiated by tint strength), skipped=amber. */
+.weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 7px; border: 0; border-radius: var(--radius); background: color-mix(in srgb, var(--ink-dim) 13%, transparent); color: var(--ink-dim); }
+.weekrow__tag--alt { color: var(--accent-ink); background: color-mix(in srgb, var(--accent-ink) 16%, transparent); }
+.weekrow__tag--done { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
+.weekrow__tag--prog { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 15%, transparent); }
+.weekrow__tag--skipped { color: var(--manage); background: color-mix(in srgb, var(--manage) 15%, transparent); border: 1px dashed color-mix(in srgb, var(--manage) 50%, transparent); padding: 2px 6px; }
+.weekrow__tag--pending { color: var(--faint); background: color-mix(in srgb, var(--faint) 12%, transparent); }
+.weekrow__tag--today { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
 .weekrow__focus { font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; }
+/* Visual Reset Phase 2: the current/next session gets a quiet inset surface
+   tint so the list itself answers "where am I in the programme" when scrolled
+   past the hero. Wayfinding only -- --surface-2 fill, no accent, no border,
+   no CTA energy; it reinforces the hero rather than competing with it. */
+.weekrow.is-current { background: color-mix(in srgb, var(--surface-2) 75%, transparent); }
 .weekrow.is-current .weekrow__name { color: var(--ink); }
 .weekrow__chev { flex: none; color: var(--ink-dim); display: inline-flex; opacity: .6; }
 /* Quiet "Remove this day" at the foot of a day; faint until pressed. */
 .day-remove { display: block; margin: 8px auto 0; padding: 10px 14px; background: none; border: 0; color: var(--faint); font-size: 13px; font-weight: 600; cursor: pointer; }
 .day-remove:hover { color: var(--rough); }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; }
-.weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2); letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
 .weeknav { display: inline-flex; align-items: center; gap: 4px; flex: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; }
 .weeknav__btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; border-radius: var(--radius); font-size: 22px; line-height: 1; color: var(--ink); }
@@ -224,15 +288,21 @@ input, textarea { font: inherit; color: inherit; }
 /* (The old narrow-phone .runit override is gone: the per-row unit label was
    removed for ALL widths -- the column header labels Reps/Sec once. */
 
-/* One-time RPE / est-1RM explainer: pulled, dismissible, shown once. */
-.coachhint { margin: 0 14px 8px; padding: 12px 14px; border: 1px solid var(--line-strong); background: var(--surface); display: flex; align-items: flex-start; gap: 12px; }
+/* One-time RPE / est-1RM explainer: pulled, dismissible, shown once.
+   Quiet-aside pattern (Visual Phase 1): a calm note set INTO the page, not a
+   framed system notice. No full box border -- a filled surface + a subtle
+   brass left rule ties it to the coach-note language (Phase C) without
+   impersonating it (no italic, no quote form). Instructional guidance, not a
+   warning, not an individual exercise coach note. This is the reusable
+   "quiet aside" grammar; .today-subbanner shares it with a whisper of edge. */
+.coachhint { margin: 0 14px 8px; padding: 12px 14px 12px 16px; border: 0; border-left: 2px solid var(--accent); border-radius: var(--radius); background: var(--surface-2); display: flex; align-items: flex-start; gap: 12px; }
 /* display:flex overrides the plain [hidden] attribute, so the dismiss button's
    coachHint.hidden = true never actually hid it -- same bug class as .supernext. */
 .coachhint[hidden] { display: none; }
 .coachhint__body { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
 .coachhint__body b { color: var(--ink); font-weight: 700; }
-.coachhint__dismiss { flex: none; align-self: center; background: none; border: 1px solid var(--line-strong); color: var(--ink); font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; }
-.coachhint__dismiss:hover { border-color: var(--ink-dim); }
+.coachhint__dismiss { flex: none; align-self: center; background: none; border: 1px solid var(--line); color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius); cursor: pointer; transition: border-color .12s ease, color .12s ease; }
+.coachhint__dismiss:hover { border-color: var(--ink-dim); color: var(--ink); }
 
 /* ---------- Session head ---------- */
 .session { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 18px 6px; }
@@ -255,7 +325,7 @@ input, textarea { font: inherit; color: inherit; }
 /* Clear the sticky LOG bar's height so the last card's foot (est-1RM, History)
    never renders behind it. */
 body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
-.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 14px 12px; box-shadow: var(--shadow); transition: border-color .25s ease; }
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 16px 14px; box-shadow: var(--shadow); transition: border-color .25s ease; }
 .card.is-complete { border-color: color-mix(in srgb, var(--ready) 45%, var(--line)); }
 .card.is-complete::after { content: "DONE"; position: absolute; top: 14px; right: 16px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: .18em; color: var(--ready); }
 /* Collapsed rows already carry the green check; the stamp would overlap
@@ -264,7 +334,7 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .list.reveal .card { opacity: 0; animation: rise .5s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i) * 55ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-right: 44px; }
-.card__name { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.card__name { margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); font-weight: 700; letter-spacing: -.01em; }
 .card { cursor: pointer; }
 .card.is-complete:not(.is-current) { opacity: .55; }
 /* The type tag is a neutral outline folded onto the why-line, not a badge
@@ -277,7 +347,15 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    demoted to one quiet line everywhere else). .is-current is already toggled
    on the card by refreshCurrentCard, so this is a pure CSS promotion. */
 .card.is-current .card__subline { flex-direction: column; align-items: flex-start; gap: 6px; }
-.card.is-current .card__why { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; padding: 8px 10px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font-size: 13px; }
+/* Visual System Phase C: the coach note reads as "the coach speaking," not
+   another info box. A brass overline names it; the note itself sits in a
+   quiet left-accent quote treatment (no full border, no surface-2 box)
+   with an italic voice distinct from ordinary body copy. Same .why string,
+   same isInformativeWhy/anchor gating from Product Polish Phase 1 -- purely
+   presentational. */
+.card__coachnote { width: 100%; margin-top: 2px; }
+.card__coachnote-label { display: block; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 4px; }
+.card.is-current .card__why { display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 2px 0 2px 12px; border: 0; border-left: 2px solid var(--accent); background: none; color: var(--ink); font-size: var(--fs-body); font-style: italic; line-height: 1.4; }
 /* Active-screen rebuild: one exercise expanded at a time. .card__full carries
    every existing control untouched; .card__collapsed is a one-line summary.
    Which one shows is purely CSS, keyed on the same .is-current class
@@ -316,7 +394,13 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    (--manage), not the alarm accent, so it reads as "your turn" not "wrong". */
 .startweight.is-unset .startweight__label { color: var(--manage); }
 .startweight.is-unset .weight__input { color: var(--manage); }
-.startweight.is-unset .weight__field { border-bottom: 1.5px dashed var(--manage); padding-bottom: 1px; }
+/* Redesign Pass 1 alignment: the "set your weight" prompt keeps its amber
+   (--manage) "your turn" signal via the label + value colour, but the
+   underline is a CALM SOLID line, not the dashed cue Pass 1 removed from the
+   set rows -- so the active card never repeats the admin/spreadsheet language
+   we just took out. Same prompt purpose, still directly typable, no behaviour
+   change. */
+.startweight.is-unset .weight__field { border-bottom: 1px solid var(--manage); padding-bottom: 1px; }
 .startweight__group { display: inline-flex; align-items: center; gap: 5px; }
 .step { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
 .step:hover { border-color: var(--accent-ink); }
@@ -333,6 +417,13 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
 .card__last.is-earned { color: var(--ready); }
 .card__why { font-size: 12px; color: var(--ink-dim); margin: 0; }
+/* Redesign Pass 1 (J1): the prescription is one quiet coached line, not three
+   bordered spec cells -- "the plan for this lift" the way a coach would say it.
+   Same e.sets/e.reps/e.rest data; the numbers keep tabular mono so they stay
+   glanceable, the words are calm muted body text. Surface-first: no boxes. */
+.card__rx { margin: 10px 0 2px; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--ink-dim); }
+.card__rx-v { font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
+.card__rx-sep { color: var(--faint); margin: 0 2px; }
 .card__cue { margin: 0 0 14px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
 .setshead .setcount { margin-left: auto; }
@@ -361,7 +452,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    the 88px stepper cluster) and shear the columns apart. */
 .setcolhead, .setrow { grid-template-columns: 24px 54px 88px minmax(0, 1fr) 44px; }
 .setcolhead--noload, .setlist--noload .setrow { grid-template-columns: 24px 54px minmax(0, 1fr) 44px; }
-.setrow { display: grid; align-items: center; column-gap: 6px; min-height: 52px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); transition: background .14s ease, border-color .14s ease; }
+/* Redesign Pass 1 (J4): sets sit on the card surface as a guided list, not a
+   stack of bordered spreadsheet cells. No per-row border; state reads through
+   FILL, not border weight -- the next set gets a quiet inset --surface-2 fill,
+   a done set a restrained green tint. The column alignment + header are kept
+   (they make logging fast); only the boxed material is gone. */
+.setrow { display: grid; align-items: center; column-gap: 6px; min-height: 52px; padding: 6px 8px; border: 0; border-radius: var(--radius); transition: background .14s ease; }
 /* Non-strength sets share the strength setrow language (numbered row + circle
    tick); this variant collapses the grid to set-number / prescription / tick,
    since there's no prev/weight/reps stepper on timed or mobility work. Must sit
@@ -370,18 +466,22 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .setrow__rx { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 /* planned-vs-actual: a deliberate full-width second grid line (rendered only
    when a real target exists), never an accidental wrap. */
-.setrow__target { grid-column: 1 / -1; padding: 0 0 2px 24px; font-size: 11px; color: var(--ink-dim); font-family: "Spline Sans Mono", monospace; }
+.setrow__target { grid-column: 1 / -1; padding: 0 0 2px 24px; font-size: 11px; color: var(--ink-dim); font-family: var(--font-body); }
 /* Per-set effort: hidden until the set is logged, then revealed inline. */
 .setrow__rpe { grid-column: 1 / -1; display: none; align-items: center; gap: 6px; padding: 8px 0 3px 24px; }
 .setrow.is-done .setrow__rpe { display: flex; }
-.setrow__rpe-lbl { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-right: 3px; }
-.setrpe-chip { flex: none; min-width: 34px; min-height: 36px; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: var(--radius); font-family: "Spline Sans Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink-dim); transition: color .12s ease, border-color .12s ease, background .12s ease; }
-.setrpe-chip.is-set { color: var(--accent-ink); border-color: var(--accent-ink); background: var(--accent-tint); }
-.setrow.is-done { background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 40%, var(--line)); }
-/* The one live set: a stronger border + full-ink set number so the row you're
-   about to log is unmistakable and agrees with the sticky LOG bar. Neutral,
-   not accent -- the LOG bar stays the single orange signal. */
-.setrow.is-next { border-color: var(--line-strong); }
+.setrow__rpe-lbl { flex: none; font-family: var(--font-body); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-right: 3px; }
+/* Redesign Pass 1: effort chips are calm tinted pills, matching the Phase 2
+   status-tag language -- no outlined micro-boxes. Same reveal-after-done
+   mechanic, same tap, same values; selected keeps brass. */
+.setrpe-chip { flex: none; min-width: 34px; min-height: 36px; border: 0; background: var(--surface-2); border-radius: var(--radius); font-family: "Spline Sans Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink-dim); transition: color .12s ease, background .12s ease; }
+.setrpe-chip.is-set { color: var(--accent-ink); background: var(--accent-tint); }
+.setrow.is-done { background: var(--ready-tint); }
+/* The one live set: a quiet inset --surface-2 fill + full-ink set number so the
+   row you're about to log is unmistakable and agrees with the sticky LOG bar.
+   Neutral fill, not accent, not a border -- the LOG bar stays the single orange
+   signal, and the fill (not border weight) carries the state. */
+.setrow.is-next { background: var(--surface-2); }
 .setrow.is-next .setrow__n { color: var(--ink); font-weight: 600; }
 .setrow__n { font-family: "Spline Sans Mono", monospace; font-size: 13px; color: var(--ink-dim); text-align: center; }
 /* PREV: last session's own weight x reps for this exact set index, straight
@@ -400,8 +500,15 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    old button-vs-input toggle carried, now just a border style). The input is
    the ONE box in the cluster, so the value owns the eye. */
 .setrow__wt { display: flex; align-items: center; gap: 2px; justify-self: center; }
-.setrow__wtinput { flex: none; width: 44px; box-sizing: border-box; min-height: 30px; padding: 4px 2px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; }
-.setrow__wt.is-override .setrow__wtinput { border-style: solid; border-color: var(--accent-ink); }
+/* Redesign Pass 1 (J2): the weight is a quiet UNDERLINE field, not a dashed
+   spreadsheet cell (the clearest admin-form cue). Still directly typable, same
+   44px width + flanking ghost steppers, min-height raised 30->36 (same-or-
+   better target). Inherited/shared value reads dimmed; a per-set override reads
+   full-ink with a brass underline -- the same is-override distinction the old
+   dashed/solid border carried, now calmer. No box, no extra tap, no modal. */
+.setrow__wtinput { flex: none; width: 44px; box-sizing: border-box; min-height: 36px; padding: 4px 2px; border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; background: none; font-size: 15px; font-weight: 600; color: var(--ink-dim); text-align: center; font-variant-numeric: tabular-nums; }
+.setrow__wtinput:focus { outline: none; border-bottom-color: var(--ink); color: var(--ink); }
+.setrow__wt.is-override .setrow__wtinput { border-bottom-color: var(--accent); color: var(--ink); }
 /* Done: the one control that matters mid-set -- visibly tappable at rest (not
    transparent), fills ready-green on completion. Slightly larger than the
    other row controls so it reads as the primary action, not just another one. */
@@ -445,8 +552,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .swapbox.is-open { display: block; }
 .swap-hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 8px; }
 .swap-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.swap-chip { font-family: var(--font-body); font-size: 13px; padding: 8px 13px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: border-color .15s, color .15s; }
-.swap-chip:hover { border-color: var(--accent); color: var(--accent-ink); }
+/* Redesign Pass 1 consistency fix: swap-chip aligns to the calm tinted-pill
+   language -- a filled --surface-2 pill (still obviously tappable), not an
+   outlined box; hover gives brass feedback via tint rather than a border.
+   Presentation only, swap affordance and behaviour unchanged. */
+.swap-chip { font-family: var(--font-body); font-size: 13px; padding: 8px 13px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: background .15s, color .15s; }
+.swap-chip:hover { background: var(--accent-tint); color: var(--accent-ink); }
 .swap-chip:active { transform: scale(.97); }
 .notes__text:focus, .reps__input:focus { border-color: var(--accent-ink); outline: none; }
 .scheme { display: flex; gap: 18px; align-items: flex-end; margin-top: 14px; flex-wrap: wrap; }
@@ -464,13 +575,17 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .sheet__body { padding: 8px 20px calc(env(safe-area-inset-bottom) + 22px); overflow-y: auto; max-height: calc(92svh - 20px); }
 .sheet h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
 .sheet__lead { font-size: 13px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
-.sect { margin-bottom: 22px; }
+.sect { margin-bottom: 28px; }
 .sect__label { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim); font-weight: 700; margin-bottom: 10px; }
 .sect__step { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 .sect__num { font-family: "Spline Sans Mono", monospace; font-weight: 600; color: var(--accent-ink); }
 .sect__hint { font-size: 12px; color: var(--ink-dim); margin: 0 0 10px; line-height: 1.5; }
-.today-subbanner { border: 1px solid var(--line-strong); background: var(--surface-2); padding: 10px 12px; margin-bottom: 18px; }
-.today-subbanner__label { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
+/* Contextual aside (Visual Phase 1): softer than the old hard-bordered notice.
+   Keeps a whisper of edge (--line hairline, not --line-strong) because it marks
+   a real plan-state change ("this replaces the plan"), but reads as a calm
+   contextual note, not an alert box. Same quiet-aside family as .coachhint. */
+.today-subbanner { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: 10px 12px; margin-bottom: 18px; }
+.today-subbanner__label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
 .today-subbanner__detail { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin: 0; }
 .today-card__sub { display: block; width: 100%; background: none; border: 0; padding: 10px 0 0; margin: 0; font-size: 12.5px; color: var(--ink-dim); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 .today-card__sub:hover { color: var(--ink); }
@@ -533,7 +648,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* The real FD monogram, ink not accent -- the welcome now opens with the same
    mark as the icon/header/splash, not the old hand-drawn dumbbell glyph. */
 .intro__mark { width: auto; height: 42px; color: var(--ink); display: block; margin-bottom: 24px; }
-.intro__title { font-family: var(--font-display); font-weight: 800; font-size: 30px; letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
+.intro__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
 .intro__list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 13px; }
 .intro__list li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.5; color: var(--ink); }
 .intro__list li::before { content: ""; position: absolute; left: 0; top: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
@@ -597,9 +712,9 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* Gold-standard Phase A: quiet session-phase headers (Warm-up/Strength/
    Conditioning/Cool-down). No accent -- the one orange per screen stays spent
    on the LOG button; this is structural information, not a call to action. */
-.phasehead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 4px 6px; }
+.phasehead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 26px 4px 8px; }
 .phasehead:first-child { padding-top: 4px; }
-.phasehead__label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; }
+.phasehead__label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; }
 .phasehead__min { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 /* Phase C: EMOM/AMRAP density block card -- a movement list + one rounds
    count, logged once for the whole block instead of per exercise/per set. */
@@ -795,8 +910,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
    space open on every render. */
 .warmup { margin-bottom: 4px; }
 .warm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 9px; min-height: 28px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: none; color: var(--ink-dim); font-size: 12px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, border-color .15s ease; }
-.warm-pill.is-done { opacity: .4; border-style: solid; }
+/* Redesign Pass 1 consistency fix: warm-up ramp pills lose the dashed border
+   (the last admin/spreadsheet cue left in the active card) and become calm
+   surface-first tinted pills, matching the effort-chip / status-tag language.
+   State reads through fill + fade, not a border: a pending ramp set is a
+   quiet filled pill; a done one fades to .4. Same tap, same size, same
+   meaning -- presentation only. */
+.warm-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 9px; min-height: 28px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink-dim); font-size: 12px; font-family: "Spline Sans Mono", monospace; cursor: pointer; transition: opacity .15s ease, background .15s ease; }
+.warm-pill.is-done { opacity: .4; }
 .warm-pill__w { font-weight: 700; color: var(--ink); }
 .warm-pill.is-done .warm-pill__w { color: var(--ink-dim); }
 
@@ -865,7 +986,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <div class="livebar view-day" id="liveBar">
       <span class="livebar__dot" aria-hidden="true"></span>
-      <span class="livebar__label mono" id="liveBarLabel">LIVE</span>
+      <span class="livebar__label" id="liveBarLabel"></span>
       <span class="livebar__timer mono" id="liveBarTimer" aria-label="Session time elapsed">0:00</span>
       <button type="button" class="livebar__end" id="liveBarEnd">End</button>
     </div>
@@ -877,6 +998,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 
   <main>
     <div class="home-hero view-week" id="homeHero"></div>
+    <p class="consistency-label view-week" id="consistencyLabel"></p>
     <div class="consistency view-week" id="consistencyStrip"></div>
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
@@ -5295,7 +5417,8 @@ function resolveSpec(request, state) {
   function localDayKey(d) { return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
   function renderConsistencyStrip() {
     var el = $("consistencyStrip"); if (!el) return;
-    if (!hasProgram()) { el.innerHTML = ""; return; }
+    var lbl = $("consistencyLabel");
+    if (!hasProgram()) { el.innerHTML = ""; if (lbl) lbl.textContent = ""; return; }
     var data = buildHistoryData(state), trainedDays = {};
     data.sessions.forEach(function (s) { if (s.date) { try { trainedDays[localDayKey(new Date(s.date))] = true; } catch (e) {} } });
     var today = new Date(), cells = [];
@@ -5306,6 +5429,7 @@ function resolveSpec(request, state) {
       cells.push('<span class="consistency-cell' + (trained ? " is-trained" : "") + (i === 0 ? " is-today" : "") + '" title="' + esc(label) + '"></span>');
     }
     el.innerHTML = cells.join("");
+    if (lbl) lbl.textContent = "Last 14 days";
   }
   function renderHomeHero() {
     var el = $("homeHero"); if (!el) return;
@@ -5684,13 +5808,17 @@ function resolveSpec(request, state) {
     var sessions = curWeek().sessions;
     $("dayTitle").textContent = dayPositionLabel(sessions, state.activeSession);
     var lbl = $("liveBarLabel"), bar = $("liveBar"), ses = curSession();
-    var focus = (ses ? (ses.focus || ses.name) : "").toUpperCase();
+    // Redesign Pass 1: the focus reads in normal case (not shouted uppercase)
+    // and without the "LIVE ·" broadcast prefix -- an active coaching session,
+    // not an ops console. The live boolean still drives the preview class and
+    // the ticking timer below; only the LABEL text changes here.
+    var focus = ses ? (ses.focus || ses.name) : "";
     // A day is a PREVIEW until you log your first working set -- opening it to
     // read Wednesday's plan shouldn't start a live session with a ticking clock.
     // sessionLive() flips true on the first logged set (ensureSessionLive).
     var live = sessionLive();
     if (bar) bar.classList.toggle("livebar--preview", !live);
-    if (lbl) lbl.textContent = live ? ("LIVE · " + focus) : focus;
+    if (lbl) lbl.textContent = focus;
     // The finish control is ALWAYS present so you can end early (injury, time,
     // ran short) -- but it earns emphasis only when the work is actually done:
     // a soft "End" while sets remain, a solid "Finish" once every non-skipped
@@ -5881,8 +6009,9 @@ function resolveSpec(request, state) {
         ? (prevReps != null ? (prevReps + " reps") : "–")
         : ((lr && lr.weight > 0 && prevReps != null) ? (roundW(lr.weight) + "×" + prevReps) : "–");
       // Always a typable input (never a tap-to-reveal button) flanked by ghost
-      // +/- steppers -- dashed border while inheriting the exercise's shared
-      // weight, solid once this set has its own explicit value. Omitted
+      // +/- steppers. A dimmed value + quiet underline while inheriting the
+      // exercise's shared weight; full-ink + brass underline once this set has
+      // its own explicit value (see .setrow__wtinput / .is-override). Omitted
       // entirely for rep-driven exercises where a kg number is meaningless.
       var wtCtrl = loadable ? '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '">' +
         '<button type="button" class="wtstep" data-act="wt-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Decrease weight, set ' + (k + 1) + '">−</button>' +
@@ -6096,10 +6225,37 @@ function resolveSpec(request, state) {
     var uniformTarget = e.type === "strength" ? computeUniformTarget(lg) : null;
     var targetLine = targetLineHtml(uniformTarget, unit);
     var cueInner = (e.target ? '<span>target <b>' + esc(effortifyTarget(e.target)) + '</b></span>' : "") + (e.rest ? '<span>rest <b>' + esc(e.rest) + '</b></span>' : "");
-    // Conditioning: target IS the prescription, keep it on the card face. Strength/mobility:
-    // target/rest is reference, so demote it into Form notes and keep the face glanceable.
+    // Conditioning: target IS the prescription, keep it on the card face.
     var faceCue = (e.type === "conditioning" && cueInner) ? '<div class="cue">' + cueInner + '</div>' : "";
-    var notesCue = (e.type !== "conditioning" && cueInner) ? '<div class="cue cue--notes">' + cueInner + '</div>' : "";
+    // Visual System Phase C: strength's prescription (sets/reps/rest) used to
+    // be hidden prose inside the "Edit sets" disclosure (cue--notes below).
+    // It now also gets a glanceable, always-visible stat row -- same
+    // e.sets/e.reps/e.rest fields, no new data, just surfaced where a
+    // coach's clipboard would put it. cue--notes' own condition narrows to
+    // mobility only (mobility's target/rest are always empty strings from
+    // prescription(), so this is a no-op there today, not a visible change);
+    // strength no longer needs the hidden duplicate once the stat row shows
+    // the same numbers up front. Effort/target is deliberately NOT a fourth
+    // cell here: "Effort 7 · 3 reps left" is real, established coaching
+    // vocabulary (Consistency task #143) that doesn't fit a compact cell
+    // without wrapping awkwardly or truncating -- it already has its own
+    // dedicated, better-fitted home in targetLineHtml below, so dropping it
+    // from this row loses no information, only a cramped, uneven 4th cell.
+    var notesCue = (e.type === "mobility" && cueInner) ? '<div class="cue cue--notes">' + cueInner + '</div>' : "";
+    var statCells = [];
+    if (e.type === "strength") {
+      if (total > 0) statCells.push({ l: "Sets", v: String(total) });
+      if (e.reps) statCells.push({ l: (exTimed(e.name) ? "Sec" : "Reps"), v: e.reps });
+      if (e.rest) statCells.push({ l: "Rest", v: e.rest });
+    }
+    // Redesign Pass 1 (J1): the prescription reads as one quiet coached line
+    // ("4 sets · 5-6 reps · 2 min rest") instead of three bordered spec cells.
+    // Same statCells data (e.sets/e.reps/e.rest) -- presentation only, no
+    // information loss: sets, reps and rest all remain visible; effort/target
+    // guidance still lives on the set rows exactly as before.
+    var statRow = statCells.length
+      ? '<p class="card__rx">' + statCells.map(function (c) { return '<span class="card__rx-v mono">' + esc(c.v) + '</span> ' + esc(c.l.toLowerCase()); }).join(' <span class="card__rx-sep">·</span> ') + '</p>'
+      : '';
     var swapHtml = "";
     if (e.type === "conditioning" && typeof conditioningAlternatives === "function") {
       var allowedEq = (state.buildPrefs && Array.isArray(state.buildPrefs.equipment)) ? state.buildPrefs.equipment : null;
@@ -6139,8 +6295,11 @@ function resolveSpec(request, state) {
     // tag rarely informs. When both are empty, the subline is omitted whole.
     var showWhy = isInformativeWhy(e.why, ctx.anchorId != null && e.id === ctx.anchorId);
     var showTag = e.type !== "strength";
+    // Visual System Phase C: the why-text itself is unchanged (same string,
+    // same isInformativeWhy/anchor gating) -- only wrapped in a labeled
+    // "Coach note" block so it reads as spoken guidance, not a stray line.
     var subLine = (showTag || showWhy)
-      ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<p class="card__why">' + esc(e.why) + '</p>' : '') + '</div>'
+      ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<div class="card__coachnote"><span class="card__coachnote-label">Coach note</span><p class="card__why">' + esc(e.why) + '</p></div>' : '') + '</div>'
       : '';
     // Step 4 (Active screen): the coaching cue collapses behind its own toggle
     // again, default collapsed -- the always-visible face from Task 2 competed
@@ -6181,6 +6340,7 @@ function resolveSpec(request, state) {
       exOverline +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
       subLine +
+      statRow +
       formNotes +
       weightCtrl +
       warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
