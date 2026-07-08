@@ -7117,9 +7117,20 @@ function resolveSpec(request, state) {
     if (ni < 0 || ni >= state.program.weeks.length) return;
     hideRest(); state.activeWeek = ni; state.activeSession = 0; save(); renderAll(true);
   }
+  // Gate 2 (Final Sprint): a week-row tap is browsing, not starting -- the
+  // readiness gate belongs to TODAY's own row (or the hero, handled
+  // separately), never to a future/non-current day just because it happens
+  // to be un-started. todaySessionIdx already carries the app's one real
+  // notion of "today" for a scheduled program (-1 for an unscheduled one, so
+  // every row there is correctly preview-only). Everything else --
+  // shouldPromptReadiness, openDay, ensureSessionLive, the recovery swap --
+  // is unchanged; this is routing only.
   weekListEl.addEventListener("click", function (ev) {
     var open = ev.target.closest(".weekrow__open");
-    if (open) maybeOpenDayWithReadiness(parseInt(open.getAttribute("data-day"), 10));
+    if (!open) return;
+    var day = parseInt(open.getAttribute("data-day"), 10);
+    if (day === todaySessionIdx(curWeek().sessions)) maybeOpenDayWithReadiness(day);
+    else openDay(day);
   });
   $("backWeek").addEventListener("click", backToWeek);
   $("liveBarEnd").addEventListener("click", endSession);
