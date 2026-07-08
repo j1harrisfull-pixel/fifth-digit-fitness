@@ -1649,6 +1649,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   function numOr(v, d) { v = parseFloat(v); return isNaN(v) ? d : v; }
   function str(v, d) { return v == null ? (d || "") : String(v); }
   function roundW(n) { return Math.round(n * 100) / 100; }
+  // Pass 1 (Programming Trust): a ramp curve's wpct (e.g. 0.85) multiplied
+  // against a real working weight lands on an arbitrary fractional number
+  // (60kg * 0.85 = 51kg) that no plate-loaded bar can actually make. This
+  // rounds ONLY that product to the nearest real load step (STEP, already the
+  // app's own +/- increment) -- it is intentionally separate from roundW,
+  // which stays the universal 2-decimal DISPLAY rounder used everywhere else
+  // in the app and must not change. Only called at the two sites where a
+  // ramp's wpct meets a real weight (readLog's prefill, writeLog's logged
+  // target_weight) -- straight sets (wpct===1) never reach it.
+  function roundToStep(n) { return Math.round(n / STEP) * STEP; }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch (e) { return "—"; } }
   var EX_TYPES = ["strength", "mobility", "conditioning"];
@@ -5234,7 +5244,10 @@ function resolveSpec(request, state) {
       // wins. planReps is the ramp's explicit per-set target (null on straight sets,
       // where the existing prefill logic is kept).
       var wpct = (typeof pe.wpct === "number" && pe.wpct > 0) ? pe.wpct : 1;
-      var curveW = roundW(dfltWeight * wpct);
+      // Pass 1: a ramp's non-1 wpct gets snapped to a real load step so Set 1
+      // never shows an unloadable number like 51 -- straight sets (wpct===1)
+      // are completely unaffected, same value as before.
+      var curveW = wpct === 1 ? roundW(dfltWeight * wpct) : roundToStep(dfltWeight * wpct);
       var planReps = pe.reps != null ? pe.reps : null;
       // The set's planned reps: the ramp's explicit per-set target when there is
       // one, else whatever was persisted at write time (repsTop(ex) -- see
@@ -5282,7 +5295,7 @@ function resolveSpec(request, state) {
       var pe = plan[el.sets.length] || {};
       var wpct = (typeof pe.wpct === "number" && pe.wpct > 0) ? pe.wpct : 1;
       el.sets.push({
-        target_weight: roundW(el.weight * wpct), actual_weight: null,
+        target_weight: wpct === 1 ? roundW(el.weight * wpct) : roundToStep(el.weight * wpct), actual_weight: null,
         target_reps: pe.reps != null ? pe.reps : targetReps, actual_reps: null,
         target_rpe: null, actual_rpe: null,
         set_type: "working", side: "bilateral",
