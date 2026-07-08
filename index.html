@@ -5376,6 +5376,12 @@ function resolveSpec(request, state) {
   function sessionItems() { return sessionItemsFor(curSession()); }
   function currentId() {
     var sel = state.activeExerciseId;
+    // Pass 2 (exercise completion behaviour): finishing an exercise's last
+    // set deliberately collapses it without opening the next one -- setdone
+    // marks that with this reserved sentinel (matches no real exercise id),
+    // so the "never chosen yet" fallback below must NOT treat it the same
+    // as an unset selection and auto-pick the next incomplete exercise.
+    if (sel === "__collapsed__") return null;
     if (sel && curSession().exercises.some(function (e) { return e.id === sel; })) return sel;
     return firstIncompleteId(sessionItems());
   }
@@ -5421,11 +5427,14 @@ function resolveSpec(request, state) {
   function refreshLogBarInner(cid, items) {
     var bar = $("logBar"), btn = $("logBarBtn"); if (!bar || !btn) return;
     var card = cid ? listEl.querySelector('.card[data-ex="' + cid + '"]') : null;
-    if (!card) { bar.hidden = true; return; }
+    // Pass 2 (exercise completion behaviour): a just-completed exercise may
+    // collapse (no card is-current) while other exercises are still open --
+    // the quiet "next" cue below must still fire from firstIncompleteId(items)
+    // even with no expanded card, so this no longer bails out on a null card.
     // Mark exactly the row the LOG bar targets, so the row and the bar always
     // agree on "where am I" (line-strong border + ink set number, not accent).
-    card.querySelectorAll(".setrow.is-next").forEach(function (r) { r.classList.remove("is-next"); });
-    var nextRow = card.querySelector(".setrow:not(.is-done)");
+    if (card) card.querySelectorAll(".setrow.is-next").forEach(function (r) { r.classList.remove("is-next"); });
+    var nextRow = card ? card.querySelector(".setrow:not(.is-done)") : null;
     if (nextRow) {
       nextRow.classList.add("is-next");
       var setNo = parseInt(nextRow.getAttribute("data-set"), 10) + 1;
@@ -6881,6 +6890,9 @@ function resolveSpec(request, state) {
       refreshCollapsedMeta(card, e, dc);
       if (on) {
         unlockAudio(); ensureSessionLive();
+        // Pass 2 (exercise completion behaviour): same collapse-on-finish as
+        // the strength setdone path below -- see its comment for the reason.
+        if (dc === e.sets && state.activeExerciseId === e.id) { state.activeExerciseId = "__collapsed__"; save(); }
         // Logging the LAST set no longer auto-fires the receipt -- finishing is
         // a deliberate tap on the LIVE bar. On completion: no rest (nothing's
         // next), just flip the bar to a solid "Finish". Otherwise rest as usual.
@@ -7021,6 +7033,13 @@ function resolveSpec(request, state) {
       refreshFoot(dcard, e, ses);
       if (on2) {
         unlockAudio(); ensureSessionLive();
+        // Pass 2 (exercise completion behaviour): once every set of the
+        // exercise the user was actively working is logged, collapse it back
+        // to its compact row rather than leaving it pinned open -- the user
+        // picks what's next (tap another card, or the quiet muted-bar cue),
+        // the app never auto-opens one for them. Only fires for the exercise
+        // that was actually current, and only on completion, not un-checking.
+        if (ddc === e.sets && state.activeExerciseId === e.id) { state.activeExerciseId = "__collapsed__"; save(); }
         // See the checkbox path above: last set flips the bar to "Finish"
         // rather than auto-firing the receipt.
         var pr2 = sessionProgress(sessionItemsFor(ses));
