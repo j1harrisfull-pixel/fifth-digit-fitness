@@ -191,8 +191,11 @@ input, textarea { font: inherit; color: inherit; }
    when we know a name. Quiet by design: no icon, no card, just a sentence
    above whatever the hero is already showing. Deliberately smaller and
    quieter than the session hero below it -- the greeting is a warm lead-in,
-   not a competing headline, so hierarchy reads greeting -> session -> action. */
-.home-hero__greeting { font-family: var(--font-body); font-weight: 600; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-dim); margin: 0 0 14px; }
+   not a competing headline, so hierarchy reads greeting -> session -> action.
+   Phase 3: full ink (not dimmed) and a touch larger so it reads as a genuine
+   coach check-in, not a muted label -- still clearly lighter (500) than the
+   hero name's 800, so the today-card stays the loudest thing on screen. */
+.home-hero__greeting { font-family: var(--font-body); font-weight: 500; font-size: 18px; line-height: 1.3; color: var(--ink); margin: 0 0 14px; }
 .home-hero__win { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 11px 13px; border: 1px solid var(--ready); background: color-mix(in srgb, var(--ready) 9%, transparent); font-size: 14px; font-weight: 600; color: var(--ink); }
 .home-hero__win-check { flex: none; display: grid; place-items: center; color: var(--ready); }
 .home-hero__win-check svg { width: 17px; height: 17px; }
@@ -204,14 +207,19 @@ input, textarea { font: inherit; color: inherit; }
    hero, not a streak/progress widget: low-contrast cells, a muted (not
    full-saturation) trained fill, and a plain caption instead of any framing
    that implies a target or a goal. */
-.consistency-label { font-size: var(--fs-small); line-height: var(--lh-small); color: var(--faint); font-weight: 600; padding: 0 14px; margin: 6px 0 6px; }
-.consistency { display: flex; gap: 3px; padding: 0 14px 18px; }
-.consistency-cell { flex: 1; height: 10px; background: var(--surface-2); border: 1px solid var(--line-soft); }
-.consistency-cell.is-trained { background: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); border-color: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); }
-.consistency-cell.is-today { border-color: var(--ink-dim); }
+/* Phase 3: a calm consistency cue, not an admin grid -- smaller, rounded,
+   borderless cells with a warmer trained tint; the tertiary-tier treatment
+   this content earns below the fold. Same data, same title attributes. */
+.consistency-label { font-size: 11px; line-height: 1.4; color: var(--faint); font-weight: 600; padding: 0 14px; margin: 4px 0 8px; }
+.consistency { display: flex; gap: 4px; padding: 0 14px 18px; }
+.consistency-cell { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); border: 0; }
+.consistency-cell.is-trained { background: color-mix(in srgb, var(--ready) 50%, var(--surface-2)); }
+.consistency-cell.is-today { box-shadow: 0 0 0 1px var(--ink-dim); }
 /* The fatigue reading, demoted from a percentage donut to one honest line:
-   semantic dot + sentence, silent when there's no data yet. */
-.home-hero__reading { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--ink); }
+   semantic dot + sentence, silent when there's no data yet. Phase 3: a touch
+   lighter than the greeting so it reads as secondary state, not a second
+   statement competing for the same attention. */
+.home-hero__reading { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 500; color: var(--ink-dim); }
 .home-hero__reading-dot { flex: none; width: 8px; height: 8px; background: var(--ready); }
 .home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
 .home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
@@ -261,11 +269,15 @@ input, textarea { font: inherit; color: inherit; }
    cue) so it can never be mistaken for "pending"; every other tag is
    borderless. Colours unchanged: alt=brass, done/today=green, prog/pending=
    neutral (differentiated by tint strength), skipped=amber. */
-.weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 7px; border: 0; border-radius: var(--radius); background: color-mix(in srgb, var(--ink-dim) 13%, transparent); color: var(--ink-dim); }
+/* Phase 3: sentence-case, body font, no tracking -- the old mono/uppercase/
+   tracked chrome was the clearest "status dashboard" cue on this screen.
+   Same colour-coding per state, same tag chrome (pill, quiet fill), just
+   speaking the app's normal type voice instead of a console readout. */
+.weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0; padding: 3px 8px; border: 0; border-radius: var(--radius); background: color-mix(in srgb, var(--ink-dim) 13%, transparent); color: var(--ink-dim); }
 .weekrow__tag--alt { color: var(--accent-ink); background: color-mix(in srgb, var(--accent-ink) 16%, transparent); }
 .weekrow__tag--done { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
-.weekrow__tag--prog { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 15%, transparent); }
-.weekrow__tag--skipped { color: var(--manage); background: color-mix(in srgb, var(--manage) 15%, transparent); border: 1px dashed color-mix(in srgb, var(--manage) 50%, transparent); padding: 2px 6px; }
+.weekrow__tag--prog { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 15%, transparent); font-variant-numeric: tabular-nums; }
+.weekrow__tag--skipped { color: var(--manage); background: color-mix(in srgb, var(--manage) 15%, transparent); border: 1px dashed color-mix(in srgb, var(--manage) 50%, transparent); padding: 2px 7px; }
 .weekrow__tag--pending { color: var(--faint); background: color-mix(in srgb, var(--faint) 12%, transparent); }
 .weekrow__tag--today { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
@@ -282,7 +294,10 @@ input, textarea { font: inherit; color: inherit; }
 .day-remove { display: block; margin: 8px auto 0; padding: 10px 14px; background: none; border: 0; color: var(--faint); font-size: 13px; font-weight: 600; cursor: pointer; }
 .day-remove:hover { color: var(--rough); }
 .weekbar__prog { min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; }
-.weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2); letter-spacing: -.01em; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Phase 3 (Home): quiet program context, not a second headline -- the
+   greeting and today's plan card carry the actual hierarchy now. Same
+   title text/truncation, just demoted a full step below --fs-h2/700. */
+.weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-body); font-weight: 600; font-size: 14px; color: var(--ink-dim); letter-spacing: 0; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
 .weeknav { display: inline-flex; align-items: center; gap: 4px; flex: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; }
 .weeknav__btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; border-radius: var(--radius); font-size: 22px; line-height: 1; color: var(--ink); }
@@ -715,8 +730,11 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .today-subbanner { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: 10px 12px; margin-bottom: 18px; }
 .today-subbanner__label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
 .today-subbanner__detail { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin: 0; }
-.today-card__sub { display: block; width: 100%; background: none; border: 0; padding: 10px 0 0; margin: 0; font-size: 12.5px; color: var(--ink-dim); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.today-card__sub:hover { color: var(--ink); }
+/* Phase 3: matches the app's plain quiet-link language (.notes-toggle,
+   .coachhint__dismiss) instead of an underlined link -- a secondary
+   disclosure, not a second call to action next to the brass CTA. */
+.today-card__sub { display: block; width: 100%; background: none; border: 0; padding: 10px 0 0; margin: 0; font-size: 12.5px; color: var(--faint); text-align: left; cursor: pointer; }
+.today-card__sub:hover { color: var(--ink-dim); }
 .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; }
 .seg button { border: 0; background: none; padding: 9px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
 /* Quiet selected state: tonal cell + ink ring, not a solid near-white slab.
@@ -5623,7 +5641,7 @@ function resolveSpec(request, state) {
     // during a live session; the week recap takes this slot once the week's done.
     var liftsHtml = "";
     if (!weekDone && heroSes && heroSes.exercises.length) {
-      var MAXL = 6, exl = heroSes.exercises;
+      var MAXL = 3, exl = heroSes.exercises;
       var rowsL = exl.slice(0, MAXL).map(function (ex) {
         var meta = (ex.type === "strength" && ex.reps) ? '<span class="today-card__lift-meta mono">' + esc(ex.sets + "×" + ex.reps) + '</span>' : "";
         return '<li class="today-card__lift"><span class="today-card__lift-name">' + esc(ex.name) + '</span>' + meta + '</li>';
@@ -5880,19 +5898,22 @@ function resolveSpec(request, state) {
       // "Today" is a neutral when-marker, on its own axis (scheduling), so it
       // stays inline by the name; only shown for a scheduled program, and not
       // on a day already finished (nothing left to do there today).
-      if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">TODAY</span>';
+      // Phase 3: sentence-case tag text (was uppercase) -- same tags, same
+      // meaning, quieter status-board feel. CSS no longer uppercases via
+      // text-transform either, so this is the literal on-screen text now.
+      if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">Today</span>';
       // ALT marks a swapped-in alternate session -- a content-origin marker on
       // its own axis, so it also sits inline by the name.
-      if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' ALT</span>';
+      if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' Alt</span>';
       // Completion status: ONE consistent tag per row on the right, same chrome,
-      // colour-coded -- DONE / a live N/M count / SKIPPED (moved past) / NOT YET
+      // colour-coded -- Done / a live N/M count / Skipped (moved past) / Not yet
       // (upcoming). Replaces the old mix of a check tag, a lowercase "done"
       // word, and a bare fraction that each spoke a different visual language.
       var statHtml;
-      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' DONE</span>';
+      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' Done</span>';
       else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
-      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
-      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">NOT YET</span>';
+      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">Skipped</span>';
+      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">Not yet</span>';
       // No per-row delete: a destructive control shown on every row of the
       // most-visited screen, for an action taken maybe once a program. It now
       // lives quietly inside the day itself (see the "Remove this day" control
