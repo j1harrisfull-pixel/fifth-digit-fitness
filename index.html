@@ -3257,7 +3257,11 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
       // Scale the finisher to the SESSION, not a flat 20-min floor: a 30-min
       // session that a user chose because they have 30 minutes can't spend 20 of
       // them on Zone 2 and still lift. ~a third of the budget, 10-40 min.
-      var z = Math.max(10, Math.min(40, Math.round(mins * 0.35)));
+      // Pass 1 (Programming Trust): snapped to 5-min coaching blocks -- a raw
+      // round() could land on 16, 17, 23 etc, which reads as arbitrary rather
+      // than a deliberate prescription. Clamp is re-applied after snapping so
+      // the 5-min rounding itself can never push the result outside 10-40.
+      var z = Math.max(10, Math.min(40, Math.round((mins * 0.35) / 5) * 5));
       return { sets: 1, reps: z + " min", target: "Zone 2 · conversational pace", rest: "" };
     }
     if (ex.intensity === "threshold") {
