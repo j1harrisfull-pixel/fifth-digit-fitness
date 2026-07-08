@@ -1023,7 +1023,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .history__title { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; margin: 0 0 16px; }
 .history__empty { font-size: 14px; color: var(--ink-dim); padding: 8px 0 20px; }
 .history__section { margin-bottom: 22px; }
-.history__section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--faint); font-weight: 700; margin: 0 0 10px; }
+/* Phase 5: sentence-case, untracked -- same de-shouting as .weekrow__tag and
+   .blabel before it. Applies uniformly to all three sections; the ORDER the
+   sections render in (see openHistory()) carries the hierarchy now, not one
+   eyebrow being louder than another. */
+.history__section-title { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 600; margin: 0 0 10px; }
+/* Phase 5: "Training so far" is real, earned lifetime context -- not the
+   hero of the sheet. Scoped to #historySheet because .recap-stat* is shared
+   with Home's locked week-complete recap card (renderHomeHero); the bare
+   class must stay untouched so Home's card is unaffected. Smaller numbers,
+   quieter labels, tighter rhythm than the recap card's celebratory moment. */
+#historySheet .recap-stats { gap: 16px; }
+#historySheet .recap-stat__num { font-size: 15px; font-weight: 700; }
+#historySheet .recap-stat__label { text-transform: none; letter-spacing: 0; font-size: 11px; }
 .history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .history__lift:first-child { border-top: 0; }
 .history__lift:hover .history__lift-name { color: var(--accent-ink); }
@@ -5826,26 +5838,35 @@ function resolveSpec(request, state) {
     var liftsHtml = liftNames.length ? liftNames.map(function (name) {
       var pts = data.lifts[name].slice(-8), values = pts.map(function (p) { return p.orm; }), last = values[values.length - 1];
       return '<button type="button" class="history__lift" data-lift="' + esc(name) + '"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></button>';
-    }).join("") : '<p class="history__empty">Log a lift across at least two different sessions to see a trend here.</p>';
+    }).join("") : '<p class="history__empty">Log the same lift in another session and I’ll show how it’s moving.</p>';
     var recentSessions = data.sessions.slice(0, 12);
     var sessHtml = recentSessions.length ? recentSessions.map(function (s) {
       return '<div class="history__session"><span><span class="history__session-name">' + esc(s.name) + '</span><span class="history__session-date">' + esc(fmtHistDate(s.date)) + '</span></span><span class="history__session-sets">' + s.setsDone + ' sets</span></div>';
-    }).join("") : '<p class="history__empty">Nothing logged yet. Finish a set and it will show up here.</p>';
+    }).join("") : '<p class="history__empty">Nothing logged yet — finish a set and it’ll show up here.</p>';
     var life = computeLifetimeStats();
     // Silent when there's genuinely nothing yet -- no "0 sessions" milestone
     // block on a brand-new install.
     var lifeHtml = life.totalSessions > 0
-      ? '<div class="history__section"><p class="history__section-title">Lifetime</p><div class="recap-stats recap-stats--flush">' +
+      ? '<div class="history__section"><p class="history__section-title">Training so far</p><div class="recap-stats recap-stats--flush">' +
         '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSessions + '</span><span class="recap-stat__label">Sessions</span></div>' +
         '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSets + '</span><span class="recap-stat__label">Sets</span></div>' +
         (life.totalVolume > 0 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalVolume.toLocaleString() + '</span><span class="recap-stat__label">Volume ' + esc(unit) + '</span></div>' : '') +
         (life.longestStreak > 1 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.longestStreak + '</span><span class="recap-stat__label">Best week streak</span></div>' : '') +
         '</div></div>'
       : "";
-    $("historyBody").innerHTML =
-      lifeHtml +
-      '<div class="history__section"><p class="history__section-title">Progress · est. 1RM</p>' + liftsHtml + '</div>' +
-      '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
+    // Phase 5: order is the hierarchy signal now, not eyebrow loudness (all
+    // three share the same quiet .history__section-title treatment). Real
+    // trend data present -> it leads, sessions carry the middle, lifetime
+    // totals close the sheet as quiet context. No trend data yet -> the log
+    // itself (recent sessions) leads, the trend section's honest empty note
+    // sits second, lifetime totals still close it out. No calculation change:
+    // liftNames/liftsHtml/sessHtml/lifeHtml are unchanged, only concatenation
+    // order differs.
+    var trendSection = '<div class="history__section"><p class="history__section-title">Strength trend</p>' + liftsHtml + '</div>';
+    var sessSection = '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
+    $("historyBody").innerHTML = liftNames.length
+      ? (trendSection + sessSection + lifeHtml)
+      : (sessSection + trendSection + lifeHtml);
     var dlg = $("historySheet");
     openSheetNoKb(dlg);
   }
