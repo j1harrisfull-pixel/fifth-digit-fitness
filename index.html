@@ -8036,7 +8036,7 @@ function resolveSpec(request, state) {
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
-  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } save(); syncBuild(); });
+  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength") { p.conditioning = false; } save(); syncBuild(); });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
   $("bDaysOfWeek").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-dow]"); if (!b) return;
@@ -8425,15 +8425,18 @@ function resolveSpec(request, state) {
     // Superset handoff: a superset is "alternate, rest after each ROUND", so the
     // first move of a round gets NO rest -- you go straight to the partner and
     // rest only once the pair is done. Detect the first move as: the partner is a
-    // set behind (fewer completed sets than this exercise now has). Skip the
-    // timer entirely and advance to the partner. (If the partner is already
+    // set behind (fewer completed sets than this exercise now has). Skipping the
+    // timer here is TRAINING PRESCRIPTION and stays. (If the partner is already
     // finished, supersetPartner returns null and this falls through to a normal
     // rest -- the honest behaviour for the last unpaired set.)
+    // v135 (A4): the app no longer AUTO-SWITCHES to the partner. The automatic
+    // selectExercise(partner) + "next" toast were hidden movement, against the
+    // "user controls movement" rule. The A1/A2 badges + superset eyebrow keep the
+    // pairing visible; the user opens the partner when ready. Only the no-rest
+    // prescription remains -- no timer, no navigation.
     var ssPartner = supersetPartner(curSession(), ex);
     if (ssPartner && completedSetCount(curSession(), ssPartner) < completedSetCount(curSession(), ex)) {
       hideRest(); // no rest between the paired moves; clear any prior rest bar
-      selectExercise(ssPartner.id);
-      toast("Superset · " + ssPartner.name + " next");
       return;
     }
     restState.total = secs; restState.endAt = Date.now() + secs * 1000;
