@@ -5441,18 +5441,14 @@ function resolveSpec(request, state) {
     if (card) card.querySelectorAll(".setrow.is-next").forEach(function (r) { r.classList.remove("is-next"); });
     var nextRow = card ? card.querySelector(".setrow:not(.is-done)") : null;
     if (nextRow) {
-      nextRow.classList.add("is-next");
-      var setNo = parseInt(nextRow.getAttribute("data-set"), 10) + 1;
-      var wtInput = nextRow.querySelector(".setrow__wtinput");
-      var wtNum = wtInput ? parseFloat(wtInput.value) : 0;
-      var repsEl = nextRow.querySelector(".rval");
-      var repsNum = repsEl ? parseInt(repsEl.textContent, 10) : NaN;
-      // Full data only when both weight and reps are real -- never a partial
-      // "Log set 2 · 120 kg" with no reps; falls back to the name alone.
-      btn.textContent = "Log set " + setNo + ((wtNum > 0 && repsNum > 0) ? " · " + roundW(wtNum) + " × " + repsNum : "");
-      btn.disabled = false; btn.classList.remove("is-muted");
-      bar.hidden = false;
-      btn.onclick = function () { var d = nextRow.querySelector(".setrow__done"); if (d) d.click(); };
+      // v134: set logging happens ONLY through each row's own Log pill now. The
+      // bottom bar no longer mirrors the first-undone set or dispatches a set
+      // log -- that duplicated the row action and recreated the conveyor-belt
+      // feeling (and used to mark a first-undone "is-next" target). While an
+      // exercise still has unlogged sets the bar simply stays hidden; it returns
+      // only as the quiet "all sets logged · next" cue below, once the exercise
+      // is done. Completion / next-exercise / rest-context modes are unchanged.
+      bar.hidden = true;
       return;
     }
     // (Non-strength sets now render as .setrow too, so the branch above covers
