@@ -7973,6 +7973,13 @@ function resolveSpec(request, state) {
     for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
     var donePat = {}, doneMus = {}, doneMusSecondary = {}, seenPat = {};
     var doneUnilateral = 0, doneBilateral = 0, doneSpineLoad = 0;
+    // v1.6 correction: tracks whether ANY real logged work (strength sets or
+    // density credit) fell inside the rolling window, independent of target
+    // debt -- default per-pattern targets are always "owed" against zero
+    // history, so debt alone can't distinguish a real signal from an empty
+    // log. In-memory only (part of this function's return value), never
+    // persisted, never migrated, no new session/log field.
+    var hasLoggedWork = false;
     var prog = state && state.program, log = (state && state.log) || {};
     var weeks = (prog && Array.isArray(prog.weeks)) ? prog.weeks : [];
 
@@ -8014,7 +8021,7 @@ function resolveSpec(request, state) {
           if (idx <= lastReachedIndex && lib.movement_pattern) seenPat[lib.movement_pattern] = true;
           var el = sl.ex && sl.ex[ex.id];
           var done = (el && Array.isArray(el.sets)) ? el.sets.filter(function (s) { return s && s.completed; }).length : 0;
-          if (done > 0) creditPattern(lib, done * weight);
+          if (done > 0) { creditPattern(lib, done * weight); hasLoggedWork = true; }
         });
         // Density blocks (v1.4): logged as sl.blocks[kind] = {rounds, completed},
         // separate from sl.ex. Approximate credit only -- never forensic, and
@@ -8034,7 +8041,7 @@ function resolveSpec(request, state) {
               if (!ex || ex.block !== kind || !ex.densityMode) return;
               var lib2 = byName[String(ex.name).toLowerCase()];
               if (!lib2 || lib2.type !== "strength") return;
-              creditPattern(lib2, creditCount * weight);
+              creditPattern(lib2, creditCount * weight); hasLoggedWork = true;
             });
           });
         }
@@ -8065,7 +8072,7 @@ function resolveSpec(request, state) {
       donePosterior: donePosterior, posteriorTarget: posteriorTarget,
       doneSpineLoad: doneSpineLoad
     };
-    return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked, byBalance: byBalance };
+    return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked, byBalance: byBalance, hasSignal: hasLoggedWork };
   }
   // v1.3: one grounded, day-level reason line for the Just-Today preview --
   // "Pull today. You pressed last time." Reads ONLY the per-pattern debt
@@ -8078,13 +8085,25 @@ function resolveSpec(request, state) {
   // inventing a reason.
   // v1.6: the pull line's body was reworded from "You've pressed more than
   // you've pulled lately" to the approved "You pressed last time" -- softer,
-  // no implied count. The push/lower lines are unchanged v1.3 copy.
+  // no implied count.
+  // v1.6 correction: the push line's body was reworded from "You've pulled
+  // more than you've pressed lately" to "Pressing needs some work this
+  // week" -- matches the lower line's phrasing and drops the implied
+  // push/pull comparison. Also: when spec.debt carries an explicit
+  // hasSignal flag (set only by computeRollingDebt, never by
+  // computeWeeklyDebt) and it is false, this returns blank immediately --
+  // target-vs-zero debt alone is not a real training signal, so a Just
+  // Today build with no logged work in the rolling window must not surface
+  // any reason line. Weekly-program builds (spec.debt from computeWeeklyDebt,
+  // hasSignal undefined) are unaffected -- this check only ever changes
+  // behavior for the rolling Just Today path.
   function dayReasonLine(spec) {
+    if (spec && spec.debt && spec.debt.hasSignal === false) return "";
     var bp = (spec && spec.debt && spec.debt.byPattern) || {};
     function sum(keys) { return keys.reduce(function (s, k) { return s + ((bp[k] && bp[k].debt) || 0); }, 0); }
     var groups = [
       { debt: sum(["horiz_pull", "vert_pull"]), heading: "Pull today.", body: "You pressed last time." },
-      { debt: sum(["horiz_push", "vert_push"]), heading: "Push today.", body: "You’ve pulled more than you’ve pressed lately." },
+      { debt: sum(["horiz_push", "vert_push"]), heading: "Push today.", body: "Pressing needs some work this week." },
       { debt: sum(["squat", "hinge", "lunge"]), heading: "Lower today.", body: "Legs need some work this week." }
     ];
     groups.sort(function (a, b) { return b.debt - a.debt; });

@@ -104,18 +104,38 @@ function stateWith(sessionsAndLogs) {
   return { program: { weeks: [{ week: 1, sessions: sessions }] }, log: log, activeWeek: 0 };
 }
 
-// ---------- Test 1: no history returns safe/default debt, no fake reason ----------
+// ---------- Test 1: no history returns safe/default debt, hasSignal=false, blank reason ----------
+// v1.6 correction: target-vs-zero debt alone is NOT a real training signal --
+// with a cold program every pattern is tied at debt=target>0, so before this
+// correction a heading always won that tie and rendered a fake reason. Now
+// computeRollingDebt reports hasSignal=false when no real logged work exists
+// in the window, and dayReasonLine returns blank immediately when it sees
+// hasSignal === false, regardless of what the debt numbers say.
 {
   const state = stateWith([]);
   const debt = computeRollingDebt(state, NOW);
   ok(debt && debt.byPattern && Object.keys(debt.byPattern).length > 0, 'no history: returns a full byPattern shape (test 1)');
   ok(Object.values(debt.byPattern).every(p => p.done === 0), 'no history: every pattern shows done=0');
+  ok(debt.hasSignal === false, 'no history: hasSignal is explicitly false (test 1)');
   const line = dayReasonLine({ debt: debt });
-  ok(line === '' || /squat|hinge|lunge|pull|push/i.test(line) === false || true, 'no history: reason line does not fabricate a signal');
-  // With genuinely zero done everywhere, every group is tied at debt=target>0,
-  // so SOME heading may still show (matches existing v1.3 honest-signal
-  // behaviour on a cold program) -- what matters is no exception and no crash.
-  ok(typeof line === 'string', 'no history: dayReasonLine returns a string without throwing');
+  ok(line === '', 'no history: dayReasonLine returns a genuinely blank string, not a fabricated heading (test 1)');
+}
+
+// ---------- Test 1b: empty rolling window (sessions exist but none inside window) returns blank ----------
+{
+  const state = stateWith([sessionWith('s1', PUSH_EX.name, 'e0', 4, 30 * DAY)]); // 30 days old -- outside the 7-day window
+  const debt = computeRollingDebt(state, NOW);
+  ok(debt.hasSignal === false, 'empty rolling window (all logged work outside 7 days): hasSignal is false (test 1b)');
+  ok(dayReasonLine({ debt: debt }) === '', 'empty rolling window: reason line is blank (test 1b)');
+}
+
+// ---------- Test 1c: default target debt alone (no logged work) never creates a reason line ----------
+{
+  // Directly exercise dayReasonLine's gate with hand-built debt that has real
+  // per-group debt numbers but hasSignal explicitly false -- proves the gate
+  // wins over debt magnitude, not just over an empty byPattern.
+  const fakeSignalDebt = { hasSignal: false, byPattern: { squat: { debt: 999 }, hinge: { debt: 999 }, lunge: { debt: 999 }, horiz_pull: { debt: 999 }, vert_pull: { debt: 999 }, horiz_push: { debt: 999 }, vert_push: { debt: 999 } } };
+  ok(dayReasonLine({ debt: fakeSignalDebt }) === '', 'hasSignal=false blanks the line even when every pattern shows large debt (test 1c)');
 }
 
 // ---------- Test 2/3/4: last session (push/pull/lower) affects rolling debt ----------
@@ -125,16 +145,64 @@ function stateWith(sessionsAndLogs) {
   const state = stateWith([sessionWith('s1', PUSH_EX.name, 'e0', 4, 3 * DAY)]);
   const debt = computeRollingDebt(state, NOW);
   ok(debt.byPattern.horiz_push.done === 4, 'last push session: horiz_push done=4 in rolling debt (test 2)');
+  ok(debt.hasSignal === true, 'last push session: hasSignal is true, real logged work exists (test 2)');
 }
 {
   const state = stateWith([sessionWith('s1', PULL_EX.name, 'e0', 4, 3 * DAY)]);
   const debt = computeRollingDebt(state, NOW);
   ok(debt.byPattern.horiz_pull.done === 4, 'last pull session: horiz_pull done=4 in rolling debt (test 3)');
+  ok(debt.hasSignal === true, 'last pull session: hasSignal is true (test 3)');
 }
 {
   const state = stateWith([sessionWith('s1', LOWER_EX.name, 'e0', 4, 3 * DAY)]);
   const debt = computeRollingDebt(state, NOW);
   ok(debt.byPattern.squat.done === 4, 'last lower session: squat done=4 in rolling debt (test 4)');
+  ok(debt.hasSignal === true, 'last lower session: hasSignal is true (test 4)');
+}
+
+// ---------- Test 4b: lower/pull/push lines only appear when real logged work makes them the honest top group ----------
+{
+  // Fully credit push and pull (both at/above target), leaving lower as the
+  // only real debt -- the rendered line must be "Lower today." with real
+  // signal backing it, not a coincidence of default targets.
+  const pushLib = PUSH_EX, pullLib = PULL_EX;
+  const state = stateWith([
+    sessionWith('s1', pushLib.name, 'e0', 20, 3 * DAY),
+    sessionWith('s2', pullLib.name, 'e0', 20, 3 * DAY)
+  ]);
+  const debt = computeRollingDebt(state, NOW);
+  ok(debt.hasSignal === true, 'push+pull logged: hasSignal is true (test 4b)');
+  const line = dayReasonLine({ debt: debt });
+  ok(/Lower today\.<\/b> Legs need some work this week\./.test(line),
+     'lower line appears only because push/pull are honestly satisfied and lower is the real remaining debt (test 4b, correction requirement 4)');
+}
+
+// ---------- Test 4c: push line honestly recommended with the new approved copy ----------
+{
+  // Fully credit pull and lower, leaving push as the only real debt.
+  const state = stateWith([
+    sessionWith('s1', PULL_EX.name, 'e0', 20, 3 * DAY),
+    sessionWith('s2', LOWER_EX.name, 'e0', 20, 3 * DAY)
+  ]);
+  const debt = computeRollingDebt(state, NOW);
+  const line = dayReasonLine({ debt: debt });
+  ok(/Push today\.<\/b> Pressing needs some work this week\./.test(line),
+     'push line uses the new approved copy "Pressing needs some work this week." (test 4c, correction requirement 6)');
+  ok(!/You.?ve pulled more than you.?ve pressed lately/i.test(line),
+     'old push line body never renders (test 4c, correction requirement 7)');
+}
+
+// ---------- Test 4d: pull line honestly recommended, backed by real logged work ----------
+{
+  // Fully credit push and lower, leaving pull as the only real debt.
+  const state = stateWith([
+    sessionWith('s1', PUSH_EX.name, 'e0', 20, 3 * DAY),
+    sessionWith('s2', LOWER_EX.name, 'e0', 20, 3 * DAY)
+  ]);
+  const debt = computeRollingDebt(state, NOW);
+  const line = dayReasonLine({ debt: debt });
+  ok(/Pull today\.<\/b> You pressed last time\./.test(line),
+     'pull line appears only because push/lower are honestly satisfied and pull is the real remaining debt (test 4d, correction requirement 5)');
 }
 
 // ---------- Test 5: density-only session with rounds counts approximately ----------
@@ -327,6 +395,13 @@ function stateWith(sessionsAndLogs) {
   ok(!/freshState\([\s\S]{0,600}rollingDebt/.test(SRC), 'freshState does not reference any v1.6 rolling field');
   ok(!/rollingMemory|rollingHistory|rollingWindow\s*:/i.test(SRC.replace(rollingSrc, '')),
      'no new persistent field name for rolling memory appears anywhere outside the helper itself (test 30)');
+  // v1.6 correction: hasSignal is a plain in-memory key on computeRollingDebt's
+  // return object -- never assigned onto state/log/session, never written by
+  // save()/writeLog(), never read by freshState/coerceState/compactLog.
+  ok(!/state\.hasSignal|log\.hasSignal|sl\.hasSignal|ses\.hasSignal/.test(SRC),
+     'hasSignal is never attached to state/log/session -- it only exists on the transient debt object returned by computeRollingDebt (test 30, correction)');
+  ok(!/function (freshState|coerceState|compactLog)\([\s\S]{0,2000}hasSignal/.test(SRC),
+     'freshState/coerceState/compactLog never reference hasSignal (test 30, correction)');
 }
 
 // ---------- Test 31: no forbidden copy ----------
@@ -347,12 +422,15 @@ function stateWith(sessionsAndLogs) {
   // separate string literals in source, not one running sentence).
   const lowerLine = dayReasonLine({ debt: { byPattern: { squat: { debt: 10 }, hinge: { debt: 0 }, lunge: { debt: 0 }, horiz_pull: { debt: 0 }, vert_pull: { debt: 0 }, horiz_push: { debt: 0 }, vert_push: { debt: 0 } } } });
   const pullLine = dayReasonLine({ debt: { byPattern: { squat: { debt: 0 }, hinge: { debt: 0 }, lunge: { debt: 0 }, horiz_pull: { debt: 10 }, vert_pull: { debt: 0 }, horiz_push: { debt: 0 }, vert_push: { debt: 0 } } } });
+  const pushLine = dayReasonLine({ debt: { byPattern: { squat: { debt: 0 }, hinge: { debt: 0 }, lunge: { debt: 0 }, horiz_pull: { debt: 0 }, vert_pull: { debt: 0 }, horiz_push: { debt: 10 }, vert_push: { debt: 0 } } } });
   ok(/Lower today\.<\/b> Legs need some work this week\./.test(lowerLine), 'approved lower line renders verbatim (test 32)');
   ok(/Pull today\.<\/b> You pressed last time\./.test(pullLine), 'approved pull line renders verbatim, no exact count, no day name (test 32)');
+  ok(/Push today\.<\/b> Pressing needs some work this week\./.test(pushLine), 'approved push line (corrected copy) renders verbatim (test 32, correction requirement 6)');
   ok(!/You've pressed twice since Monday/i.test(SRC), 'forbidden quantified/day-name example line is not present anywhere in source (test 32)');
+  ok(!/You.?ve pulled more than you.?ve pressed lately/i.test(dayReasonSrc), 'old unapproved push line body no longer exists in source (test 32, correction requirement 7)');
   ok(!/\bCAP\b\s*=\s*5/.test(dayReasonSrc), 'CAP constant never appears inside dayReasonLine (internal-only, test 32)');
   ok(!/\bDONE_FLAT\b/.test(dayReasonSrc), 'DONE_FLAT constant never appears inside dayReasonLine (internal-only, test 32)');
-  ok(!/\d/.test(lowerLine) && !/\d/.test(pullLine), 'neither rendered reason line contains any digit (test 32)');
+  ok(!/\d/.test(lowerLine) && !/\d/.test(pullLine) && !/\d/.test(pushLine), 'no rendered reason line contains any digit (test 32)');
 }
 
 // ---------- Test 33: no recovery/fatigue/medical language in new copy/comments/tests ----------
