@@ -1882,10 +1882,27 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       var sl = log[sid]; if (!sl || !sl.ex) return;
       var ex = {};
       Object.keys(sl.ex).forEach(function (eid) { var el = sl.ex[eid]; if (el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; })) ex[eid] = el; });
+      // v1.4: carry real density block work (rounds logged, or explicitly
+      // marked done) through compaction the same way finishedAt already is --
+      // a pure EMOM/AMRAP session may have NO sl.ex entries at all, but its
+      // rounds/done flags are exactly as real as a completed set and must
+      // survive archiving instead of being silently dropped as "empty".
+      var blocks = {};
+      if (sl.blocks) {
+        Object.keys(sl.blocks).forEach(function (kind) {
+          var bl = sl.blocks[kind];
+          if (bl && ((typeof bl.rounds === "number" && bl.rounds > 0) || bl.completed)) blocks[kind] = bl;
+        });
+      }
+      var hasBlocks = Object.keys(blocks).length > 0;
       // v136A: carry the finishedAt stamp through compaction (used on the
       // archive path) -- rebuilding the entry as {date, ex} alone would silently
       // strip it, losing the honest "finished" read for archived programs.
-      if (Object.keys(ex).length) { out[sid] = { date: sl.date || null, ex: ex }; if (sl.finishedAt) out[sid].finishedAt = sl.finishedAt; }
+      if (Object.keys(ex).length || hasBlocks) {
+        out[sid] = { date: sl.date || null, ex: ex };
+        if (hasBlocks) out[sid].blocks = blocks;
+        if (sl.finishedAt) out[sid].finishedAt = sl.finishedAt;
+      }
     });
     return out;
   }
@@ -5421,6 +5438,31 @@ function resolveSpec(request, state) {
   // early session is labelled "Finished · X of Y", never "Done". Absent field
   // = not finished, so existing users need no migration.
   function isSessionFinished(ses) { var sl = ses && state.log[ses.id]; return !!(sl && sl.finishedAt); }
+  // v1.4: the honest work-detection contract shared by endSession, the finish
+  // receipt, and re-entry finishedAt-clearing -- a completed normal set counts
+  // (existing behaviour), and so does density work logged via sl.blocks
+  // (rounds > 0, or the block explicitly marked done even at 0 rounds -- a
+  // deliberate "I did this" assertion, not a fabricated count). Viewing a
+  // card, starting a timer, or editing reps/weight without completing never
+  // counts -- only sl.ex/sl.blocks entries the user actually logged.
+  function hasRealWork(ses) {
+    var sl = ses && state.log[ses.id]; if (!sl) return false;
+    if (sl.ex) {
+      var exIds = Object.keys(sl.ex);
+      for (var i = 0; i < exIds.length; i++) {
+        var el = sl.ex[exIds[i]];
+        if (el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; })) return true;
+      }
+    }
+    if (sl.blocks) {
+      var blockKinds = Object.keys(sl.blocks);
+      for (var j = 0; j < blockKinds.length; j++) {
+        var bl = sl.blocks[blockKinds[j]];
+        if (bl && ((typeof bl.rounds === "number" && bl.rounds > 0) || bl.completed)) return true;
+      }
+    }
+    return false;
+  }
   // Density-mode exercises collapse into ONE pseudo-item per block (id
   // "blk_<kind>") instead of one item per exercise -- the whole EMOM/AMRAP
   // block is a single logging unit (a round count), so session progress
@@ -6936,19 +6978,47 @@ function resolveSpec(request, state) {
     var ses = curSession();
     if (act === "blkrounds-" || act === "blkrounds+") {
       var next = Math.max(0, readBlockLog(ses, kind).rounds + (act === "blkrounds+" ? 1 : -1));
-      writeBlockLog(ses, kind, { rounds: next }); save();
+      var isIncrease = act === "blkrounds+";
+      writeBlockLog(ses, kind, { rounds: next });
+      // v1.4: same re-entry rule as normal set logging -- a round INCREASE is
+      // new real work, so a previously-finished session is being trained
+      // again and finishedAt no longer applies. Decreasing back toward 0 is
+      // the stepper's own undo, not new work, so it doesn't re-clear anything
+      // (there's nothing to clear if the session isn't finished, and if it
+      // IS finished, walking rounds down doesn't retroactively un-finish it).
+      var slr = state.log[ses.id];
+      if (isIncrease && slr && slr.finishedAt) delete slr.finishedAt;
+      // v1.4 (Task 5): logging a round is the density equivalent of logging a
+      // set -- if the user never tapped Start, this is the moment real work
+      // exists, so promote the session live exactly as the set handlers do.
+      if (isIncrease) { unlockAudio(); ensureSessionLive(); }
+      save();
       renderList(false); applyGlance();
       return;
     }
     if (act === "blkdone") {
       var bl = readBlockLog(ses, kind);
-      writeBlockLog(ses, kind, { completed: !bl.completed }); save();
+      var willBeDone = !bl.completed;
+      writeBlockLog(ses, kind, { completed: willBeDone });
+      // v1.4: marking a block done is real work -- same re-entry + timer-live
+      // promotion as above. Unmarking it is not new work (the toggle-off is
+      // the user's own undo), so it neither clears finishedAt nor starts the
+      // timer.
+      var sld = state.log[ses.id];
+      if (willBeDone) {
+        if (sld && sld.finishedAt) delete sld.finishedAt;
+        unlockAudio(); ensureSessionLive();
+      }
+      save();
       renderList(false); applyGlance();
       var pr = sessionProgress(sessionItemsFor(ses));
       if (pr.total > 0 && pr.done === pr.total) renderDayBar();
       return;
     }
     if (act === "blktimer") {
+      // Starting the density block's own EMOM/AMRAP countdown is not logging
+      // work -- it's a preview/pacing aid, same as opening a card. It must
+      // NOT start the session timer or count as real work on its own.
       var mode = btn.getAttribute("data-mode"), minutes = parseInt(btn.getAttribute("data-min"), 10);
       startDensityTimer(kind, mode, minutes);
       return;
@@ -8718,10 +8788,28 @@ function resolveSpec(request, state) {
 
     $("completeOverline").textContent = ended ? "Finished early" : "That's the work done";
     $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · finished early" : " done");
-    var summary = setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged" +
-      (prog.skipped ? " · " + prog.skipped + " skipped" : "") +
-      (!ended && readyCount ? " · ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts") : "");
-    $("completeSummary").textContent = summary;
+    // v1.4: build the summary from honest parts rather than a fixed "X sets
+    // logged" template -- a density-only session has setsDone === 0 but real
+    // logged rounds, and the old template would have printed the lie "0 sets
+    // logged". roundsTotal sums every block's logged rounds; a block marked
+    // done at 0 rounds is still real work (the user asserted completion) but
+    // gets its own honest phrase rather than inventing a round count for it.
+    var sl = state.log[ses.id];
+    var roundsTotal = 0, blockDoneZeroRounds = false;
+    if (sl && sl.blocks) {
+      Object.keys(sl.blocks).forEach(function (kind) {
+        var bl = sl.blocks[kind];
+        if (bl && typeof bl.rounds === "number" && bl.rounds > 0) roundsTotal += bl.rounds;
+        else if (bl && bl.completed) blockDoneZeroRounds = true;
+      });
+    }
+    var summaryParts = [];
+    if (setsDone > 0) summaryParts.push(setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged");
+    if (roundsTotal > 0) summaryParts.push(roundsTotal + " round" + (roundsTotal === 1 ? "" : "s") + " logged");
+    if (blockDoneZeroRounds) summaryParts.push("conditioning done");
+    if (prog.skipped) summaryParts.push(prog.skipped + " skipped");
+    if (!ended && readyCount) summaryParts.push("ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts"));
+    $("completeSummary").textContent = summaryParts.join(" · ");
 
     // One unconditional earned line, above the honest read -- so the emotional
     // peak leads with a win, not an audit of flat/down lifts.
@@ -8732,7 +8820,7 @@ function resolveSpec(request, state) {
         earnedTxt = (sessionsDone >= wk.sessions.length)
           ? "Week complete · all " + wk.sessions.length + " done"
           : "That's your " + ordinal(sessionsDone) + " session this week";
-      } else if (ended && setsDone > 0) {
+      } else if (ended && (setsDone > 0 || roundsTotal > 0 || blockDoneZeroRounds)) {
         earnedTxt = "Banked · every set still counts";
       }
       earnedEl.textContent = earnedTxt; earnedEl.hidden = !earnedTxt;
@@ -8829,17 +8917,21 @@ function resolveSpec(request, state) {
   // Ending a session: with work logged, show the honest receipt (complete or
   // ended variant); with nothing logged, it was only a preview -- just leave.
   function endSession() {
-    var ses = curSession(), setsLogged = 0;
-    ses.exercises.forEach(function (e) { setsLogged += readLog(ses, e).sets.filter(function (s) { return s.completed; }).length; });
-    if (setsLogged > 0) {
+    var ses = curSession();
+    // v1.4: whether to finish honestly is decided by hasRealWork (completed
+    // sets OR density rounds/block-done), not the completed-set count alone --
+    // a pure EMOM/AMRAP session with rounds logged is real work even though
+    // setsLogged is 0. setsLogged itself is still used below purely for the
+    // receipt's "X sets logged" wording.
+    if (hasRealWork(ses)) {
       // v136A: finishing with real work persists a session-level finishedAt --
       // an ISO stamp meaning "the user chose to finish this session", NOT that
       // everything was completed. It's what lets Home/week/hero stop presenting
       // a finished-early session as untouched "up next" work (read back via
-      // isSessionFinished). Written ONLY when >=1 set is logged; a zero-logged
-      // Finish was only a preview and persists nothing (the else branch just
-      // leaves). Sibling of sl.date, so it rides the same save/coerce/backup
-      // path as the rest of the log entry.
+      // isSessionFinished). Written ONLY when hasRealWork is true; a
+      // zero-work Finish was only a preview and persists nothing (the else
+      // branch just leaves). Sibling of sl.date, so it rides the same
+      // save/coerce/backup path as the rest of the log entry.
       var slf = state.log[ses.id]; if (!slf) { slf = { date: null, ex: {} }; state.log[ses.id] = slf; }
       slf.finishedAt = new Date().toISOString();
       save();

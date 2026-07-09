@@ -44,7 +44,7 @@ function extractFn(name) {
   return SRC.slice(at, i);
 }
 
-const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession'];
+const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 // Sandbox: a mutable `state`, a stub `readLog` (surfaces exactly the sets the
@@ -68,7 +68,7 @@ const harness = `
   ${body}
   module.exports = {
     get state() { return state; }, set state(v) { state = v; },
-    isSessionFinished: isSessionFinished, heroInfo: heroInfo, weekDayStatus: weekDayStatus,
+    isSessionFinished: isSessionFinished, hasRealWork: hasRealWork, heroInfo: heroInfo, weekDayStatus: weekDayStatus,
     compactLog: compactLog, sessionProgress: sessionProgress, sessionItemsFor: sessionItemsFor,
     endSession: endSession,
     setCurSession: function (s) { _curSession = s; },
