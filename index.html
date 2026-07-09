@@ -8573,12 +8573,7 @@ function resolveSpec(request, state) {
     });
     save();
     var prog = sessionProgress(sessionItemsFor(ses));
-    var wk = curWeek(), nextIdx = -1;
-    for (var i = 0; i < wk.sessions.length; i++) {
-      if (i === state.activeSession) continue; // never offer the one just finished
-      var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
-      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
-    }
+    var wk = curWeek();
     var sessionsDone = 0;
     wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
 
