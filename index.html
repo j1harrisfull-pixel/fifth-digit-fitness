@@ -813,6 +813,9 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .preview__title { font-weight: 700; font-size: 15px; }
 .preview__meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 12px; }
 .preview__debt { font-size: 12px; color: var(--accent-ink); margin: -6px 0 12px; font-weight: 600; }
+/* v1.3: the Just-Today one-line reason -- a grounded sentence, not a list. */
+.today-reason { font-size: 13px; line-height: 1.4; color: var(--ink); margin: -6px 0 12px; }
+.today-reason b { color: var(--accent-ink); font-weight: 700; }
 .preview__fatigue { font-size: 12px; margin: -6px 0 12px; font-weight: 600; }
 .preview__fatigue--amber { color: var(--manage); }
 .preview__fatigue--red { color: var(--danger); }
@@ -835,6 +838,9 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* The real FD monogram, ink not accent -- the welcome now opens with the same
    mark as the icon/header/splash, not the old hand-drawn dumbbell glyph. */
 .intro__mark { width: auto; height: 42px; color: var(--ink); display: block; margin-bottom: 24px; }
+/* v1.3: one product line, quiet, above the name-capture headline -- so a
+   cold link answers "what is this" before it asks anything of you. */
+.intro__product { font-size: 13px; font-weight: 600; letter-spacing: .01em; color: var(--ink-dim); margin: 0 0 10px; }
 .intro__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
 .intro__list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 13px; }
 .intro__list li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.5; color: var(--ink); }
@@ -1498,6 +1504,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button class="btn" id="importBtn" type="button">Import backup</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
+      <!-- v1.3: a plain feedback hint, right where a tester would already be
+           looking to grab their data -- no form, no accounts, no cloud implied. -->
+      <p class="sect__hint" style="margin-top:10px">Something off? Export your backup and send it over.</p>
     </div>
     <div class="sect">
       <div class="sect__label">Offline storage</div>
@@ -1516,7 +1525,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <svg viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-hidden="true">
         <path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/>
       </svg>
-      <span>Fifth Digit Coach · v2 · works fully offline</span>
+      <span>Fifth Digit Coach · v1.3 · works fully offline</span>
     </p>
   </div>
 </dialog>
@@ -1554,6 +1563,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </svg>
     <!-- Step 1: the handshake -- the name prompt leads, before anything else. -->
     <div class="intro__step" id="introStep1">
+      <p class="intro__product">Training built for you. Logged on your phone.</p>
       <h1 class="intro__title">Let's make this yours.</h1>
       <label class="intro__ask" for="introName">What should we call you?</label>
       <input class="intro__name" id="introName" type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" enterkeyhint="go">
@@ -1650,7 +1660,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <div class="receipt-paper">
-      <p class="receipt-paper__ov" id="completeOverline">Session complete</p>
+      <p class="receipt-paper__ov" id="completeOverline">That's the work done</p>
       <h2 class="complete__title" id="completeTitle"><span id="completeTitleText">Session done</span></h2>
       <p class="complete__earned" id="completeEarned" hidden></p>
       <p class="complete__summary" id="completeSummary"></p>
@@ -5789,7 +5799,7 @@ function resolveSpec(request, state) {
     // week that's DONE-with only because a session was finished early reads
     // "Week wrapped" -- honest, never claiming completion that didn't happen.
     var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : "Up next";
-    var name = weekDone ? "Nice work this week" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
+    var name = weekDone ? "Week's work done" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
     // Subline leads with the session's muscle focus (the coached detail), not a
     // generic "pick up where you left off". Mid-session it appends the honest
     // count of what's left; before starting it's the focus alone.
@@ -7828,12 +7838,30 @@ function resolveSpec(request, state) {
       .then(function (obj) { if (settled) return; settled = true; clearTimeout(to); cb(normalizeLLMRequest(obj, text)); })
       .catch(function () { if (settled) return; settled = true; clearTimeout(to); fallback(); });
   }
+  // v1.3: one grounded, day-level reason line for the Just-Today preview --
+  // "Pull today. You've pressed more than you've pulled lately." Reads ONLY
+  // the per-pattern debt that resolveSpec (coach-span) already computed --
+  // this is a pure display-layer aggregation (push/pull/legs groupings of the
+  // existing granular pattern debts), not a new engine signal. Deliberately
+  // ONE sentence, never a list: if no group has real debt this week, it stays
+  // an honest blank rather than inventing a reason.
+  function dayReasonLine(spec) {
+    var bp = (spec && spec.debt && spec.debt.byPattern) || {};
+    function sum(keys) { return keys.reduce(function (s, k) { return s + ((bp[k] && bp[k].debt) || 0); }, 0); }
+    var groups = [
+      { debt: sum(["horiz_pull", "vert_pull"]), heading: "Pull today.", body: "You’ve pressed more than you’ve pulled lately." },
+      { debt: sum(["horiz_push", "vert_push"]), heading: "Push today.", body: "You’ve pulled more than you’ve pressed lately." },
+      { debt: sum(["squat", "hinge", "lunge"]), heading: "Lower today.", body: "Legs need some work this week." }
+    ];
+    groups.sort(function (a, b) { return b.debt - a.debt; });
+    var top = groups[0];
+    if (!top || !(top.debt > 0)) return "";
+    return '<p class="today-reason"><b>' + esc(top.heading) + '</b> ' + esc(top.body) + '</p>';
+  }
   // Top-2 most-behind patterns this week, for an honest one-line Resolve readout.
   function debtHint(spec) {
     if (!hasProgram()) return "";
-    var out = "";
-    var behind = (spec.debt.ranked || []).filter(function (r) { return r.debt > 0; }).slice(0, 2).map(function (r) { return r.label; });
-    if (behind.length) out += '<div class="preview__debt">Behind this week: ' + esc(behind.join(", ")) + '</div>';
+    var out = dayReasonLine(spec);
     // Fatigue sensing (Phase 7): flag only amber/red, so a rested lifter sees nothing.
     var f = spec.fatigue;
     if (f && !f._stub && (f.band === "amber" || f.band === "red")) {
@@ -8688,7 +8716,7 @@ function resolveSpec(request, state) {
     var sessionsDone = 0;
     wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
 
-    $("completeOverline").textContent = ended ? "Finished early" : "Session complete";
+    $("completeOverline").textContent = ended ? "Finished early" : "That's the work done";
     $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · finished early" : " done");
     var summary = setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged" +
       (prog.skipped ? " · " + prog.skipped + " skipped" : "") +
@@ -8817,7 +8845,14 @@ function resolveSpec(request, state) {
       save();
       var pr = sessionProgress(sessionItemsFor(ses));
       showSessionComplete(ses, { ended: !(pr.total > 0 && pr.done === pr.total) });
-    } else { backToWeek(); }
+    } else {
+      // v1.3: a Finish tap with nothing logged still creates no receipt and no
+      // finishedAt (this WAS only a preview) -- but leaving in total silence
+      // read as "did that even do anything?". A quiet toast closes the loop
+      // honestly without fabricating a session record.
+      backToWeek();
+      toast("Nothing logged. Left as is.");
+    }
   }
   function initRest() {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill"); restRpeEl = $("restRpe");

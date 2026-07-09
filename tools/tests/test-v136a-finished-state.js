@@ -63,7 +63,8 @@ const harness = `
   function curSession() { return _curSession; }
   function showSessionComplete() { _showCount++; }
   function backToWeek() { _backCount++; }
-  var _curSession = null;
+  function toast() { _toastCount++; }
+  var _curSession = null, _toastCount = 0;
   ${body}
   module.exports = {
     get state() { return state; }, set state(v) { state = v; },
@@ -72,7 +73,7 @@ const harness = `
     endSession: endSession,
     setCurSession: function (s) { _curSession = s; },
     setState: function (s) { state = s; },
-    counts: function () { return { save: _saveCount, show: _showCount, back: _backCount }; }
+    counts: function () { return { save: _saveCount, show: _showCount, back: _backCount, toast: _toastCount }; }
   };
 `;
 const mod = { exports: {} };
@@ -115,6 +116,10 @@ function makeCase(sets, doneCounts, finishedAt) {
   const sl = M.state.log.S;
   ok(!sl || !sl.finishedAt, 'a zero-logged Finish writes NO finishedAt (test 7)');
   ok(M.counts().back >= 1, 'a zero-logged Finish just leaves to the week (no receipt)');
+  // v1.3: the zero-logged path also shows a quiet toast ("Nothing logged. Left
+  // as is.") so the tap doesn't read as silently doing nothing -- still no
+  // receipt, no finishedAt, no fake record.
+  ok(M.counts().toast === 1, 'a zero-logged Finish shows exactly one toast (v1.3)');
 }
 
 // ---------- Test 8: compactLog preserves finishedAt ----------
