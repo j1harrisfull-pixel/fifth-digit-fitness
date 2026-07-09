@@ -705,9 +705,15 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .field-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-dim); font-weight: 700; margin-bottom: 6px; }
 .notes__text, .reps__input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; resize: vertical; line-height: 1.5; }
 .notes__text { min-height: 64px; }
-.cuebox { display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+/* v136B: form notes (SETUP/KEY/FAULT) restyled into the SAME coaching family
+   as the coach note (.card__why, above) -- a left rule, no box/fill, instead
+   of the old bordered/filled card. Quieter than the coach note on purpose
+   (the coach note's --coachnote-accent blue stays the senior voice): the rule
+   and tag use existing neutral tokens (--line-strong / --ink-dim), not a new
+   colour. No copy or structure change -- same SETUP/KEY/FAULT tag_plain rows. */
+.cuebox { display: flex; flex-direction: column; gap: 8px; background: none; border: 0; border-left: 2px solid var(--line-strong); border-radius: 0; padding: 2px 0 2px 12px; }
 .cue-line { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); }
-.cue-tag { flex: none; width: 44px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); padding-top: 2px; }
+.cue-tag { flex: none; width: 44px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); padding-top: 2px; }
 .cue-plain { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 0; }
 .swap-toggle { margin-top: 4px; }
 .swapbox { display: none; margin-top: 10px; }
@@ -735,6 +741,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet__grip { width: 38px; height: 4px; border-radius: var(--radius); background: var(--line-strong); margin: 10px auto 2px; }
 .sheet__body { padding: 8px 20px calc(env(safe-area-inset-bottom) + 22px); overflow-y: auto; max-height: calc(92svh - 20px); }
+/* v136B: the sign-off beat covers the receipt sheet (scoped to #completeSheet
+   only, not the shared dialog.sheet class) for a brief honest pause between
+   Finish and the reveal -- reuses the existing .building__spin/__txt beat
+   pattern from the Build/Just-Today flows rather than inventing a new one. */
+#completeSheet { position: relative; }
+.signoff-beat { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--surface); }
 .sheet h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
 .sheet__lead { font-size: 13px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
 .sect { margin-bottom: 28px; }
@@ -1642,6 +1654,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="btn-row">
       <button class="btn btn--primary" id="completeNext" type="button">Done</button>
     </div>
+  </div>
+  <!-- v136B: a brief, honest sign-off beat covers the already-populated,
+       already-saved receipt for a few hundred ms after Finish -- reveals it
+       rather than delaying the actual save. See showSessionComplete(). -->
+  <div class="signoff-beat" id="signoffBeat" hidden>
+    <span class="building__spin" aria-hidden="true"></span>
+    <span class="building__txt">Signing off session…</span>
   </div>
 </dialog>
 
@@ -7265,8 +7284,17 @@ function resolveSpec(request, state) {
   function maybeOpenDayWithReadiness(i) {
     var wk = curWeek(), ses = wk && wk.sessions[i];
     if (ses && shouldPromptReadiness(ses)) { readinessPromptDayIdx = i; openSheetNoKb($("readinessPromptSheet")); }
-    else openDay(i);
+    else openDayToTrain(i);
   }
+  // v136B: the explicit "I'm starting this session now" entry points -- the
+  // hero/Home "Start training" CTA and accepting a readiness prompt -- start
+  // the timer at open time instead of waiting for the first logged set, so
+  // warm-up and any timed work before the first log actually count. Reuses
+  // the EXISTING ensureSessionLive() (the same promote-to-live call the first
+  // logged set already used) -- no new timer state, LIVE_KEY semantics
+  // untouched. A plain week-row tap on a DIFFERENT (future/other) day still
+  // goes through plain openDay() below and stays a passive, un-timed preview.
+  function openDayToTrain(i) { openDay(i); ensureSessionLive(); }
   // Rough only: same-day swap to a freshly-built recoverySession(), reusing
   // the EXACT existing substitution mechanism (pendingToday +
   // pendingSubstituteIdx + addTodaySession()) that already powers "Fancy a
@@ -7283,6 +7311,10 @@ function resolveSpec(request, state) {
     pendingSubstituteIdx = dayIdx;
     state.view = "day";
     addTodaySession();
+    // v136B: this is the "too sore, swap to recovery" branch of the readiness
+    // prompt -- also an explicit start-training moment, so the timer starts
+    // here too (existing ensureSessionLive(), no new state).
+    ensureSessionLive();
   }
   function backToWeek() {
     hideRest(); stopLiveTimer(); releaseWakeLock();
@@ -8093,11 +8125,11 @@ function resolveSpec(request, state) {
       var v = parseInt(b.getAttribute("data-rp"), 10), dayIdx = readinessPromptDayIdx;
       readinessPromptDayIdx = null; closeDlg();
       setReadiness(v);
-      if (v === 0) swapTodayForRecovery(dayIdx); else openDay(dayIdx);
+      if (v === 0) swapTodayForRecovery(dayIdx); else openDayToTrain(dayIdx);
     });
     $("readinessPromptSkip").addEventListener("click", function () {
       var dayIdx = readinessPromptDayIdx; readinessPromptDayIdx = null; closeDlg();
-      if (dayIdx != null) openDay(dayIdx);
+      if (dayIdx != null) openDayToTrain(dayIdx);
     });
     dlg.addEventListener("cancel", function () { readinessPromptDayIdx = null; }); // Escape
   })();
@@ -8690,17 +8722,25 @@ function resolveSpec(request, state) {
       var noteTxt = (!ended && wk.focus) ? wk.focus : "";
       coachNoteEl.textContent = noteTxt; coachNoteEl.hidden = !noteTxt;
     }
-    // The stamp's sig line: today's date + the real session duration. Measure
-    // from the FIRST LOGGED SET (sl.date), not from when the app was opened, so
-    // pre-workout dawdling (open the app, browse, then start) doesn't inflate it;
-    // fall back to the live-timer start if nothing's logged. And since we don't
-    // track pauses, an implausibly long span (left the app open, walked away) is
+    // The stamp's sig line: today's date + the real session duration. v136B:
+    // prefer the LIVE TIMER's start over the first logged set's timestamp when
+    // the timer began earlier -- Start training / accepting the readiness
+    // prompt now starts the clock before any set is logged, so warm-up and any
+    // timed work before the first log should count rather than being silently
+    // dropped. Falls back to the first logged set's date if the timer was
+    // never explicitly started early (e.g. an older/resumed flow), and to a
+    // bare no-duration read if neither exists. And since we don't track
+    // pauses, an implausibly long span (left the app open, walked away) is
     // suppressed rather than printed as a fabricated-looking duration -- an
     // honest blank beats a wrong number.
     var sigLine = $("completeSigLine");
     if (sigLine) {
       var slc = state.log[ses.id];
-      var startMs = (slc && slc.date) ? Date.parse(slc.date) : (liveTimerStart || 0);
+      var logMs = (slc && slc.date) ? Date.parse(slc.date) : 0;
+      var startMs = 0;
+      if (liveTimerStart && logMs) startMs = Math.min(liveTimerStart, logMs);
+      else if (liveTimerStart) startMs = liveTimerStart;
+      else if (logMs) startMs = logMs;
       var mins = null;
       if (startMs) {
         var m = Math.round((Date.now() - startMs) / 60000);
@@ -8725,7 +8765,21 @@ function resolveSpec(request, state) {
     // the button owns its navigation.
     primaryBtn.textContent = "Done";
     primaryBtn.onclick = function () { closeDlg(); backToWeek(); };
-    openSheetNoKb(dlg);
+    // v136B: a brief "Signing off session…" beat covers the reveal. Everything
+    // above this line (save(), the receipt's DOM population) has ALREADY run
+    // synchronously -- the beat only delays what's VISIBLE, not the save, so
+    // an app kill mid-beat still has the real session state persisted. Skips
+    // the delay entirely under reduced motion, same convention as the
+    // existing Build/Just-Today thinking beats.
+    var beatEl = $("signoffBeat");
+    if (beatEl && !reduceMotion) {
+      beatEl.hidden = false;
+      openSheetNoKb(dlg);
+      setTimeout(function () { beatEl.hidden = true; }, 650);
+    } else {
+      if (beatEl) beatEl.hidden = true;
+      openSheetNoKb(dlg);
+    }
   }
   // Ending a session: with work logged, show the honest receipt (complete or
   // ended variant); with nothing logged, it was only a preview -- just leave.
