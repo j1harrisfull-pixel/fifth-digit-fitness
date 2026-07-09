@@ -5439,33 +5439,15 @@ function resolveSpec(request, state) {
     // Mark exactly the row the LOG bar targets, so the row and the bar always
     // agree on "where am I" (line-strong border + ink set number, not accent).
     if (card) card.querySelectorAll(".setrow.is-next").forEach(function (r) { r.classList.remove("is-next"); });
-    var nextRow = card ? card.querySelector(".setrow:not(.is-done)") : null;
-    if (nextRow) {
-      // v134: set logging happens ONLY through each row's own Log pill now. The
-      // bottom bar no longer mirrors the first-undone set or dispatches a set
-      // log -- that duplicated the row action and recreated the conveyor-belt
-      // feeling (and used to mark a first-undone "is-next" target). While an
-      // exercise still has unlogged sets the bar simply stays hidden; it returns
-      // only as the quiet "all sets logged · next" cue below, once the exercise
-      // is done. Completion / next-exercise / rest-context modes are unchanged.
-      bar.hidden = true;
-      return;
-    }
-    // (Non-strength sets now render as .setrow too, so the branch above covers
-    // every exercise type -- the old .pill fallback is gone with the pills.)
-    // This exercise's own sets are all logged -- offer to advance rather than
-    // showing a dead button (or hiding the bar entirely, which would read as
-    // "nothing left to do" even when other exercises in the session aren't done).
-    var nextId = firstIncompleteId(items);
-    if (nextId && nextId !== cid) {
-      var nextName = (findEx(nextId) || {}).name || "next exercise";
-      btn.textContent = "All sets logged · next: " + nextName;
-      btn.disabled = false; btn.classList.add("is-muted");
-      bar.hidden = false;
-      btn.onclick = function () { selectExercise(nextId); };
-    } else {
-      bar.hidden = true;
-    }
+    // v135 (A3): the sticky bottom bar carries NO workout movement anymore.
+    // v134 removed its per-set "Log set X" action; this removes its last mode --
+    // the "All sets logged · next: [exercise]" completion cue. That was still
+    // movement guidance (a routing prompt to the next exercise). The full
+    // session list is on screen with each exercise's own progress + completed
+    // state, so the user chooses where to go. The bar simply stays hidden during
+    // the workout. (Rest/superset timer and the appbar Finish button are
+    // separate elements, untouched.)
+    bar.hidden = true;
   }
   function scrollToCurrent() {
     var c = listEl.querySelector(".card.is-current");
@@ -6867,7 +6849,21 @@ function resolveSpec(request, state) {
   function onListClick(ev) {
     if (ev.target.closest("#dayRemove")) { removeCurrentDay(); return; }
     var cardEl = ev.target.closest(".card");
-    if (cardEl) selectExercise(cardEl.getAttribute("data-ex"));
+    if (cardEl) {
+      var cardId = cardEl.getAttribute("data-ex");
+      // v135 (A2): manual open/close. Tapping a CLOSED card opens it (existing
+      // selectExercise, which switches away from whatever was open). Tapping the
+      // OPEN card closes it -- but ONLY when the tap lands on its header/title
+      // row (.card__head), never on a body control (steppers, Log pills, effort
+      // rating, edit sets), so mid-set adjustments can't accidentally close it.
+      // Closing writes the "__collapsed__" sentinel = "nothing open on purpose";
+      // currentId() returns null for it, so no other exercise auto-opens.
+      if (cardId && cardId === currentId()) {
+        if (ev.target.closest(".card__head")) { state.activeExerciseId = "__collapsed__"; save(); hideSuperNext(); hideFiller(); applyGlance(); return; }
+      } else if (cardId) {
+        selectExercise(cardId);
+      }
+    }
     var btn = ev.target.closest("[data-act]"); if (!btn) return;
     var blk = btn.getAttribute("data-blk");
     if (blk) { onDensityAct(btn.getAttribute("data-act"), blk, btn); return; }
@@ -6877,6 +6873,9 @@ function resolveSpec(request, state) {
       var si = parseInt(btn.getAttribute("data-set"), 10), w = writeLog(ses, e), sset = w.el.sets[si];
       sset.completed = !sset.completed;
       if (!w.sl.date && sset.completed) w.sl.date = new Date().toISOString();
+      // v135 (A1): pin the logged exercise as the explicitly-open one so
+      // completing it can't let currentId() drift to the next (see setdone).
+      state.activeExerciseId = e.id;
       save();
       var on = sset.completed;
       // Same visual grammar as the strength setdone path: the ROW carries the
@@ -6891,9 +6890,12 @@ function resolveSpec(request, state) {
       refreshCollapsedMeta(card, e, dc);
       if (on) {
         unlockAudio(); ensureSessionLive();
-        // Pass 2 (exercise completion behaviour): same collapse-on-finish as
-        // the strength setdone path below -- see its comment for the reason.
-        if (dc === e.sets && state.activeExerciseId === e.id) { state.activeExerciseId = "__collapsed__"; save(); }
+        // v135 (A1): logging the final set no longer auto-collapses the
+        // exercise. Logging only logs -- the completed exercise stays open (its
+        // Logged pills, effort rating, and edit controls remain reviewable)
+        // until the USER closes it or opens another (see onListClick). The
+        // "__collapsed__" sentinel now means only "the user closed this on
+        // purpose", set exclusively by the manual header-tap close.
         // Logging the LAST set no longer auto-fires the receipt -- finishing is
         // a deliberate tap on the LIVE bar. On completion: no rest (nothing's
         // next), just flip the bar to a solid "Finish". Otherwise rest as usual.
@@ -7023,6 +7025,14 @@ function resolveSpec(request, state) {
       if (on2 && ds.actual_reps == null) { var rr = btn.closest(".setrow").querySelector(".rval"); ds.actual_reps = rr ? (parseInt(rr.textContent, 10) || 0) : 0; }
       ds.completed = on2;
       if (!wd.sl.date && on2) wd.sl.date = new Date().toISOString();
+      // v135 (A1): pin the exercise you're logging as the explicitly-open one.
+      // Set controls are only reachable on the open card, so this is always the
+      // current exercise -- but on day-open it was open only IMPLICITLY (via
+      // currentId's firstIncomplete fallback, activeExerciseId still null).
+      // Pinning it stops currentId() drifting to the NEXT exercise the moment
+      // this one completes: the finished exercise stays open until the user
+      // closes it (header tap -> sentinel) or opens another. No auto-advance.
+      state.activeExerciseId = e.id;
       save();
       var drow = btn.closest(".setrow"); drow.classList.toggle("is-done", on2); btn.setAttribute("aria-pressed", on2);
       btn.setAttribute("aria-label", "Complete set " + (di + 1) + " of " + e.sets + (on2 ? ", done" : ""));
@@ -7034,13 +7044,11 @@ function resolveSpec(request, state) {
       refreshFoot(dcard, e, ses);
       if (on2) {
         unlockAudio(); ensureSessionLive();
-        // Pass 2 (exercise completion behaviour): once every set of the
-        // exercise the user was actively working is logged, collapse it back
-        // to its compact row rather than leaving it pinned open -- the user
-        // picks what's next (tap another card, or the quiet muted-bar cue),
-        // the app never auto-opens one for them. Only fires for the exercise
-        // that was actually current, and only on completion, not un-checking.
-        if (ddc === e.sets && state.activeExerciseId === e.id) { state.activeExerciseId = "__collapsed__"; save(); }
+        // v135 (A1): logging the final set no longer auto-collapses the
+        // exercise -- logging only logs. The completed exercise stays open so
+        // its Logged pills, effort rating, and edit controls stay reviewable
+        // until the USER closes it or opens another (onListClick). The
+        // "__collapsed__" sentinel is now written only by that manual close.
         // See the checkbox path above: last set flips the bar to "Finish"
         // rather than auto-firing the receipt.
         var pr2 = sessionProgress(sessionItemsFor(ses));
