@@ -283,6 +283,10 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__tag--prog { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 15%, transparent); font-variant-numeric: tabular-nums; }
 .weekrow__tag--skipped { color: var(--manage); background: color-mix(in srgb, var(--manage) 15%, transparent); border: 1px dashed color-mix(in srgb, var(--manage) 50%, transparent); padding: 2px 7px; }
 .weekrow__tag--pending { color: var(--faint); background: color-mix(in srgb, var(--faint) 12%, transparent); }
+/* v136A: finished-early -- a calm, resolved neutral (NOT the ready green of
+   Done), hairline-bordered to read as a closed-out state without claiming
+   completion. Tabular numerals keep the "X of Y" fraction aligned. */
+.weekrow__tag--finished { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 11%, transparent); border: 1px solid color-mix(in srgb, var(--ink-dim) 30%, transparent); padding: 2px 7px; font-variant-numeric: tabular-nums; }
 .weekrow__tag--today { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
@@ -433,6 +437,12 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    compact "skipped" strip the card collapses to once used. */
 .card__skipbtn { margin-top: 14px; width: 100%; min-height: 40px; background: none; border: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .01em; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
 .card__skipbtn:hover { border-color: var(--line-strong); color: var(--ink); }
+/* v136A: visible one-tap Skip for optional warm-up / cool-down cards. Same
+   quiet outlined family as the buried skipbtn, but sits on the card face (not
+   inside Edit sets) so optional work never reads as mandatory. Deliberately
+   subordinate -- it must not compete with the Log affordance above it. */
+.card__skip-optional { margin-top: 12px; width: 100%; min-height: 44px; background: none; border: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .01em; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
+.card__skip-optional:hover { border-color: var(--line-strong); color: var(--ink); }
 .card.is-skipped { opacity: .6; }
 .card.is-skipped .card__collapsed { display: flex; }
 .card__collapsed--skip .card__collapsed-name { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--line-strong); }
@@ -1187,7 +1197,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <span class="livebar__dot" aria-hidden="true"></span>
       <span class="livebar__label" id="liveBarLabel"></span>
       <span class="livebar__timer mono" id="liveBarTimer" aria-label="Session time elapsed">0:00</span>
-      <button type="button" class="livebar__end" id="liveBarEnd">End</button>
+      <button type="button" class="livebar__end" id="liveBarEnd">Finish</button>
     </div>
     <div class="daybar view-day">
       <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
@@ -1832,7 +1842,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       var sl = log[sid]; if (!sl || !sl.ex) return;
       var ex = {};
       Object.keys(sl.ex).forEach(function (eid) { var el = sl.ex[eid]; if (el && Array.isArray(el.sets) && el.sets.some(function (s) { return s.completed; })) ex[eid] = el; });
-      if (Object.keys(ex).length) out[sid] = { date: sl.date || null, ex: ex };
+      // v136A: carry the finishedAt stamp through compaction (used on the
+      // archive path) -- rebuilding the entry as {date, ex} alone would silently
+      // strip it, losing the honest "finished" read for archived programs.
+      if (Object.keys(ex).length) { out[sid] = { date: sl.date || null, ex: ex }; if (sl.finishedAt) out[sid].finishedAt = sl.finishedAt; }
     });
     return out;
   }
@@ -5360,6 +5373,14 @@ function resolveSpec(request, state) {
     return bl;
   }
   function isSkipped(ses, exId) { var sl = state.log[ses.id]; return !!(sl && sl.ex && sl.ex[exId] && sl.ex[exId].skipped); }
+  // v136A: a session is "finished" once the user taps Finish with at least one
+  // set logged (endSession stamps sl.finishedAt, an ISO string). This is
+  // DISTINCT from fully-complete: a finished session may still have unlogged or
+  // skipped sets. Home/week/hero treat finished OR fully-complete as terminal
+  // (nothing "up next"), but the visual language stays honest -- a finished-
+  // early session is labelled "Finished · X of Y", never "Done". Absent field
+  // = not finished, so existing users need no migration.
+  function isSessionFinished(ses) { var sl = ses && state.log[ses.id]; return !!(sl && sl.finishedAt); }
   // Density-mode exercises collapse into ONE pseudo-item per block (id
   // "blk_<kind>") instead of one item per exercise -- the whole EMOM/AMRAP
   // block is a single logging unit (a round count), so session progress
@@ -5548,13 +5569,23 @@ function resolveSpec(request, state) {
   // OMIT it -- the hero already presents the up-next day in full, so repeating it
   // as a list row below just reads as a second, duplicate workout.
   function heroInfo(wk) {
-    var nextIdx = -1;
+    // v136A: "up next" skips any session that is TERMINAL -- fully complete OR
+    // finished-early (isSessionFinished). Without this, finishing a session
+    // early left Home re-presenting it as untouched "Continue" work, the core
+    // honesty defect. weekDone means "nothing left to start this week";
+    // weekFullyComplete additionally tells whether EVERY session was actually
+    // completed, so the hero can pick honest copy -- a wrapped-but-partial week
+    // is never labelled "complete".
+    var nextIdx = -1, allComplete = wk.sessions.length > 0;
     for (var i = 0; i < wk.sessions.length; i++) {
       var p = sessionProgress(sessionItemsFor(wk.sessions[i]));
-      if (p.total === 0 || p.done < p.total) { nextIdx = i; break; }
+      var fullyDone = p.total > 0 && p.done === p.total;
+      if (!fullyDone) allComplete = false;
+      var terminal = fullyDone || isSessionFinished(wk.sessions[i]);
+      if (!terminal && nextIdx < 0) nextIdx = i;
     }
     var weekDone = nextIdx < 0 && wk.sessions.length > 0;
-    return { nextIdx: nextIdx, weekDone: weekDone, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
+    return { nextIdx: nextIdx, weekDone: weekDone, weekFullyComplete: weekDone && allComplete, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
   }
   // True until the first time the user opens a session this launch -- lets the
   // home hero greet a returning, named user with "Welcome back" on arrival,
@@ -5717,21 +5748,24 @@ function resolveSpec(request, state) {
       var sl = state.log[s.id];
       if (sl && sl.date && String(sl.date).slice(0, 10) === todayStr()) wonTodayName = dayPositionLabel(wk.sessions, idx);
     });
-    var hi = heroInfo(wk), weekDone = hi.weekDone, heroIdx = hi.heroIdx;
+    var hi = heroInfo(wk), weekDone = hi.weekDone, weekFullyComplete = hi.weekFullyComplete, heroIdx = hi.heroIdx;
     var winHtml = (wonTodayName && !weekDone)
       ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> · ' + ordinal(doneThisWeek) + ' of ' + wk.sessions.length + ' done this week</span></div>'
       : "";
     var heroSes = wk.sessions[heroIdx];
     var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
     var started = !weekDone && heroPr.done > 0;
-    var label2 = weekDone ? "Week complete" : "Up next";
+    // v136A: "Week complete" only when every session was actually completed. A
+    // week that's DONE-with only because a session was finished early reads
+    // "Week wrapped" -- honest, never claiming completion that didn't happen.
+    var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : "Up next";
     var name = weekDone ? "Nice work this week" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
     // Subline leads with the session's muscle focus (the coached detail), not a
     // generic "pick up where you left off". Mid-session it appends the honest
     // count of what's left; before starting it's the focus alone.
     var heroFocus = (heroSes && heroSes.focus) || "";
     var leftN = heroPr.total - heroPr.done;
-    var subLine = weekDone ? (wk.sessions.length + " of " + wk.sessions.length + " sessions done")
+    var subLine = weekDone ? (doneThisWeek + " of " + wk.sessions.length + " sessions done")
       : started ? (heroFocus ? heroFocus + " · " + leftN + " left" : leftN + " exercises left")
       : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : ""));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
@@ -5986,6 +6020,10 @@ function resolveSpec(request, state) {
     var pr = sessionProgress(sessionItemsFor(sessions[i]));
     var isAlt = sessions[i].origin === "alternate";
     if (pr.total > 0 && pr.done === pr.total) return { key: "done", pr: pr, isAlt: isAlt };
+    // v136A: a session the user explicitly finished (but didn't fully complete)
+    // is its own honest state -- "Finished · X of Y", never "Done". Takes
+    // precedence over progress/skipped: the user closed it out on purpose.
+    if (isSessionFinished(sessions[i])) return { key: "finished", pr: pr, isAlt: isAlt };
     if (pr.done > 0) return { key: "progress", pr: pr, isAlt: isAlt };
     var laterTouched = false;
     for (var j = i + 1; j < sessions.length; j++) { if (sessionProgress(sessionItemsFor(sessions[j])).done > 0) { laterTouched = true; break; } }
@@ -6010,7 +6048,7 @@ function resolveSpec(request, state) {
       // Phase 3: sentence-case tag text (was uppercase) -- same tags, same
       // meaning, quieter status-board feel. CSS no longer uppercases via
       // text-transform either, so this is the literal on-screen text now.
-      if (i === todayIdx && st.key !== "done") tagHtml += '<span class="weekrow__tag weekrow__tag--today">Today</span>';
+      if (i === todayIdx && st.key !== "done" && st.key !== "finished") tagHtml += '<span class="weekrow__tag weekrow__tag--today">Today</span>';
       // ALT marks a swapped-in alternate session -- a content-origin marker on
       // its own axis, so it also sits inline by the name.
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' Alt</span>';
@@ -6020,6 +6058,10 @@ function resolveSpec(request, state) {
       // word, and a bare fraction that each spoke a different visual language.
       var statHtml;
       if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' Done</span>';
+      // v136A: finished-early is its own honest tag -- "Finished · X of Y", no
+      // check icon (the check is reserved for genuine completion), so it can
+      // never be mistaken for Done.
+      else if (st.key === "finished") statHtml = '<span class="weekrow__tag weekrow__tag--finished">Finished · ' + pr.done + ' of ' + pr.total + '</span>';
       else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
       else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">Skipped</span>';
       else statHtml = '<span class="weekrow__tag weekrow__tag--pending">Not yet</span>';
@@ -6080,16 +6122,19 @@ function resolveSpec(request, state) {
     var live = sessionLive();
     if (bar) bar.classList.toggle("livebar--preview", !live);
     if (lbl) lbl.textContent = focus;
-    // The finish control is ALWAYS present so you can end early (injury, time,
-    // ran short) -- but it earns emphasis only when the work is actually done:
-    // a soft "End" while sets remain, a solid "Finish" once every non-skipped
-    // set is logged. Finishing is a deliberate tap now, never auto-fired on the
-    // last set, so the final set's inline Effort strip stays rateable in-flow.
+    // v136A: the finish control is ALWAYS present and ALWAYS reads "Finish" --
+    // the action is "I'm done with this session", a positive controlled exit,
+    // never a negative "End"/"Quit". Finish does NOT mean everything was
+    // completed; the receipt tells the honest story (finished-early vs done).
+    // The label no longer changes with completion -- only the emphasis does: a
+    // quiet button while work remains, a solid one once every non-skipped set
+    // is logged. Finishing is a deliberate tap, never auto-fired on the last
+    // set, so the final set's inline Effort strip stays rateable in-flow.
     var endBtn = $("liveBarEnd");
     if (endBtn && ses) {
       var pr = sessionProgress(sessionItemsFor(ses));
       var complete = pr.total > 0 && pr.done === pr.total;
-      endBtn.textContent = complete ? "Finish" : "End";
+      endBtn.textContent = "Finish";
       endBtn.classList.toggle("livebar__end--ready", complete);
     }
   }
@@ -6666,6 +6711,17 @@ function resolveSpec(request, state) {
     var overlineTotal = ctx.blockItems ? ctx.blockItems.length : total_ex;
     var overlineLabel = ctx.blockLabel || "Exercise";
     var exOverline = '<p class="card__overline">' + esc(overlineLabel) + ' ' + (overlineIdx + 1) + ' of ' + overlineTotal + '</p>';
+    // v136A: warm-up and cool-down are OPTIONAL. Their Skip already existed but
+    // was buried two taps deep inside "Edit sets", making the block feel
+    // mandatory. Surface a visible one-tap Skip on those cards only -- reusing
+    // the existing skipex handler and skipped state (no new data). Gated on the
+    // block tag, so main lifts, accessories, conditioning and supersets (all
+    // non-warmup/cooldown blocks) never get it. When skipped the card already
+    // renders its compact "skipped" strip with Undo (see the isSkipped branch
+    // at the top of buildCard), so the resolve is honest and reversible.
+    var optionalSkip = (e.block === "warmup" || e.block === "cooldown")
+      ? '<button type="button" class="card__skip-optional" data-act="skipex" data-ex="' + e.id + '">Skip ' + (e.block === "warmup" ? "warm-up" : "cool-down") + '</button>'
+      : "";
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       collapsedHtml +
       '<div class="card__full">' +
@@ -6676,7 +6732,7 @@ function resolveSpec(request, state) {
       rampLine +
       formNotes +
       weightCtrl +
-      warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml +
+      warmRow + setsHead + targetLine + setsContainer + foot + faceCue + swapHtml + optionalSkip +
       // Product Polish Phase 1 (item 3, J3): the disclosure used to say "Edit
       // sets & swap" on every card, but the swap control above only ever
       // renders for conditioning (swapHtml) -- the label overpromised on
@@ -6877,6 +6933,10 @@ function resolveSpec(request, state) {
       var si = parseInt(btn.getAttribute("data-set"), 10), w = writeLog(ses, e), sset = w.el.sets[si];
       sset.completed = !sset.completed;
       if (!w.sl.date && sset.completed) w.sl.date = new Date().toISOString();
+      // v136A re-entry: logging a set on a previously-finished session means the
+      // user is training it again -- drop the finishedAt stamp so Home/week/hero
+      // stop treating it as finished (the recommended re-entry rule).
+      if (sset.completed && w.sl.finishedAt) delete w.sl.finishedAt;
       // v135 (A1): pin the logged exercise as the explicitly-open one so
       // completing it can't let currentId() drift to the next (see setdone).
       state.activeExerciseId = e.id;
@@ -7029,6 +7089,10 @@ function resolveSpec(request, state) {
       if (on2 && ds.actual_reps == null) { var rr = btn.closest(".setrow").querySelector(".rval"); ds.actual_reps = rr ? (parseInt(rr.textContent, 10) || 0) : 0; }
       ds.completed = on2;
       if (!wd.sl.date && on2) wd.sl.date = new Date().toISOString();
+      // v136A re-entry: logging a set on a previously-finished session means the
+      // user is training it again -- drop the finishedAt stamp so Home/week/hero
+      // stop treating it as finished (the recommended re-entry rule).
+      if (on2 && wd.sl.finishedAt) delete wd.sl.finishedAt;
       // v135 (A1): pin the exercise you're logging as the explicitly-open one.
       // Set controls are only reachable on the open card, so this is always the
       // current exercise -- but on day-open it was open only IMPLICITLY (via
@@ -8577,8 +8641,8 @@ function resolveSpec(request, state) {
     var sessionsDone = 0;
     wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
 
-    $("completeOverline").textContent = ended ? "Session ended" : "Session complete";
-    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · ended" : " done");
+    $("completeOverline").textContent = ended ? "Finished early" : "Session complete";
+    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · finished early" : " done");
     var summary = setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged" +
       (prog.skipped ? " · " + prog.skipped + " skipped" : "") +
       (!ended && readyCount ? " · ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts") : "");
@@ -8669,6 +8733,17 @@ function resolveSpec(request, state) {
     var ses = curSession(), setsLogged = 0;
     ses.exercises.forEach(function (e) { setsLogged += readLog(ses, e).sets.filter(function (s) { return s.completed; }).length; });
     if (setsLogged > 0) {
+      // v136A: finishing with real work persists a session-level finishedAt --
+      // an ISO stamp meaning "the user chose to finish this session", NOT that
+      // everything was completed. It's what lets Home/week/hero stop presenting
+      // a finished-early session as untouched "up next" work (read back via
+      // isSessionFinished). Written ONLY when >=1 set is logged; a zero-logged
+      // Finish was only a preview and persists nothing (the else branch just
+      // leaves). Sibling of sl.date, so it rides the same save/coerce/backup
+      // path as the rest of the log entry.
+      var slf = state.log[ses.id]; if (!slf) { slf = { date: null, ex: {} }; state.log[ses.id] = slf; }
+      slf.finishedAt = new Date().toISOString();
+      save();
       var pr = sessionProgress(sessionItemsFor(ses));
       showSessionComplete(ses, { ended: !(pr.total > 0 && pr.done === pr.total) });
     } else { backToWeek(); }
