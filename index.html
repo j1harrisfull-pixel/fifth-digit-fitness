@@ -656,7 +656,11 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .setrow__done::after { content: "Log"; }
 .setrow__done > svg { display: none; }
 .setrow:not(.is-done) .setrow__done:hover { border-color: var(--ink); }
-.setrow.is-done .setrow__done { min-height: 34px; padding: 6px 14px; background: none; border-color: var(--line); color: var(--faint); font-weight: 600; }
+/* v135 (B1): a logged set reads as a QUIET completed-green state -- soft green
+   tint fill + low-opacity green border + green text (the app's existing --ready
+   completion green). Settled, not a loud CTA, and scoped to the PILL only: the
+   row keeps its plain surface, no green wash. */
+.setrow.is-done .setrow__done { min-height: 34px; padding: 6px 14px; background: var(--ready-tint); border-color: color-mix(in srgb, var(--ready) 38%, transparent); color: var(--ready); font-weight: 600; }
 .setrow.is-done .setrow__done::after { content: "Logged"; }
 .setrow.pulse .setrow__done { animation: pulse .3s ease; }
 /* Per-set form-note collapse (mirrors .notes' grid-row trick, distinct class so
@@ -1025,10 +1029,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .complete__read-name { font-size: 14px; font-weight: 600; color: var(--paper-ink); margin: 0 0 2px; }
 .complete__read-detail { font-size: 13px; color: var(--paper-dim); line-height: 1.45; margin: 0; }
 .complete__read-off { font-size: 13px; color: var(--paper-dim); font-style: italic; margin: 0 0 18px; }
-/* The stamp: the orange thumbprint pressed on the receipt, tilted like a real
-   ink stamp -- the app's ceremonial mark, spent ONLY here and nowhere else. */
+/* v135 (B2): the sign-off mark is the FD monogram (current app identity),
+   ink on cream -- modest, upright, no tilt. The orange thumbprint stamp was
+   from an earlier identity; the header/app now leads with this monogram. */
 .receipt-paper__stamp { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--paper-line); }
-.receipt-paper__thumb { width: 56px; height: auto; flex: none; transform: rotate(-8deg); opacity: .92; }
+.receipt-paper__mark { height: 32px; width: auto; flex: none; color: var(--paper-ink); opacity: .9; }
 .receipt-paper__sig { text-align: right; font-family: "Spline Sans Mono", monospace; font-size: 10.5px; color: var(--paper-dim); line-height: 1.7; }
 .receipt-paper__sig b { display: block; color: var(--paper-ink); font-weight: 700; }
 .history__title { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; margin: 0 0 16px; }
@@ -1620,7 +1625,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div id="completeRead"></div>
       <p class="complete__read-detail" id="completeCoachNote" hidden></p>
       <div class="receipt-paper__stamp">
-        <img class="receipt-paper__thumb" src="thumbprint.png" alt="Fifth Digit thumbprint">
+        <svg class="receipt-paper__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
         <p class="receipt-paper__sig">Signed off<b id="completeSigLine"></b></p>
       </div>
     </div>
