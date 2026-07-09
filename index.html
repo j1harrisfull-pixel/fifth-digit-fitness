@@ -170,6 +170,12 @@ input, textarea { font: inherit; color: inherit; }
 .livebar--preview .livebar__label { flex: 1; color: var(--ink); }
 .livebar__label { flex: none; font-size: 12px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink-dim); }
 .livebar__timer { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* v136B correction: the one explicit "begin training" action -- solid/filled
+   (the session's single primary action while un-started), sitting alongside
+   the still-available (quieter) Finish. Visibility is JS-driven (renderDayBar
+   toggles [hidden]), not CSS-only, since it also depends on isSessionFinished. */
+.livebar__start { flex: none; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); font-size: 13px; font-weight: 700; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; }
+.livebar__start:hover { opacity: .9; }
 .livebar__end { position: relative; flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; }
 .livebar__end::after { content: ""; position: absolute; inset: -3px 0; }
 .livebar__end:hover { border-color: var(--ink); }
@@ -1209,6 +1215,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <span class="livebar__dot" aria-hidden="true"></span>
       <span class="livebar__label" id="liveBarLabel"></span>
       <span class="livebar__timer mono" id="liveBarTimer" aria-label="Session time elapsed">0:00</span>
+      <!-- v136B correction: Home only ENTERS the workout; this is the one
+           explicit "begin training" action, shown only while the session is
+           open but not yet live (see renderDayBar). Tapping it starts the
+           EXISTING timer system (ensureSessionLive) -- no new timer state. -->
+      <button type="button" class="livebar__start" id="liveBarStart">Start</button>
       <button type="button" class="livebar__end" id="liveBarEnd">Finish</button>
     </div>
     <div class="daybar view-day">
@@ -5817,7 +5828,7 @@ function resolveSpec(request, state) {
           recap.prs.map(function (p) { return '<p class="recap-prs__row">' + esc(p.name) + ' <b class="mono">' + p.orm + esc(runit) + '</b></p>'; }).join('') +
           '</div>' : '');
     }
-    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Start training";
+    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Enter workout";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.
@@ -6141,6 +6152,15 @@ function resolveSpec(request, state) {
     var live = sessionLive();
     if (bar) bar.classList.toggle("livebar--preview", !live);
     if (lbl) lbl.textContent = focus;
+    // v136B correction: Home/hero/readiness only ENTER the workout now -- they
+    // never start the timer themselves (see openDay's plain callers). This is
+    // the one explicit "begin training" control: visible only while the
+    // session is open, not yet live, and not already finished (a finished
+    // session re-entered for review doesn't need a fresh Start prompt; logging
+    // a real set there still promotes it live exactly as it always has, via
+    // the existing ensureSessionLive() call in the set-log handlers).
+    var startBtn = $("liveBarStart");
+    if (startBtn && ses) startBtn.hidden = live || isSessionFinished(ses);
     // v136A: the finish control is ALWAYS present and ALWAYS reads "Finish" --
     // the action is "I'm done with this session", a positive controlled exit,
     // never a negative "End"/"Quit". Finish does NOT mean everything was
@@ -7284,17 +7304,8 @@ function resolveSpec(request, state) {
   function maybeOpenDayWithReadiness(i) {
     var wk = curWeek(), ses = wk && wk.sessions[i];
     if (ses && shouldPromptReadiness(ses)) { readinessPromptDayIdx = i; openSheetNoKb($("readinessPromptSheet")); }
-    else openDayToTrain(i);
+    else openDay(i);
   }
-  // v136B: the explicit "I'm starting this session now" entry points -- the
-  // hero/Home "Start training" CTA and accepting a readiness prompt -- start
-  // the timer at open time instead of waiting for the first logged set, so
-  // warm-up and any timed work before the first log actually count. Reuses
-  // the EXISTING ensureSessionLive() (the same promote-to-live call the first
-  // logged set already used) -- no new timer state, LIVE_KEY semantics
-  // untouched. A plain week-row tap on a DIFFERENT (future/other) day still
-  // goes through plain openDay() below and stays a passive, un-timed preview.
-  function openDayToTrain(i) { openDay(i); ensureSessionLive(); }
   // Rough only: same-day swap to a freshly-built recoverySession(), reusing
   // the EXACT existing substitution mechanism (pendingToday +
   // pendingSubstituteIdx + addTodaySession()) that already powers "Fancy a
@@ -7311,10 +7322,9 @@ function resolveSpec(request, state) {
     pendingSubstituteIdx = dayIdx;
     state.view = "day";
     addTodaySession();
-    // v136B: this is the "too sore, swap to recovery" branch of the readiness
-    // prompt -- also an explicit start-training moment, so the timer starts
-    // here too (existing ensureSessionLive(), no new state).
-    ensureSessionLive();
+    // v136B correction: entering (even a swapped-in recovery session) no
+    // longer starts the timer -- Home enters, the workout screen's own
+    // Start action begins it (see renderDayBar's liveBarStart wiring).
   }
   function backToWeek() {
     hideRest(); stopLiveTimer(); releaseWakeLock();
@@ -7350,6 +7360,11 @@ function resolveSpec(request, state) {
     else openDay(day);
   });
   $("backWeek").addEventListener("click", backToWeek);
+  // v136B correction: the one explicit "begin training" tap -- reuses the
+  // EXISTING ensureSessionLive() (same promotion the first logged set already
+  // used), no new timer state. renderDayBar() (called inside ensureSessionLive)
+  // then hides this button and reveals the ticking timer.
+  $("liveBarStart").addEventListener("click", ensureSessionLive);
   $("liveBarEnd").addEventListener("click", endSession);
   $("coachHintDismiss").addEventListener("click", function () {
     try { localStorage.setItem("tl:coachHintSeen", "1"); } catch (e) {}
@@ -8125,11 +8140,11 @@ function resolveSpec(request, state) {
       var v = parseInt(b.getAttribute("data-rp"), 10), dayIdx = readinessPromptDayIdx;
       readinessPromptDayIdx = null; closeDlg();
       setReadiness(v);
-      if (v === 0) swapTodayForRecovery(dayIdx); else openDayToTrain(dayIdx);
+      if (v === 0) swapTodayForRecovery(dayIdx); else openDay(dayIdx);
     });
     $("readinessPromptSkip").addEventListener("click", function () {
       var dayIdx = readinessPromptDayIdx; readinessPromptDayIdx = null; closeDlg();
-      if (dayIdx != null) openDayToTrain(dayIdx);
+      if (dayIdx != null) openDay(dayIdx);
     });
     dlg.addEventListener("cancel", function () { readinessPromptDayIdx = null; }); // Escape
   })();
@@ -8724,12 +8739,14 @@ function resolveSpec(request, state) {
     }
     // The stamp's sig line: today's date + the real session duration. v136B:
     // prefer the LIVE TIMER's start over the first logged set's timestamp when
-    // the timer began earlier -- Start training / accepting the readiness
-    // prompt now starts the clock before any set is logged, so warm-up and any
-    // timed work before the first log should count rather than being silently
+    // the timer began earlier -- tapping the workout screen's own Start action
+    // now starts the clock before any set is logged (Home only ENTERS the
+    // workout; it no longer starts the timer itself), so warm-up and any timed
+    // work before the first log should count rather than being silently
     // dropped. Falls back to the first logged set's date if the timer was
-    // never explicitly started early (e.g. an older/resumed flow), and to a
-    // bare no-duration read if neither exists. And since we don't track
+    // never explicitly started early (e.g. the user just logs straight away,
+    // which still promotes the session live the same way it always has), and
+    // to a bare no-duration read if neither exists. And since we don't track
     // pauses, an implausibly long span (left the app open, walked away) is
     // suppressed rather than printed as a fabricated-looking duration -- an
     // honest blank beats a wrong number.

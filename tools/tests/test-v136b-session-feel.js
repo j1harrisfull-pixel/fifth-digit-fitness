@@ -1,40 +1,70 @@
-// v136B -- timer starts from explicit training start, a signing-off beat
-// after Finish, and form notes restyled into the coach-note family.
+// v136B (+ correction) -- Home only ENTERS the workout; the workout screen's
+// own Start action is the sole place the timer begins. Plus the signing-off
+// beat after Finish and form notes restyled into the coach-note family.
 //
-// Most of v136B lives in DOM-wired click handlers (openDay/ensureSessionLive/
-// the readiness prompt), which are exercised live in the browser smoke pass.
-// This file covers what's safely testable outside a DOM: (1) source guards
-// confirming the explicit-start call sites reuse the existing timer promotion
-// and that a plain week-row preview does NOT, (2) a functional re-derivation
-// of the receipt's duration-preference arithmetic (extracted verbatim from
-// source and evaluated against synthetic inputs), (3) source guards for the
-// signing-off beat's wiring and reduced-motion bypass, and (4) source guards
-// for the form-note CSS no longer boxing form notes and no longer reusing the
-// coach-note's accent colour (quieter, per the ticket).
+// v136B's first pass wired the timer to start at Home/hero/readiness-prompt
+// entry (openDayToTrain). The product model changed: "Home enters. Workout
+// starts. Finish closes." -- so every entry route (hero CTA, readiness
+// accept/skip, the recovery swap, a plain week-row tap) now opens the workout
+// via plain openDay() ONLY, and a new #liveBarStart button on the workout
+// screen itself is the one explicit "begin training" action (reusing the
+// existing ensureSessionLive(), no new timer state).
+//
+// Most of this lives in DOM-wired click handlers, exercised live in the
+// browser smoke pass. This file covers what's safely testable outside a DOM:
+// (1) source guards confirming NONE of the entry routes call ensureSessionLive
+// directly, that the hero button reads "Enter workout", and that the new
+// Start control is wired to the existing timer-start function; (2) a
+// functional re-derivation of the receipt's duration-preference arithmetic;
+// (3) source guards for the signing-off beat's wiring and reduced-motion
+// bypass; (4) source guards for the form-note CSS.
 const fs = require('fs');
 const SRC = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8');
 
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
-// ---------- Test 1: explicit-start entry points reuse ensureSessionLive ----------
+// ---------- Test 1: Home hero reads "Enter workout" and does not start the timer ----------
 {
-  ok(/function openDayToTrain\(i\) \{ openDay\(i\); ensureSessionLive\(\); \}/.test(SRC),
-     'openDayToTrain opens the day AND promotes it live via the EXISTING ensureSessionLive() -- no new timer state (test 1)');
-  ok(/else openDayToTrain\(i\);/.test(SRC),
-     'maybeOpenDayWithReadiness (hero CTA + today\'s own week-row tap) starts training via openDayToTrain when no readiness prompt is needed');
-  ok(/if \(v === 0\) swapTodayForRecovery\(dayIdx\); else openDayToTrain\(dayIdx\);/.test(SRC),
-     'readiness prompt ACCEPT path starts training via openDayToTrain (or the recovery swap) on every branch');
-  ok(/if \(dayIdx != null\) openDayToTrain\(dayIdx\);/.test(SRC),
-     'readiness prompt SKIP path also starts training via openDayToTrain (skip = still training today, just without a readiness answer)');
-  ok(/addTodaySession\(\);\s*\n\s*\/\/ v136B[\s\S]{0,320}ensureSessionLive\(\);/.test(SRC),
-     'swapTodayForRecovery (the "too sore" readiness branch) starts the timer for the swapped-in recovery session too');
+  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Enter workout";/.test(SRC),
+     'the untouched-session hero CTA label is "Enter workout", not "Start training" (test: Home hero copy)');
+  ok(!/"Start training"/.test(SRC), 'the old "Start training" copy is gone entirely');
+  // The hero CTA's click handler resolves through maybeOpenDayWithReadiness,
+  // which (below) is proven to only ever call plain openDay -- so the hero
+  // itself contains no direct ensureSessionLive/openDayToTrain call.
+  ok(/cta\.addEventListener\("click", weekDone \? openPlan : function \(\) \{ maybeOpenDayWithReadiness\(heroIdx\); \}\);/.test(SRC),
+     'the hero CTA routes through maybeOpenDayWithReadiness only -- no direct timer start (test: Home hero does not start timer)');
 }
 
-// ---------- Test 2: a plain week-row preview of a DIFFERENT day does NOT start the timer ----------
+// ---------- Test 2: every entry route opens the workout WITHOUT starting the timer ----------
+{
+  ok(!/openDayToTrain/.test(SRC), 'openDayToTrain (the old auto-start wrapper) no longer exists anywhere in source');
+  ok(/function maybeOpenDayWithReadiness\(i\) \{[\s\S]{0,200}else openDay\(i\);\s*\n\s*\}/.test(SRC),
+     'maybeOpenDayWithReadiness (hero CTA + today\'s own week-row tap) opens via plain openDay when no readiness prompt is needed -- no timer start');
+  ok(/if \(v === 0\) swapTodayForRecovery\(dayIdx\); else openDay\(dayIdx\);/.test(SRC),
+     'readiness prompt ACCEPT (not-too-sore) branch opens via plain openDay -- no timer start');
+  ok(/if \(dayIdx != null\) openDay\(dayIdx\);/.test(SRC),
+     'readiness prompt SKIP branch opens via plain openDay -- no timer start');
+  const swapFnMatch = SRC.match(/function swapTodayForRecovery\(dayIdx\) \{[\s\S]*?\n  \}/);
+  ok(!!swapFnMatch && !/ensureSessionLive/.test(swapFnMatch[0]),
+     'swapTodayForRecovery (the "too sore" branch) no longer calls ensureSessionLive -- opens the recovery session without starting the timer');
+  ok(!/addTodaySession\(\);\s*\n\s*ensureSessionLive\(\);/.test(SRC),
+     'Just Today confirm (addTodaySession) never auto-starts the timer on entry (test: Just Today confirm does not start timer)');
+}
+
+// ---------- Test 3: a plain week-row preview of any day does NOT start the timer ----------
 {
   const m = SRC.match(/if \(day === todaySessionIdx\(curWeek\(\)\.sessions\)\) maybeOpenDayWithReadiness\(day\);\s*\n\s*else openDay\(day\);/);
-  ok(!!m, 'week-row click: any day OTHER than today calls plain openDay(day) -- no ensureSessionLive, no timer start (test 2)');
+  ok(!!m, 'week-row click: any day (today via the readiness-gated route above, or any other day via plain openDay) never calls ensureSessionLive directly (test: week-row preview does not start timer)');
+}
+
+// ---------- Test: the workout screen's own Start action starts the timer ----------
+{
+  ok(/id="liveBarStart">Start<\/button>/.test(SRC), 'the workout screen has a visible Start control');
+  ok(/\$\("liveBarStart"\)\.addEventListener\("click", ensureSessionLive\);/.test(SRC),
+     'tapping Start calls the EXISTING ensureSessionLive() directly -- reuses the same timer-start path the first logged set has always used, no new timer state (test: workout Start action starts timer)');
+  ok(/var startBtn = \$\("liveBarStart"\);\s*\n\s*if \(startBtn && ses\) startBtn\.hidden = live \|\| isSessionFinished\(ses\);/.test(SRC),
+     'renderDayBar shows Start only when the session is open, not live, and not already finished');
 }
 
 // ---------- Test 3: receipt duration prefers the live timer start ----------
