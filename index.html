@@ -841,6 +841,24 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* v1.3: one product line, quiet, above the name-capture headline -- so a
    cold link answers "what is this" before it asks anything of you. */
 .intro__product { font-size: 13px; font-weight: 600; letter-spacing: .01em; color: var(--ink-dim); margin: 0 0 10px; }
+/* v1.5: opening-screen visual upgrade -- a premium, centred identity block
+   (wordmark + tagline + mission line) ahead of the name ask, scoped to its
+   own wrapper so it can be centred without forcing the headline/label/input
+   below it to center too (those stay left, unchanged). Only introStep1 gets
+   this treatment; steps 2-4 are untouched. No new colour token -- the app is
+   already dark-only (--bg), and the only accent this app has is the existing
+   brass (--accent), so the divider below reuses that rather than inventing a
+   blue that doesn't exist anywhere else in the palette. */
+.intro__hero { text-align: center; margin-bottom: 28px; }
+.intro__wordmark { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: .06em; color: var(--ink); margin: 0 0 20px; }
+.intro__hero .intro__product { text-align: center; }
+.intro__mission { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--line-strong); }
+/* The monogram and CTA row are shared markup used by every step (or, for the
+   row, this same class on steps 3), so their premium sizing/centring is
+   scoped with :has() to fire only while introStep1 is the visible step --
+   steps 2-4 keep their existing monogram size/left-aligned row exactly. */
+#intro:has(#introStep1:not([hidden])) .intro__mark { height: 52px; margin: 0 auto 28px; }
+#intro:has(#introStep1:not([hidden])) .intro__row { justify-content: center; }
 .intro__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
 .intro__list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 13px; }
 .intro__list li { position: relative; padding-left: 22px; font-size: 14px; line-height: 1.5; color: var(--ink); }
@@ -1563,12 +1581,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </svg>
     <!-- Step 1: the handshake -- the name prompt leads, before anything else. -->
     <div class="intro__step" id="introStep1">
-      <p class="intro__product">Training built for you. Logged on your phone.</p>
+      <div class="intro__hero">
+        <p class="intro__wordmark">FIFTH DIGIT Coach</p>
+        <p class="intro__product">Training built for you.<br>Logged on your phone.</p>
+        <p class="intro__mission">Build the plan. Train when ready.<br>Keep the work honest.</p>
+      </div>
       <h1 class="intro__title">Let's make this yours.</h1>
       <label class="intro__ask" for="introName">What should we call you?</label>
       <input class="intro__name" id="introName" type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" enterkeyhint="go">
       <div class="intro__row">
-        <button class="btn btn--primary intro__go" id="introContinue" type="button">Continue</button>
+        <button class="btn btn--primary intro__go" id="introContinue" type="button">Get started</button>
         <button class="intro__skip" id="introSkip" type="button">Skip</button>
       </div>
       <p class="intro__fine">Stays on your phone. Always.</p>

@@ -13,7 +13,10 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 1: onboarding product line ----------
 {
-  ok(/<p class="intro__product">Training built for you\. Logged on your phone\.<\/p>/.test(SRC),
+  // v1.5: the opening-screen upgrade splits this line across two lines with
+  // <br> (matching the ticket's given copy block) -- the words themselves
+  // are unchanged, only the line break was added.
+  ok(/<p class="intro__product">Training built for you\.<br>Logged on your phone\.<\/p>/.test(SRC),
      'the exact product line appears on the first onboarding screen (test 1)');
   const introIdx = SRC.indexOf('id="introStep1"');
   const productIdx = SRC.indexOf('intro__product', introIdx);
