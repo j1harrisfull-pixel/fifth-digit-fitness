@@ -125,6 +125,10 @@ input, textarea { font: inherit; color: inherit; }
 /* "Fitness" SUPPORTS the monogram -- smaller, lighter weight, dimmer ink --
    a quiet descriptor riding beside the mark, not a co-equal wordmark. */
 .brand__name { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap; }
+/* v134: at the narrowest phones (<360px) the right-aligned Build button crowds
+   the "Coach" descriptor -- drop the word and keep the FD monogram leading, so
+   the mark is never overlapped. Full FD COACH lockup returns at 360px and up. */
+@media (max-width: 359px) { .brand__name { display: none; } }
 .topbar__actions { display: flex; gap: 8px; }
 /* Bare header icons: same 48px hit area, no boxed tile -- three bordered
    squares next to the week pill made the header a row of boxes. The one box
@@ -577,18 +581,14 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .setrow:not(.is-done) .setrow__reps { display: flex; margin-left: 4px; }
 .setrow:not(.is-done) .setrow__reps::after { content: "reps"; align-self: center; margin-left: 4px; font-size: 12px; font-weight: 600; color: var(--faint); }
 .setrow:not(.is-done) .setrow__prev { display: block; flex-basis: 100%; text-align: left; color: var(--faint); }
-/* PENDING = any not-done step AFTER the first not-done one (general-sibling).
-   Quiet upcoming step: target only, no controls, dimmed, no fill. Higher
-   specificity than the current rules above, so it wins for later rows. */
-.setrow:not(.is-done) ~ .setrow:not(.is-done) { background: none; border: 0; padding: 9px 12px; opacity: .66; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__n { flex-basis: auto; font-size: 14px; margin-bottom: 0; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__n { color: var(--faint); font-weight: 600; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__plan { display: block; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__wt { display: none; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__wt::after { content: none; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__reps { display: none; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__reps::after { content: none; }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__prev { display: none; }
+/* v134: NO forced "current set" auto-advance. Previously only the FIRST undone
+   row showed its controls (the rule block that used to live here dimmed every
+   LATER undone row and hid its controls), so logging one set made the next row
+   visually "jump" into the current state -- a conveyor belt. That distinction
+   is removed: every undone row now shows its own controls + Log pill uniformly,
+   so logging a set changes only that row and never elevates another. The user
+   taps the next set's Log when ready. Pure presentation -- logging path, data
+   shape, and the first-undone LOG-bar target are all unchanged. */
 /* Premium refinement: completion reads through the small check mark (above)
    and the settled result text -- NOT a full-row green wash, which read as a
    success-alert card. The row sits on the plain page surface like any other
@@ -600,7 +600,8 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    row and the row right after the current one are reliable, CSS-only anchors
    -- no markup change, no restructuring of the flat .setlist. */
 .setrow.is-done:first-child::before { content: "Completed"; order: -1; flex-basis: 100%; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); opacity: .8; padding: 2px 0 4px; }
-.setrow.is-next + .setrow:not(.is-done)::before { content: "Up next"; order: -1; flex-basis: 100%; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); opacity: .8; padding: 6px 0 4px; }
+/* v134: the "Up next" eyebrow was removed with the auto-advance conveyor -- no
+   undone set is singled out as the forced next one; the user chooses. */
 /* Strengthened slightly: full ink (not dimmed) + a touch more weight/size, so
    the confirmed record reads as a settled fact next to the now more-composed
    current-set card, not a footnote beneath it. Still no fill, still no border. */
@@ -646,14 +647,18 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    VISIBLE mark (a ::before ring/dot) changes size and colour per state, so a
    completed set reads as a small confirmed check, not a large filled alert
    disc. Green appears only as this small mark -- never a row wash. */
-.setrow__done { width: 44px; height: 44px; margin-left: auto; flex: none; position: relative; display: grid; place-items: center; border: 0; background: none; color: var(--faint); }
-.setrow__done::before { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: var(--surface); transition: all .16s ease; }
-.setrow__done > svg { position: relative; width: 13px; height: 13px; opacity: 0; transition: opacity .12s ease; }
-.setrow:not(.is-done) .setrow__done:hover::before { border-color: var(--ready); }
-.setrow:not(.is-done) ~ .setrow:not(.is-done) .setrow__done::before { width: 16px; height: 16px; border-width: 1px; border-color: var(--line); background: none; }
-.setrow.is-done .setrow__done::before { width: 22px; height: 22px; border: 0; background: var(--ready); }
-.setrow.is-done .setrow__done > svg { opacity: 1; color: var(--on-accent); }
-.setrow.pulse .setrow__done::before { animation: pulse .3s ease; }
+/* v134: the per-set completion control is an explicit Log / Logged PILL, not an
+   ambiguous circle -- a clear, compact, tappable action when pending, and a
+   quiet settled state once logged. Same <button>, same data-act binding, same
+   handler; only its presentation changes (text via ::after, the old check svg
+   hidden). Never the accent -- that stays reserved for the one hero action. */
+.setrow__done { width: auto; height: auto; min-height: 40px; margin-left: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: .01em; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done::after { content: "Log"; }
+.setrow__done > svg { display: none; }
+.setrow:not(.is-done) .setrow__done:hover { border-color: var(--ink); }
+.setrow.is-done .setrow__done { min-height: 34px; padding: 6px 14px; background: none; border-color: var(--line); color: var(--faint); font-weight: 600; }
+.setrow.is-done .setrow__done::after { content: "Logged"; }
+.setrow.pulse .setrow__done { animation: pulse .3s ease; }
 /* Per-set form-note collapse (mirrors .notes' grid-row trick, distinct class so
    it can coexist with the exercise-level "Details" collapse on the same card). */
 .cuewrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.2,.8,.2,1); }
