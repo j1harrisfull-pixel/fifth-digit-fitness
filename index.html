@@ -1630,8 +1630,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn btn--primary" id="completeNext" type="button">Back to week</button>
-      <button class="btn" id="completeSecondary" type="button" hidden></button>
+      <button class="btn btn--primary" id="completeNext" type="button">Done</button>
     </div>
   </div>
 </dialog>
@@ -8655,22 +8654,18 @@ function resolveSpec(request, state) {
     // 'Keep going' when ended early (stay in the session), or a quiet 'Start
     // <next day>' when finished. Dismissing the sheet any way (primary, backdrop,
     // Escape) routes to the week via the sheet's close handler.
-    var primaryBtn = $("completeNext"), secondaryBtn = $("completeSecondary"), dlg = $("completeSheet");
+    var primaryBtn = $("completeNext"), dlg = $("completeSheet");
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
-    primaryBtn.textContent = "Back to week";
-    // Route explicitly here (and in the backdrop/Escape handlers) rather than on
-    // the dialog 'close' event -- close() doesn't reliably fire 'close' for this
-    // sheet in every engine, so the button owns its navigation.
+    // v135: the finish card is a RECEIPT, not a router. It carries a single
+    // action -- "Done" -- that closes the card and returns to the week/home via
+    // the existing safe path. The old "Start <next day>" / "Keep going" movement
+    // actions were removed: after finishing, the user leaves calmly and chooses
+    // what's next from the session list. Route explicitly here (and in the
+    // backdrop/Escape handlers) rather than on the dialog 'close' event --
+    // close() doesn't reliably fire 'close' for this sheet in every engine, so
+    // the button owns its navigation.
+    primaryBtn.textContent = "Done";
     primaryBtn.onclick = function () { closeDlg(); backToWeek(); };
-    if (ended) {
-      secondaryBtn.hidden = false; secondaryBtn.textContent = "Keep going";
-      secondaryBtn.onclick = function () { closeDlg(); }; // stay in the session
-    } else if (nextIdx >= 0) {
-      secondaryBtn.hidden = false; secondaryBtn.textContent = "Start " + dayPositionLabel(wk.sessions, nextIdx) + " →";
-      secondaryBtn.onclick = function () { closeDlg(); maybeOpenDayWithReadiness(nextIdx); };
-    } else {
-      secondaryBtn.hidden = true; secondaryBtn.onclick = null;
-    }
     openSheetNoKb(dlg);
   }
   // Ending a session: with work logged, show the honest receipt (complete or
