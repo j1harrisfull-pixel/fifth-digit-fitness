@@ -233,10 +233,13 @@ function setup(ses, log, wk) {
 // is UI-event-wired and not independently extractable without a DOM harness) ----------
 {
   var actIdx = SRC.indexOf('function onDensityAct(act, kind, btn)');
-  var actBody = SRC.slice(actIdx, actIdx + 2200);
-  ok(/isIncrease\)[\s\S]{0,40}\{ unlockAudio\(\); ensureSessionLive\(\); \}/.test(actBody),
+  var actBody = SRC.slice(actIdx, actIdx + 2600);
+  // v1.6 added a guarded sl.date stamp comment+line inside both branches
+  // (between the finishedAt clear and the ensureSessionLive call), so the
+  // proximity windows below were widened to still match through it.
+  ok(/isIncrease\)[\s\S]{0,300}\{ unlockAudio\(\); ensureSessionLive\(\); \}/.test(actBody),
      'logging a density round (increase) starts the session timer via ensureSessionLive if not live (test 10)');
-  ok(/if \(willBeDone\) \{[\s\S]{0,120}ensureSessionLive\(\);/.test(actBody),
+  ok(/if \(willBeDone\) \{[\s\S]{0,400}ensureSessionLive\(\);/.test(actBody),
      'marking a density block done starts the session timer via ensureSessionLive if not live (test 10)');
   var timerBranch = actBody.slice(actBody.indexOf('act === "blktimer"'));
   ok(!/ensureSessionLive/.test(timerBranch.slice(0, 300)),

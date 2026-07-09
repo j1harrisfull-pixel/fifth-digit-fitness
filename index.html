@@ -7010,6 +7010,13 @@ function resolveSpec(request, state) {
       // IS finished, walking rounds down doesn't retroactively un-finish it).
       var slr = state.log[ses.id];
       if (isIncrease && slr && slr.finishedAt) delete slr.finishedAt;
+      // v1.6: stamp sl.date the same way normal set logging always has --
+      // only on a genuine new-work event (a round INCREASE, never the
+      // decrease/undo), and only when no date exists yet, so this never
+      // overwrites or retroactively touches an existing log entry. Without
+      // this a density-only session had no date at all until Finish, making
+      // it invisible to computeRollingDebt's date-gated window.
+      if (isIncrease && slr && !slr.date) slr.date = new Date().toISOString();
       // v1.4 (Task 5): logging a round is the density equivalent of logging a
       // set -- if the user never tapped Start, this is the moment real work
       // exists, so promote the session live exactly as the set handlers do.
@@ -7029,6 +7036,10 @@ function resolveSpec(request, state) {
       var sld = state.log[ses.id];
       if (willBeDone) {
         if (sld && sld.finishedAt) delete sld.finishedAt;
+        // v1.6: same guarded, forward-only date stamp as the rounds branch --
+        // only on the true->transition (never on unmark), only when sl.date
+        // is not already set.
+        if (sld && !sld.date) sld.date = new Date().toISOString();
         unlockAudio(); ensureSessionLive();
       }
       save();
@@ -7930,18 +7941,149 @@ function resolveSpec(request, state) {
       .then(function (obj) { if (settled) return; settled = true; clearTimeout(to); cb(normalizeLLMRequest(obj, text)); })
       .catch(function () { if (settled) return; settled = true; clearTimeout(to); fallback(); });
   }
+  // v1.6: Just Today's rolling-memory helper -- reads the last 7 rolling days
+  // of LOGGED work only (never the current program week's calendar boundary),
+  // so a Just Today build stays aware of what was actually trained recently
+  // instead of resetting the moment a new program week starts. Pure and
+  // read-only: given the same (state, nowMs) it always returns the same
+  // result, and it never writes anything. Deliberately mirrors
+  // computeWeeklyDebt's per-pattern/per-muscle counting (same
+  // WEEKLY_SET_TARGETS/MUSCLE_VOLUME_LANDMARKS/ANTERIOR_PATTERNS/
+  // POSTERIOR_PATTERNS/SECONDARY_MUSCLE_CREDIT/MP_LABEL constants -- no new
+  // coaching numbers invented here) but iterates every session across every
+  // week (not just the active one) and gates each session by its own logged
+  // date, not by program-week membership. Does not read state.archive --
+  // only the live program's sessions are considered in v1.6.
+  //
+  // Density work (EMOM/AMRAP rounds, logged via sl.blocks rather than sl.ex)
+  // is credited too, at a deliberately approximate, capped rate -- CAP and
+  // DONE_FLAT are internal counting constants only, never surfaced in any
+  // user-facing copy. Recent logged work (within the last 48h of nowMs) is
+  // weighted slightly higher (RECENT_WEIGHT) purely so a Just Today build
+  // doesn't lead straight back into whatever pattern was just logged -- this
+  // is a statement about the log (what was recently logged), not a claim
+  // about the body; no recovery/fatigue reasoning is involved or implied.
+  function computeRollingDebt(state, nowMs) {
+    var ROLLING_MS = 7 * 24 * 60 * 60 * 1000;
+    var RECENT_MS = 48 * 60 * 60 * 1000;
+    // RECENT_WEIGHT is a statement about the log (what was recently logged),
+    // not a claim about the body -- no recovery/fatigue reasoning involved.
+    var CAP = 5, DONE_FLAT = 3, RECENT_WEIGHT = 1.25;
+    var byName = {};
+    for (var i = 0; i < LIBRARY.length; i++) byName[LIBRARY[i].name.toLowerCase()] = LIBRARY[i];
+    var donePat = {}, doneMus = {}, doneMusSecondary = {}, seenPat = {};
+    var doneUnilateral = 0, doneBilateral = 0, doneSpineLoad = 0;
+    var prog = state && state.program, log = (state && state.log) || {};
+    var weeks = (prog && Array.isArray(prog.weeks)) ? prog.weeks : [];
+
+    function creditPattern(lib, done) {
+      if (!lib || !done) return;
+      if (lib.movement_pattern) donePat[lib.movement_pattern] = (donePat[lib.movement_pattern] || 0) + done;
+      var pm = lib.primary_muscles && lib.primary_muscles[0];
+      if (pm) doneMus[pm] = (doneMus[pm] || 0) + done;
+      (lib.secondary_muscles || []).forEach(function (sm) {
+        doneMusSecondary[sm] = (doneMusSecondary[sm] || 0) + done * SECONDARY_MUSCLE_CREDIT;
+      });
+      if (lib.is_unilateral) doneUnilateral += done; else doneBilateral += done;
+      if (lib.joint_stress && lib.joint_stress.indexOf("spine") >= 0) doneSpineLoad += done;
+    }
+
+    weeks.forEach(function (wk) {
+      if (!wk || !Array.isArray(wk.sessions)) return;
+      wk.sessions.forEach(function (ses) {
+        if (!ses || !ses.id) return;
+        var sl = log[ses.id];
+        if (!sl || typeof sl !== "object") return;
+        var tsRaw = sl.date || sl.finishedAt;
+        var ts = tsRaw ? Date.parse(tsRaw) : NaN;
+        if (isNaN(ts)) return; // no parseable date -- skip silently, not a debt signal
+        var age = nowMs - ts;
+        if (age < 0 || age > ROLLING_MS) return; // outside the rolling window (or a clock-skewed future date)
+        var weight = (age <= RECENT_MS) ? RECENT_WEIGHT : 1;
+        var exercises = Array.isArray(ses.exercises) ? ses.exercises : [];
+        var lastReachedIndex = -1;
+        exercises.forEach(function (ex, idx) {
+          var el = (sl.ex && ex) ? sl.ex[ex.id] : null;
+          var hasCompleted = !!(el && Array.isArray(el.sets) && el.sets.some(function (s) { return s && s.completed; }));
+          if (hasCompleted) lastReachedIndex = idx;
+        });
+        exercises.forEach(function (ex, idx) {
+          if (!ex || !ex.name) return;
+          var lib = byName[String(ex.name).toLowerCase()];
+          if (!lib || lib.type !== "strength") return;
+          if (idx <= lastReachedIndex && lib.movement_pattern) seenPat[lib.movement_pattern] = true;
+          var el = sl.ex && sl.ex[ex.id];
+          var done = (el && Array.isArray(el.sets)) ? el.sets.filter(function (s) { return s && s.completed; }).length : 0;
+          if (done > 0) creditPattern(lib, done * weight);
+        });
+        // Density blocks (v1.4): logged as sl.blocks[kind] = {rounds, completed},
+        // separate from sl.ex. Approximate credit only -- never forensic, and
+        // bounded by the block's own stated target (or CAP) so a short density
+        // block can never out-credit a full strength session.
+        if (sl.blocks) {
+          Object.keys(sl.blocks).forEach(function (kind) {
+            var bl = sl.blocks[kind];
+            if (!bl) return;
+            var blockDef = Array.isArray(ses.blocks) ? ses.blocks.filter(function (b) { return b && b.kind === kind; })[0] : null;
+            var targetCap = (blockDef && typeof blockDef.rounds === "number" && blockDef.rounds > 0) ? Math.min(blockDef.rounds, CAP) : CAP;
+            var creditCount = 0;
+            if (typeof bl.rounds === "number" && bl.rounds > 0) creditCount = Math.min(bl.rounds, targetCap);
+            else if (bl.completed) creditCount = Math.min(DONE_FLAT, targetCap);
+            if (!creditCount) return;
+            exercises.forEach(function (ex) {
+              if (!ex || ex.block !== kind || !ex.densityMode) return;
+              var lib2 = byName[String(ex.name).toLowerCase()];
+              if (!lib2 || lib2.type !== "strength") return;
+              creditPattern(lib2, creditCount * weight);
+            });
+          });
+        }
+      });
+    });
+
+    var byPattern = {}, ranked = [];
+    Object.keys(WEEKLY_SET_TARGETS).forEach(function (mp) {
+      var target = WEEKLY_SET_TARGETS[mp], done = donePat[mp] || 0, debt = Math.max(0, target - done);
+      var hadOpportunity = !!seenPat[mp];
+      byPattern[mp] = { target: target, done: done, debt: debt, hadOpportunity: hadOpportunity };
+      ranked.push({ key: mp, label: MP_LABEL[mp] || mp, debt: debt, done: done, target: target, hadOpportunity: hadOpportunity });
+    });
+    ranked.sort(function (a, b) { return b.debt - a.debt || a.key.localeCompare(b.key); });
+    var byMuscleVolume = {};
+    Object.keys(MUSCLE_VOLUME_LANDMARKS).forEach(function (m) {
+      var landmarks = MUSCLE_VOLUME_LANDMARKS[m];
+      var done = (doneMus[m] || 0) + (doneMusSecondary[m] || 0);
+      var band = done >= landmarks.mrv ? "at-or-over-mrv" : done >= landmarks.mav ? "in-mav" : done >= landmarks.mev ? "in-mev" : "under-mev";
+      byMuscleVolume[m] = { done: done, mev: landmarks.mev, mav: landmarks.mav, mrv: landmarks.mrv, band: band, remainingToMrv: Math.max(0, landmarks.mrv - done) };
+    });
+    var doneAnterior = 0, anteriorTarget = 0, donePosterior = 0, posteriorTarget = 0;
+    ANTERIOR_PATTERNS.forEach(function (p) { doneAnterior += donePat[p] || 0; anteriorTarget += WEEKLY_SET_TARGETS[p] || 0; });
+    POSTERIOR_PATTERNS.forEach(function (p) { donePosterior += donePat[p] || 0; posteriorTarget += WEEKLY_SET_TARGETS[p] || 0; });
+    var byBalance = {
+      doneUnilateral: doneUnilateral, doneBilateral: doneBilateral,
+      doneAnterior: doneAnterior, anteriorTarget: anteriorTarget,
+      donePosterior: donePosterior, posteriorTarget: posteriorTarget,
+      doneSpineLoad: doneSpineLoad
+    };
+    return { byPattern: byPattern, byMuscle: doneMus, byMuscleVolume: byMuscleVolume, ranked: ranked, byBalance: byBalance };
+  }
   // v1.3: one grounded, day-level reason line for the Just-Today preview --
-  // "Pull today. You've pressed more than you've pulled lately." Reads ONLY
-  // the per-pattern debt that resolveSpec (coach-span) already computed --
-  // this is a pure display-layer aggregation (push/pull/legs groupings of the
-  // existing granular pattern debts), not a new engine signal. Deliberately
-  // ONE sentence, never a list: if no group has real debt this week, it stays
-  // an honest blank rather than inventing a reason.
+  // "Pull today. You pressed last time." Reads ONLY the per-pattern debt
+  // that spec.debt already carries (as of v1.6, a rolling 7-day read for
+  // Just Today builds -- see computeRollingDebt above -- or the current
+  // program-week debt for anything else) -- this is a pure display-layer
+  // aggregation (push/pull/legs groupings of the existing granular pattern
+  // debts), not a new engine signal. Deliberately ONE sentence, never a list:
+  // if no group has real debt, it stays an honest blank rather than
+  // inventing a reason.
+  // v1.6: the pull line's body was reworded from "You've pressed more than
+  // you've pulled lately" to the approved "You pressed last time" -- softer,
+  // no implied count. The push/lower lines are unchanged v1.3 copy.
   function dayReasonLine(spec) {
     var bp = (spec && spec.debt && spec.debt.byPattern) || {};
     function sum(keys) { return keys.reduce(function (s, k) { return s + ((bp[k] && bp[k].debt) || 0); }, 0); }
     var groups = [
-      { debt: sum(["horiz_pull", "vert_pull"]), heading: "Pull today.", body: "You’ve pressed more than you’ve pulled lately." },
+      { debt: sum(["horiz_pull", "vert_pull"]), heading: "Pull today.", body: "You pressed last time." },
       { debt: sum(["horiz_push", "vert_push"]), heading: "Push today.", body: "You’ve pulled more than you’ve pressed lately." },
       { debt: sum(["squat", "hinge", "lunge"]), heading: "Lower today.", body: "Legs need some work this week." }
     ];
@@ -8030,6 +8172,19 @@ function resolveSpec(request, state) {
       state.todaySeedCounter = (state.todaySeedCounter || 0) + 1; save();
       todaySeed = state.todaySeedCounter;
       var spec = resolveSpec(req, state); // Resolve stage runs in the live flow
+      // v1.6: Just Today substitutes a rolling 7-day debt read in place of
+      // resolveSpec's current-program-week debt, so a Just Today build stays
+      // aware of what was actually trained recently rather than resetting at
+      // a program-week boundary. resolveSpec/computeWeeklyDebt themselves are
+      // untouched -- this only swaps the LOCAL spec.debt this callback uses,
+      // and only for the Just Today build path (program-week builds never
+      // run through onBuildToday). Silent, deliberate fail-quiet: any error
+      // here is invisible to the user and simply leaves spec.debt exactly as
+      // resolveSpec already computed it.
+      try {
+        var rollingDebt = computeRollingDebt(state, Date.now());
+        if (rollingDebt) spec.debt = rollingDebt;
+      } catch (e) {}
       var deg = spec.degradation, banner = "", anywayBtn = "";
       pendingTodayAnyway = null;
       if (deg === "recovery") {
