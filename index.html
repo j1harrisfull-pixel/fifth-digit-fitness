@@ -349,6 +349,39 @@ input, textarea { font: inherit; color: inherit; }
 #completeSheet .receipt-paper__sig b { color: var(--tempo-bone-ink); }
 #completeSheet .btn-row { position: relative; z-index: 1; padding: 16px 22px calc(env(safe-area-inset-bottom) + 16px); background: var(--tempo-bone); margin: 0; }
 #completeSheet .btn--primary { background: var(--tempo-bone-ink); color: var(--tempo-bone); border-radius: 999px; }
+/* ============================================================
+   v1.8 TEMPO -- Active Workout Card (Ticket 3 of 3). Reuses Ticket 1's
+   --tempo-* tokens only -- no new palette. Scoped to the day view's expanded
+   ("current") exercise card and its set rows; the collapsed summary rows,
+   set-logging handlers, rest timer, and every prescription/data value are
+   untouched -- this block is presentation only. Motion durations are capped
+   per the approved motion scope (tick <=120ms, progress-bar transition
+   <=150ms) and are already neutralised by this file's existing blanket
+   `@media (prefers-reduced-motion: reduce)` rule. */
+.app[data-view="day"] .card.is-current { background: var(--tempo-surface); }
+.app[data-view="day"] .card.is-current .card__overline { color: var(--tempo-brass); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: 1; }
+.app[data-view="day"] .card.is-current .card__name { color: var(--tempo-ink); }
+.app[data-view="day"] .card.is-current .card__rx { color: var(--tempo-dim); }
+.app[data-view="day"] .card.is-current .card__rx-v { color: var(--tempo-ink); }
+.app[data-view="day"] .card.is-current .card__rx-sep { color: var(--tempo-faint); }
+/* Brass keyline on the coach-note/form-cue block only -- same content
+   (SETUP/KEY/FAULT unchanged), quieter blue swapped for the approved brass. */
+.app[data-view="day"] .card.is-current .card__coachnote-label { color: var(--tempo-brass); }
+.app[data-view="day"] .card.is-current .card__why { border-left-color: var(--tempo-brass); }
+/* Thin clay progress bar: true completed/total sets for THIS exercise only. */
+.card__exprogress { height: 3px; background: var(--tempo-line); margin: 6px 0 10px; overflow: hidden; border-radius: 2px; }
+.card__exprogress-fill { height: 100%; width: var(--ex-fill, 0%); background: var(--tempo-clay); transition: width .15s ease; }
+/* Square clay tick: LOGGED set state only -- the not-yet-logged "Log" pill
+   (.setrow:not(.is-done) .setrow__done) is untouched, same handlers/labels. */
+.app[data-view="day"] .setrow.is-done .setrow__done { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 7px; background: var(--tempo-clay-deep); border-color: var(--tempo-clay-deep); color: var(--tempo-bone); }
+.app[data-view="day"] .setrow.is-done .setrow__done::after { content: none; }
+.app[data-view="day"] .setrow.is-done .setrow__done > svg { display: block; }
+/* Tightens the existing .pulse tick-scale animation (already wired in JS on
+   every set-log tap) to the approved <=120ms cap, for logged rows only --
+   more specific than the base .setrow.pulse .setrow__done rule below, so
+   other reused .pulse contexts (e.g. the density round row) keep their own
+   timing untouched. */
+.app[data-view="day"] .setrow.is-done.pulse .setrow__done { animation: pulse .12s ease; }
 /* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
    --line-strong outline made it a bordered box; pure fill-only elevation
    (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
@@ -6983,8 +7016,16 @@ function resolveSpec(request, state) {
     // Same statCells data (e.sets/e.reps/e.rest) -- presentation only, no
     // information loss: sets, reps and rest all remain visible; effort/target
     // guidance still lives on the set rows exactly as before.
-    var statRow = statCells.length
-      ? '<p class="card__rx">' + statCells.map(function (c) { return '<span class="card__rx-v mono">' + esc(c.v) + '</span> ' + esc(c.l.toLowerCase()); }).join(' <span class="card__rx-sep">·</span> ') + '</p>'
+    // v1.8 TEMPO Ticket 3: the approved "sentence prescription" appends the
+    // existing Effort/RIR target (same e.target field + effortifyTarget()
+    // already used elsewhere on this card for conditioning/mobility) onto the
+    // same sets/reps/rest line, so it reads as one coached sentence --
+    // "4 sets · 6-8 reps · 90s-2m rest · Effort 8 · 2 reps left" -- with zero
+    // new data and zero change to what e.target actually contains.
+    var effortText = (e.type === "strength" && e.target) ? effortifyTarget(e.target) : "";
+    var statRow = (statCells.length || effortText)
+      ? '<p class="card__rx">' + statCells.map(function (c) { return '<span class="card__rx-v mono">' + esc(c.v) + '</span> ' + esc(c.l.toLowerCase()); }).join(' <span class="card__rx-sep">·</span> ')
+        + (statCells.length && effortText ? ' <span class="card__rx-sep">·</span> ' : '') + (effortText ? esc(effortText) : '') + '</p>'
       : '';
     // Pass 2 (ramp explainer, item 5): the very first set of a ramp anchor is
     // deliberately lighter than the working weight shown above it -- gated
@@ -7093,10 +7134,18 @@ function resolveSpec(request, state) {
     var optionalSkip = (e.block === "warmup" || e.block === "cooldown")
       ? '<button type="button" class="card__skip-optional" data-act="skipex" data-ex="' + e.id + '">Skip ' + (e.block === "warmup" ? "warm-up" : "cool-down") + '</button>'
       : "";
+    // v1.8 TEMPO Ticket 3: a thin progress bar reading the exact same
+    // doneCount/total this card already computes for setsHead/collapsedMeta --
+    // true completed sets over true prescribed sets, never an exercise count.
+    // Omitted entirely when total is 0 (nothing to measure honestly).
+    var exProgressHtml = total > 0
+      ? '<div class="card__exprogress" role="presentation"><div class="card__exprogress-fill" style="--ex-fill:' + Math.round((doneCount / total) * 100) + '%"></div></div>'
+      : '';
     return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       collapsedHtml +
       '<div class="card__full">' +
       exOverline +
+      exProgressHtml +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
       subLine +
       statRow +
