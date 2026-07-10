@@ -153,7 +153,11 @@ function setup(ses, log, wk) {
   ok(M.hasRealWork(ses), 'one completed set: hasRealWork is true (test 2)');
   M.endSession();
   ok(!!log.S2.finishedAt, 'one completed set: finishedAt written');
-  ok(M.els().completeSummary.textContent === '1 set logged', 'one completed set: receipt says "1 set logged"');
+  // v1.8 TEMPO Final Lock fix: "N set(s) logged" moved to #completeFact only
+  // (paired with duration) so the receipt doesn't say it twice -- summary no
+  // longer carries this phrase at all.
+  ok(M.els().completeSummary.textContent === '', 'one completed set: summary no longer duplicates the set count (now on #completeFact only)');
+  ok(M.els().completeFact.textContent === '1 set logged', 'one completed set: #completeFact carries "1 set logged" exactly once');
 }
 
 // ---------- Test 3: skips only ----------
@@ -217,7 +221,12 @@ function setup(ses, log, wk) {
   setup(ses, log);
   M.endSession();
   var summary = M.els().completeSummary.textContent;
-  ok(summary === '2 sets logged · 3 rounds logged', 'mixed session: receipt shows both parts honestly (test 8), got: ' + summary);
+  // v1.8 TEMPO Final Lock fix: "2 sets logged" is dropped from the summary
+  // (it now lives only on #completeFact) so the rounds count is the only
+  // thing this line carries; the set count is still shown, exactly once,
+  // on #completeFact.
+  ok(summary === '3 rounds logged', 'mixed session: summary shows only the rounds part now (test 8), got: ' + summary);
+  ok(M.els().completeFact.textContent === '2 sets logged', 'mixed session: #completeFact carries "2 sets logged" exactly once, got: ' + M.els().completeFact.textContent);
 }
 
 // ---------- Test 9: density after finishedAt (re-entry via endSession re-run is out of scope here --

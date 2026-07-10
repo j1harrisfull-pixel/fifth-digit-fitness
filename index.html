@@ -1546,7 +1546,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           <div class="chips" id="bInclude" role="group" aria-label="Include">
             <button class="chip" data-inc="conditioning" type="button">Cardio</button>
           </div>
-          <p class="bhint">Every session warms up and cools down &mdash; always.</p>
+          <p class="bhint">Every session warms up and cools down. Always.</p>
         </div>
         <div class="bsect">
           <div class="blabel">My equipment</div>
@@ -1854,7 +1854,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="intro__row" style="margin-top:18px">
         <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
       </div>
-      <p class="intro__fine">Optional — change it anytime in Settings.</p>
+      <p class="intro__fine">Optional. Change it anytime in Settings.</p>
     </div>
   </div>
 </div>
@@ -6191,9 +6191,39 @@ function resolveSpec(request, state) {
     // computeWeeklyDebt() already wired into the Just-Today preview --
     // no new debt logic, no coach-span change, just displaying the same
     // honest read on Home too, only while a session is genuinely up next.
-    var reasonHtml = (!weekDone && typeof computeWeeklyDebt === "function")
-      ? dayReasonLine({ debt: computeWeeklyDebt(state) })
-      : "";
+    //
+    // Final Lock fix: computeWeeklyDebt() measures target-vs-done WITHIN the
+    // current week only -- it has no "hasSignal" concept (that flag only
+    // exists on computeRollingDebt's output), so on a fresh program or a
+    // zero-history week every pattern reads as "behind" from a target of
+    // zero real sets, and dayReasonLine() would show a debt claim ("Lower
+    // today. Legs need some work this week.") the user has done nothing to
+    // earn. Rather than touch computeWeeklyDebt/dayReasonLine (coach-span-
+    // adjacent, shared with the Just-Today preview), this is a display-layer
+    // gate scoped to Home only: require real logged history to exist
+    // anywhere (this program or the archive -- the same signal
+    // homeMemoryLine() already uses) before the line is even computed, and
+    // separately suppress it if its heading would conflict with the
+    // session that's actually up next (e.g. "Lower today" while the hero
+    // card is an Upper session).
+    var reasonHtml = "";
+    if (!weekDone && typeof computeWeeklyDebt === "function") {
+      var homeHasLoggedHistory = collectLoggedSessions(state.program, state.log).length > 0;
+      if (Array.isArray(state.archive) && !homeHasLoggedHistory) {
+        homeHasLoggedHistory = state.archive.some(function (a) { return collectLoggedSessions(a.program, a.log).length > 0; });
+      }
+      if (homeHasLoggedHistory) {
+        var reasonRaw = dayReasonLine({ debt: computeWeeklyDebt(state) });
+        if (reasonRaw) {
+          var reasonIsLower = /Lower today\./.test(reasonRaw);
+          var reasonIsUpperPushPull = /Push today\.|Pull today\./.test(reasonRaw);
+          var focusIsLower = /quad|ham|glute/i.test(heroFocus);
+          var focusIsUpper = /chest|back|shoulder|bicep|tricep/i.test(heroFocus);
+          var conflicts = (reasonIsLower && focusIsUpper) || (reasonIsUpperPushPull && focusIsLower);
+          if (!conflicts) reasonHtml = reasonRaw;
+        }
+      }
+    }
     // A quiet preview of the session's lifts on the card itself, so you can see
     // what's coming BEFORE opening it. (Opening is already a no-commit preview,
     // but this surfaces the contents without leaving home.) Shown before and
@@ -9489,13 +9519,19 @@ function resolveSpec(request, state) {
         else if (bl && bl.completed) blockDoneZeroRounds = true;
       });
     }
+    // v1.8 TEMPO Final Lock fix: the "N set(s) logged" phrase is dropped from
+    // this summary line -- it duplicated the honest "N sets logged · M min"
+    // fact line built below (#completeFact). Sets-count is still shown there,
+    // exactly once; this line now carries only the OTHER honest facts
+    // (rounds, conditioning-done, skipped, ready-to-add-weight).
     var summaryParts = [];
-    if (setsDone > 0) summaryParts.push(setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged");
     if (roundsTotal > 0) summaryParts.push(roundsTotal + " round" + (roundsTotal === 1 ? "" : "s") + " logged");
     if (blockDoneZeroRounds) summaryParts.push("conditioning done");
     if (prog.skipped) summaryParts.push(prog.skipped + " skipped");
     if (!ended && readyCount) summaryParts.push("ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts"));
-    $("completeSummary").textContent = summaryParts.join(" · ");
+    var summaryTxt = summaryParts.join(" · ");
+    var summaryEl = $("completeSummary");
+    summaryEl.textContent = summaryTxt; summaryEl.hidden = !summaryTxt;
 
     // v1.8 TEMPO finish result sheet (Ticket 2, display-layer only): pick one
     // of three honest headline states from data that's already computed
