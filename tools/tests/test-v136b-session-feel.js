@@ -26,8 +26,8 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 1: Home hero reads "Enter workout" and does not start the timer ----------
 {
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Enter workout";/.test(SRC),
-     'the untouched-session hero CTA label is "Enter workout", not "Start training" (test: Home hero copy)');
+  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
+     'the untouched-session hero CTA label is "Start the session" (v1.8 TEMPO rename, approved) (test: Home hero copy)');
   ok(!/"Start training"/.test(SRC), 'the old "Start training" copy is gone entirely');
   // The hero CTA's click handler resolves through maybeOpenDayWithReadiness,
   // which (below) is proven to only ever call plain openDay -- so the hero

@@ -233,6 +233,72 @@ input, textarea { font: inherit; color: inherit; }
 .home-hero__reading-dot { flex: none; width: 8px; height: 8px; background: var(--ready); }
 .home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
 .home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
+/* ============================================================
+   v1.8 TEMPO -- Home-only visual layer (Ticket 1 of 3: tokens + Home).
+   New token namespace (--tempo-*) added ALONGSIDE the existing palette,
+   never overriding :root's shared --bg/--surface/--ink/etc, so nothing
+   outside the week view (active session, finish receipt, dialogs) shifts
+   this ticket. Every new rule below is scoped under
+   .app[data-view="week"] so it only ever applies to the Home screen.
+   brass-ink/clay-deep/bone-dim/faint exist because plain brass/clay
+   measured under 4.5:1 on the bone surface -- see the contrast test in
+   tools/tests/test-v1_8-tempo-home.js. This is a minimal token addition,
+   not a palette redesign: the approved TEMPO base hexes are unchanged. */
+:root {
+  --tempo-bg: #14161A; --tempo-surface: #1B1E23; --tempo-line: #2A2E35;
+  --tempo-ink: #F2EFE9; --tempo-dim: #9A9EA6; --tempo-faint: #7C8087;
+  --tempo-bone: #EDE8DF; --tempo-bone-ink: #17181A; --tempo-bone-line: #D5CEC1; --tempo-bone-dim: #66614F;
+  --tempo-clay: #C25436; --tempo-clay-deep: #A84A2F;
+  --tempo-brass: #C79A43; --tempo-brass-ink: #7A6228;
+}
+.app[data-view="week"] main { background: var(--tempo-bg); }
+.app[data-view="week"] .home-hero__greeting { color: var(--tempo-ink); }
+.app[data-view="week"] .home-hero__reading { color: var(--tempo-dim); }
+.app[data-view="week"] .home-hero__reading-dot { background: var(--tempo-brass); }
+.app[data-view="week"] .home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
+.app[data-view="week"] .home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
+.app[data-view="week"] .home-hero__win { border-color: var(--tempo-clay); background: color-mix(in srgb, var(--tempo-clay) 12%, transparent); color: var(--tempo-ink); }
+.app[data-view="week"] .home-hero__win-check { color: var(--tempo-clay); }
+/* Memory line: one honest, read-only recall of real logged data (see
+   homeMemoryLine() in the display layer -- reads state.log/state.archive
+   only, never coach-span, never writes). Quiet -- a footnote to the
+   greeting, not a second headline. */
+.app[data-view="week"] .home-memory { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--tempo-dim); margin: -8px 0 14px; }
+/* The Today card: the one inverted-contrast surface on Home -- a bone
+   object sitting on the graphite field, per the approved TEMPO direction.
+   A large, low-opacity FD watermark (<=5% ink, enforced by test) is the
+   only decorative mark; everything else on this card is real session data. */
+.app[data-view="week"] .today-card { background: var(--tempo-bone); color: var(--tempo-bone-ink); border: 0; position: relative; overflow: hidden; }
+.app[data-view="week"] .today-card::after { content: "FD"; position: absolute; right: -16px; bottom: -40px; font-family: var(--font-display); font-weight: 700; font-size: 190px; line-height: 1; color: var(--tempo-bone-ink); opacity: .045; pointer-events: none; }
+.app[data-view="week"] .today-card__label { position: relative; z-index: 1; color: var(--tempo-brass-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.app[data-view="week"] .today-card__name { position: relative; z-index: 1; color: var(--tempo-bone-ink); }
+.app[data-view="week"] .today-card__meta { position: relative; z-index: 1; display: block; font-family: "Spline Sans Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 21px; letter-spacing: .01em; color: var(--tempo-bone-ink); margin: 8px 0 0; }
+.app[data-view="week"] .today-card__why { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
+.app[data-view="week"] .today-card__foot { position: relative; z-index: 1; color: var(--tempo-bone-dim); font-size: 12.5px; margin: 10px 0 0; }
+.app[data-view="week"] .today-reason { position: relative; z-index: 1; color: var(--tempo-bone-ink); }
+.app[data-view="week"] .today-reason b { color: var(--tempo-brass-ink); }
+.app[data-view="week"] .today-card__lift { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); color: var(--tempo-bone-ink); }
+.app[data-view="week"] .today-card__lift-meta { color: var(--tempo-bone-dim); }
+.app[data-view="week"] .today-card__lift--more { color: var(--tempo-bone-dim); }
+.app[data-view="week"] .today-card__cta { position: relative; z-index: 1; background: var(--tempo-clay-deep); color: var(--tempo-bone); border-radius: 999px; }
+.app[data-view="week"] .today-card__sub { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
+.app[data-view="week"] .today-card__sub:hover { color: var(--tempo-bone-ink); }
+/* 14-day rhythm strip: the one place chevrons appear on Home, per the
+   approved TEMPO restraint rule -- nowhere else on this screen uses the
+   chevron shape. Same is-trained/is-today data + logic as before; shape
+   and colour only. */
+.app[data-view="week"] .consistency-label { color: var(--tempo-faint); }
+.app[data-view="week"] .consistency-cell { background: var(--tempo-line); border-radius: 0; clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%); }
+.app[data-view="week"] .consistency-cell.is-trained { background: var(--tempo-clay); }
+.app[data-view="week"] .consistency-cell.is-today { box-shadow: 0 0 0 1px var(--tempo-dim); }
+.app[data-view="week"] .weekrow { border-top-color: var(--tempo-line); }
+.app[data-view="week"] .weeklist .weekrow:last-child { border-bottom-color: var(--tempo-line); }
+.app[data-view="week"] .weekrow__name { color: var(--tempo-ink); }
+.app[data-view="week"] .weekrow__focus { color: var(--tempo-dim); }
+.app[data-view="week"] .weekrow__chev { color: var(--tempo-dim); }
+.app[data-view="week"] .weekrow.is-current { background: color-mix(in srgb, var(--tempo-surface) 80%, transparent); }
+.app[data-view="week"] .weekrow.is-current .weekrow__name { color: var(--tempo-ink); }
+.app[data-view="week"] #weekList .empty__title, .app[data-view="week"] #weekList .empty__hint { color: var(--tempo-ink); }
 /* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
    --line-strong outline made it a bordered box; pure fill-only elevation
    (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
@@ -5887,7 +5953,27 @@ function resolveSpec(request, state) {
     var el = $("homeHero"); if (!el) return;
     renderConsistencyStrip();
     var greetHtml = '<p class="home-hero__greeting">' + esc(greetingLine()) + '</p>';
-    if (!hasProgram()) { el.innerHTML = greetHtml; return; }
+    if (!hasProgram()) {
+      // v1.8 TEMPO fresh-install treatment: no program yet, so no memory,
+      // no progress, no invented personalisation -- just the two honest
+      // doors (build a week, or train today instead) and a plain footnote.
+      el.innerHTML = greetHtml +
+        '<div class="today-card">' +
+          '<p class="today-card__why">Build your training week.<br>Set days, time, and kit.</p>' +
+          '<button type="button" class="today-card__cta" id="homeFreshCta">Build your training week</button>' +
+          '<button type="button" class="today-card__sub" id="homeFreshSub">Train today instead →</button>' +
+          '<p class="today-card__foot">Your first 14 days start here.</p>' +
+        '</div>';
+      var freshCta = $("homeFreshCta"); if (freshCta) freshCta.addEventListener("click", openPlan);
+      var freshSub = $("homeFreshSub"); if (freshSub) freshSub.addEventListener("click", function () { openPlan(); setPlanMode("today"); });
+      return;
+    }
+    // v1.8 TEMPO memory line: one honest, read-only recall of real logged
+    // data -- see homeMemoryLine() below. First-true-wins, hidden entirely
+    // when nothing honest exists (fresh install already returned above;
+    // skipped-only/zero-logged fall through this to "").
+    var memoryLine = homeMemoryLine();
+    var memoryHtml = memoryLine ? '<p class="home-memory">' + esc(memoryLine) + '</p>' : "";
     var wk = curWeek();
     // Demoted from a Whoop-style percentage donut to its one honest sentence:
     // the ring's only actionable content ever WAS this line, and a chart
@@ -5937,10 +6023,26 @@ function resolveSpec(request, state) {
     // count of what's left; before starting it's the focus alone.
     var heroFocus = (heroSes && heroSes.focus) || "";
     var leftN = heroPr.total - heroPr.done;
+    // v1.8 TEMPO time/session line: a real "45 MIN · LOWER" numeral, built
+    // only from session.blocks[].minutes -- the same honest per-block
+    // budget v1.7 already computes and stores. Zero when a session has no
+    // blocks (e.g. an older archived shape), never a fabricated estimate.
+    var heroTotalMin = 0;
+    if (heroSes && Array.isArray(heroSes.blocks)) heroSes.blocks.forEach(function (b) { if (typeof b.minutes === "number") heroTotalMin += b.minutes; });
+    var metaHtml = (!weekDone && heroTotalMin > 0 && heroFocus)
+      ? '<p class="today-card__meta mono">' + esc(Math.round(heroTotalMin) + " MIN · " + heroFocus.toUpperCase()) + '</p>'
+      : "";
     var subLine = weekDone ? (doneThisWeek + " of " + wk.sessions.length + " sessions done")
-      : started ? (heroFocus ? heroFocus + " · " + leftN + " left" : leftN + " exercises left")
-      : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : ""));
+      : started ? (leftN + (leftN === 1 ? " exercise left" : " exercises left"))
+      : (metaHtml ? "" : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : "")));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
+    // v1.8 TEMPO reason line: reuses the EXACT v1.6 dayReasonLine() +
+    // computeWeeklyDebt() already wired into the Just-Today preview --
+    // no new debt logic, no coach-span change, just displaying the same
+    // honest read on Home too, only while a session is genuinely up next.
+    var reasonHtml = (!weekDone && typeof computeWeeklyDebt === "function")
+      ? dayReasonLine({ debt: computeWeeklyDebt(state) })
+      : "";
     // A quiet preview of the session's lifts on the card itself, so you can see
     // what's coming BEFORE opening it. (Opening is already a no-commit preview,
     // but this surfaces the contents without leaving home.) Shown before and
@@ -5970,7 +6072,10 @@ function resolveSpec(request, state) {
           recap.prs.map(function (p) { return '<p class="recap-prs__row">' + esc(p.name) + ' <b class="mono">' + p.orm + esc(runit) + '</b></p>'; }).join('') +
           '</div>' : '');
     }
-    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Enter workout";
+    // v1.8 TEMPO CTA copy: "Start the session" replaces "Enter workout" for
+    // the not-yet-started case only -- "Continue" and "Build next week"
+    // keep their existing, already-honest meanings.
+    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Start the session";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.
@@ -5989,12 +6094,15 @@ function resolveSpec(request, state) {
     // control. That list is the one place to browse or jump to another day.
     el.innerHTML =
       greetHtml +
+      memoryHtml +
       winHtml +
       readingHtml +
       '<div class="today-card">' +
         '<div class="today-card__label">' + esc(label2) + '</div>' +
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
+        metaHtml +
         subHtml +
+        reasonHtml +
         liftsHtml +
         recapHtml +
         '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
@@ -6229,14 +6337,18 @@ function resolveSpec(request, state) {
       // (upcoming). Replaces the old mix of a check tag, a lowercase "done"
       // word, and a bare fraction that each spoke a different visual language.
       var statHtml;
-      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' Done</span>';
-      // v136A: finished-early is its own honest tag -- "Finished · X of Y", no
-      // check icon (the check is reserved for genuine completion), so it can
-      // never be mistaken for Done.
-      else if (st.key === "finished") statHtml = '<span class="weekrow__tag weekrow__tag--finished">Finished · ' + pr.done + ' of ' + pr.total + '</span>';
+      // v1.8 TEMPO status wording: same 5 states, same data -- only the
+      // on-screen words change (CLOSED/BANKED · N SETS/READY/SKIPPED).
+      // "progress" (live N/M) is unchanged -- not in the approved word list.
+      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' CLOSED</span>';
+      // v136A: finished-early is its own honest tag -- no check icon (the
+      // check is reserved for genuine completion), so it can never be
+      // mistaken for a full close. v1.8 TEMPO: "BANKED · N SETS" (the real
+      // completed-set count), not the old "Finished · X of Y" fraction.
+      else if (st.key === "finished") statHtml = '<span class="weekrow__tag weekrow__tag--finished">BANKED · ' + pr.done + ' SET' + (pr.done === 1 ? "" : "S") + '</span>';
       else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
-      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">Skipped</span>';
-      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">Not yet</span>';
+      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
+      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">READY</span>';
       // No per-row delete: a destructive control shown on every row of the
       // most-visited screen, for an action taken maybe once a program. It now
       // lives quietly inside the day itself (see the "Remove this day" control
@@ -8165,6 +8277,88 @@ function resolveSpec(request, state) {
   // any reason line. Weekly-program builds (spec.debt from computeWeeklyDebt,
   // hasSignal undefined) are unaffected -- this check only ever changes
   // behavior for the rolling Just Today path.
+  // v1.8 TEMPO Home memory line: a single, honest, read-only recall of real
+  // logged data. Deliberately outside coach-span and calls no coach-span
+  // function -- it only reads state.log/state.program/state.archive, the
+  // same fields the History view and week recap already read, and never
+  // writes anything. First-true-wins across the 4 approved lines; returns
+  // "" (render nothing) when none is honestly available -- covers fresh
+  // install (hasProgram() false, checked by the caller), skipped-only (no
+  // completed set anywhere) and zero-logged (no log entries at all).
+  function sessionHasCompletedWork(sl) {
+    if (!sl) return false;
+    if (sl.ex) { for (var k in sl.ex) { if (!Object.prototype.hasOwnProperty.call(sl.ex, k)) continue; var el = sl.ex[k]; if (el && Array.isArray(el.sets) && el.sets.some(function (s) { return s && s.completed; })) return true; } }
+    if (sl.blocks) { for (var bk in sl.blocks) { if (!Object.prototype.hasOwnProperty.call(sl.blocks, bk)) continue; if (sl.blocks[bk] && sl.blocks[bk].rounds > 0) return true; } }
+    return false;
+  }
+  function countCompletedSets(sl) {
+    var n = 0;
+    if (sl && sl.ex) { for (var k in sl.ex) { if (!Object.prototype.hasOwnProperty.call(sl.ex, k)) continue; var el = sl.ex[k]; if (el && Array.isArray(el.sets)) el.sets.forEach(function (s) { if (s && s.completed) n++; }); } }
+    return n;
+  }
+  function sessionLogDate(sl) {
+    var d = sl && (sl.finishedAt || sl.date); if (!d) return null;
+    try { var dt = new Date(d); return isNaN(dt.getTime()) ? null : dt; } catch (e) { return null; }
+  }
+  function collectLoggedSessions(program, log) {
+    var out = [];
+    if (!program || !Array.isArray(program.weeks)) return out;
+    program.weeks.forEach(function (wk) {
+      (wk.sessions || []).forEach(function (ses) {
+        var sl = log && log[ses.id];
+        if (!sessionHasCompletedWork(sl)) return;
+        var d = sessionLogDate(sl); if (!d) return;
+        out.push({ ses: ses, sl: sl, date: d });
+      });
+    });
+    return out;
+  }
+  function homeMemoryLine() {
+    if (!hasProgram()) return "";
+    var all = collectLoggedSessions(state.program, state.log);
+    if (Array.isArray(state.archive)) state.archive.forEach(function (a) { all = all.concat(collectLoggedSessions(a.program, a.log)); });
+    if (!all.length) return "";
+    all.sort(function (a, b) { return a.date - b.date; });
+    var last = all[all.length - 1];
+
+    // 1. "<Weekday>'s session is banked." -- the most recent logged session
+    // anywhere, only within the last 7 days (a 3-week-old session isn't an
+    // honest "banked" callback).
+    var ageMs = Date.now() - last.date.getTime();
+    if (ageMs >= 0 && ageMs <= 7 * 24 * 3600 * 1000) return WEEKDAYS_LONG[last.date.getDay()] + "’s session is banked.";
+
+    // 2. "<Lift> moved up this block." -- scoped to the CURRENT program only
+    // ("this block"): the first and last logged weight for the same
+    // exercise name, in session order; a strict increase is a real bump.
+    var curLogged = collectLoggedSessions(state.program, state.log);
+    curLogged.sort(function (a, b) { return a.date - b.date; });
+    var firstW = {}, lastW = {}, firstName = {};
+    curLogged.forEach(function (rec) {
+      (rec.ses.exercises || []).forEach(function (ex) {
+        var el = rec.sl.ex && rec.sl.ex[ex.id];
+        if (!el || el.weight == null || !(el.weight > 0)) return;
+        var key = String(ex.name);
+        if (!Object.prototype.hasOwnProperty.call(firstW, key)) { firstW[key] = el.weight; firstName[key] = ex.name; }
+        lastW[key] = el.weight;
+      });
+    });
+    var movedName = null;
+    Object.keys(firstW).some(function (key) { if (lastW[key] > firstW[key]) { movedName = firstName[key]; return true; } return false; });
+    if (movedName) return movedName + " moved up this block.";
+
+    // 3. "<N> session(s) in this week." -- real completed-work count in the
+    // currently active week.
+    var wk = curWeek(), thisWeekCount = 0;
+    (wk.sessions || []).forEach(function (ses) { if (sessionHasCompletedWork(state.log && state.log[ses.id])) thisWeekCount++; });
+    if (thisWeekCount > 0) return thisWeekCount + (thisWeekCount === 1 ? " session in this week." : " sessions in this week.");
+
+    // 4. "Last session: <N> sets banked." -- the true last logged session's
+    // real completed-set count, whatever program it belonged to.
+    var setCount = countCompletedSets(last.sl);
+    if (setCount > 0) return "Last session: " + setCount + " set" + (setCount === 1 ? "" : "s") + " banked.";
+
+    return "";
+  }
   function dayReasonLine(spec) {
     if (spec && spec.debt && spec.debt.hasSignal === false) return "";
     var bp = (spec && spec.debt && spec.debt.byPattern) || {};
