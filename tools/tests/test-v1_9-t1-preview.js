@@ -70,6 +70,8 @@ const weekdayForSessionSrc = extractFn('weekdayForSession');
 const todayWeekdaySrc = extractFn('todayWeekday');
 const todaySessionIdxSrc = extractFn('todaySessionIdx');
 const heroInfoSrc = extractFn('heroInfo');
+const todayStrSrc = extractFn('todayStr');
+const validTodayPickSrc = extractFn('validTodayPick');
 const armedSessionIdxSrc = extractFn('armedSessionIdx');
 const isPreviewSessionSrc = extractFn('isPreviewSession');
 
@@ -99,6 +101,8 @@ const harness = `
   ${todayWeekdaySrc}
   ${todaySessionIdxSrc}
   ${heroInfoSrc}
+  ${todayStrSrc}
+  ${validTodayPickSrc}
   ${armedSessionIdxSrc}
   ${isPreviewSessionSrc}
   module.exports = {
@@ -278,6 +282,8 @@ GUARDED_FNS.forEach(function (name) {
     ${todayWeekdaySrc}
     ${todaySessionIdxSrc}
     ${heroInfoSrc}
+    ${todayStrSrc}
+    ${validTodayPickSrc}
     ${armedSessionIdxSrc}
     ${isPreviewSessionSrc}
     function save() { saveCount++; }

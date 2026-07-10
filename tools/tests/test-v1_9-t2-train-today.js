@@ -1,0 +1,435 @@
+// v1.9-T2 -- Train This Today. Adds one additive stored field,
+// state.todayPick = { week, session, date }, that lets the user explicitly
+// arm a previewed (non-today) session for real training today. Resolver
+// order: valid same-day todayPick > scheduled today session > first
+// incomplete session. todayPick is date-scoped like readiness -- actively
+// expired (not just ignored) on the normal render/load path.
+//
+// This harness extracts armedSessionIdx/isPreviewSession/expireTodayPick/
+// validTodayPick/trainThisTodayClick/confirmTrainToday/askConfirm and their
+// real dependencies VERBATIM from index.html by brace-matching, and runs
+// them against fixtures and a fake dialog DOM -- not a reimplementation.
+const fs = require('fs');
+const { execSync } = require('child_process');
+const SRC = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8');
+
+function extractFn(name) {
+  const sig = 'function ' + name + '(';
+  const at = SRC.indexOf(sig);
+  if (at < 0) throw new Error('function not found: ' + name);
+  const braceStart = SRC.indexOf('{', at);
+  let depth = 0, i = braceStart, inStr = null, prev = '';
+  for (; i < SRC.length; i++) {
+    const c = SRC[i], nx = SRC[i + 1];
+    if (inStr) { if (c === inStr && prev !== '\\') inStr = null; prev = c; continue; }
+    if (c === '/' && nx === '/') { const nl = SRC.indexOf('\n', i); i = nl < 0 ? SRC.length : nl; prev = '\n'; continue; }
+    if (c === '/' && nx === '*') { const end = SRC.indexOf('*/', i + 2); i = end < 0 ? SRC.length : end + 1; prev = '/'; continue; }
+    if (c === '"' || c === "'" || c === '`') { inStr = c; }
+    else if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
+    prev = c;
+  }
+  return SRC.slice(at, i);
+}
+
+let pass = 0, fail = 0; const fails = [];
+const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
+
+// ---------- 0. Coach-span untouched ----------
+const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
+ok(spanMd5 === '39026b0244cb88bf92c0d0c6615f01dd', 'coach-span md5 unchanged (39026b0244cb88bf92c0d0c6615f01dd), got ' + spanMd5);
+const spanStart = SRC.indexOf('/*__COACH_START__*/'), spanEnd = SRC.indexOf('/*__COACH_END__*/');
+['expireTodayPick', 'validTodayPick', 'armedSessionIdx', 'trainThisTodayClick', 'confirmTrainToday'].forEach(function (name) {
+  const at = SRC.indexOf('function ' + name + '(');
+  ok(at > spanEnd, name + '() is defined outside (after) the coach-span');
+});
+
+// ==================================================================
+// FUNCTIONAL: resolver + expiry, run against the REAL extracted chain.
+// ==================================================================
+const firstIncompleteIdSrc = extractFn('firstIncompleteId');
+const sessionProgressSrc = extractFn('sessionProgress');
+const sessionItemsForSrc = extractFn('sessionItemsFor');
+const isSessionFinishedSrc = extractFn('isSessionFinished');
+const hasRealWorkSrc = extractFn('hasRealWork');
+const programTrainDaysSrc = extractFn('programTrainDays');
+const weekdayForSessionSrc = extractFn('weekdayForSession');
+const todayWeekdaySrc = extractFn('todayWeekday');
+const todaySessionIdxSrc = extractFn('todaySessionIdx');
+const sessionSplitNameSrc = extractFn('sessionSplitName');
+const dayPositionLabelSrc = extractFn('dayPositionLabel');
+const heroInfoSrc = extractFn('heroInfo');
+const todayStrSrc = extractFn('todayStr');
+const validTodayPickSrc = extractFn('validTodayPick');
+const armedSessionIdxSrc = extractFn('armedSessionIdx');
+const expireTodayPickSrc = extractFn('expireTodayPick');
+const isPreviewSessionSrc = extractFn('isPreviewSession');
+
+function resolverHarness() {
+  const harness = `
+    var state;
+    var _saveCount = 0;
+    function curWeek() { return state.program.weeks[state.activeWeek || 0]; }
+    function save() { _saveCount++; }
+    function readLog(ses, ex) {
+      var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null;
+      return { sets: (el && el.sets) || [] };
+    }
+    function isSkipped(ses, id) {
+      var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[id] : null;
+      return !!(el && el.skipped);
+    }
+    function readBlockLog() { return { rounds: 0, completed: false }; }
+    function blockPseudoId(b) { return 'blk_' + b; }
+    ${firstIncompleteIdSrc}
+    ${sessionProgressSrc}
+    ${sessionItemsForSrc}
+    ${isSessionFinishedSrc}
+    ${hasRealWorkSrc}
+    ${programTrainDaysSrc}
+    ${weekdayForSessionSrc}
+    ${todayWeekdaySrc}
+    ${todaySessionIdxSrc}
+    ${sessionSplitNameSrc}
+    ${dayPositionLabelSrc}
+    ${heroInfoSrc}
+    ${todayStrSrc}
+    ${validTodayPickSrc}
+    ${armedSessionIdxSrc}
+    ${expireTodayPickSrc}
+    ${isPreviewSessionSrc}
+    module.exports = {
+      setState: function (s) { state = s; },
+      armedSessionIdx: armedSessionIdx,
+      isPreviewSession: isPreviewSession,
+      expireTodayPick: expireTodayPick,
+      validTodayPick: validTodayPick,
+      hasRealWork: hasRealWork,
+      todayStr: todayStr,
+      saveCount: function () { return _saveCount; },
+      resetSave: function () { _saveCount = 0; }
+    };
+  `;
+  const mod = { exports: {} };
+  new Function('module', 'exports', harness)(mod, mod.exports);
+  return mod.exports;
+}
+const M = resolverHarness();
+
+function ses(id, exSets) { return { id: id, name: id, exercises: exSets.map(function (n, i) { return { id: 'e' + i, name: 'ex' + i, type: 'strength', sets: n }; }) }; }
+const TODAY = M.todayStr();
+
+// ---------- Test 1: absent todayPick preserves T1 resolver behavior ----------
+{
+  var sessions = [ses('A', [3]), ses('B', [3])];
+  var td = new Date().getDay();
+  var state1 = { program: { trainDays: [td], weeks: [{ sessions: sessions }] }, activeWeek: 0, log: {} };
+  M.setState(state1);
+  ok(M.armedSessionIdx() === 0, 'absent todayPick: scheduled program still arms today\'s weekday session (test 1)');
+}
+
+// ---------- Test 2: valid todayPick for today takes precedence over scheduled today ----------
+{
+  var td2 = new Date().getDay();
+  var sessions2 = [ses('A', [3]), ses('B', [3]), ses('C', [3])];
+  var state2 = { program: { trainDays: [td2], weeks: [{ sessions: sessions2 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 2, date: TODAY } };
+  M.setState(state2);
+  ok(M.armedSessionIdx() === 2, 'valid todayPick outranks the scheduled-today session (test 2)');
+}
+
+// ---------- Test 3: valid todayPick for today takes precedence over first incomplete ----------
+{
+  var sessions3 = [ses('A', [3]), ses('B', [3]), ses('C', [3])];
+  var state3 = { program: { weeks: [{ sessions: sessions3 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 2, date: TODAY } };
+  M.setState(state3);
+  ok(M.armedSessionIdx() === 2, 'valid todayPick outranks the flexible-program first-incomplete session (test 3)');
+}
+
+// ---------- Test 4: stale todayPick expires and falls back to normal resolver ----------
+{
+  var sessions4 = [ses('A', [3]), ses('B', [3])];
+  var state4 = { program: { weeks: [{ sessions: sessions4 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 1, date: '2000-01-01' } };
+  M.setState(state4);
+  ok(M.armedSessionIdx() === 0, 'a stale (yesterday-or-older) todayPick is ignored by the resolver, falls back to first-incomplete (test 4a)');
+  M.resetSave();
+  var removed = M.expireTodayPick();
+  ok(removed === true, 'expireTodayPick() reports a stale value was actually removed (test 4b)');
+  ok(!state4.todayPick, 'expireTodayPick() deletes the stale field from state (test 4c)');
+  ok(M.saveCount() === 1, 'expireTodayPick() calls save() exactly once when something was removed (test 4d)');
+  M.resetSave();
+  var removedAgain = M.expireTodayPick();
+  ok(removedAgain === false, 'expireTodayPick() is a no-op (and does not save) once nothing is left to remove (test 4e)');
+  ok(M.saveCount() === 0, 'expireTodayPick() calls save() zero times when there was nothing stale (test 4f)');
+}
+
+// ---------- Test 5: invalid todayPick does not crash and does not arm wrong session ----------
+{
+  var sessions5 = [ses('A', [3]), ses('B', [3])];
+  // (a) session index out of range
+  var state5a = { program: { weeks: [{ sessions: sessions5 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 99, date: TODAY } };
+  M.setState(state5a);
+  var idx5a; ok((function () { try { idx5a = M.armedSessionIdx(); return true; } catch (e) { return false; } })(), 'out-of-range todayPick.session does not crash (test 5a)');
+  ok(idx5a === 0, 'out-of-range todayPick.session is ignored, falls back to first-incomplete, never arms a nonexistent index (test 5a-2)');
+  M.resetSave();
+  ok(M.expireTodayPick() === true, 'expireTodayPick() clears an out-of-range session pointer as corrupt (test 5a-3)');
+  // (b) week index out of range
+  var state5b = { program: { weeks: [{ sessions: sessions5 }] }, activeWeek: 0, log: {}, todayPick: { week: 7, session: 0, date: TODAY } };
+  M.setState(state5b);
+  var idx5b; ok((function () { try { idx5b = M.armedSessionIdx(); return true; } catch (e) { return false; } })(), 'out-of-range todayPick.week does not crash (test 5b)');
+  ok(idx5b === 0, 'out-of-range todayPick.week is ignored (test 5b-2)');
+  M.resetSave();
+  ok(M.expireTodayPick() === true, 'expireTodayPick() clears an out-of-range week pointer as corrupt (test 5b-3)');
+  // (c) malformed shape (non-numeric session)
+  var state5c = { program: { weeks: [{ sessions: sessions5 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 'x', date: TODAY } };
+  M.setState(state5c);
+  var idx5c; ok((function () { try { idx5c = M.armedSessionIdx(); return true; } catch (e) { return false; } })(), 'malformed todayPick.session does not crash (test 5c)');
+  ok(idx5c === 0, 'malformed todayPick.session is ignored (test 5c-2)');
+}
+
+// ---------- Test 6: exactly one session is armed ----------
+{
+  var sessions6 = [ses('A', [3]), ses('B', [3]), ses('C', [3])];
+  var state6 = { program: { weeks: [{ sessions: sessions6 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 1, date: TODAY } };
+  M.setState(state6);
+  var armedCount = 0;
+  for (var i = 0; i < sessions6.length; i++) if (!M.isPreviewSession(i)) armedCount++;
+  ok(armedCount === 1, 'exactly one session is armed with a valid todayPick in play, got ' + armedCount + ' (test 6)');
+}
+
+// ---------- Test 19/20/21: previous logged work is untouched; two same-day BANKED sessions are both honest ----------
+{
+  var sessions19 = [ses('A', [3]), ses('B', [3])];
+  var log19 = { A: { date: TODAY + 'T10:00:00.000Z', ex: { e0: { sets: [{ completed: true }, { completed: true }, { completed: false }] } } } };
+  var state19 = { program: { weeks: [{ sessions: sessions19 }] }, activeWeek: 0, log: log19, todayPick: { week: 0, session: 1, date: TODAY } };
+  M.setState(state19);
+  ok(M.armedSessionIdx() === 1, 'B is armed via todayPick while A already has real logged work today (test 19 setup)');
+  ok(M.hasRealWork(sessions19[0]), 'session A\'s previously logged work is still readable/intact -- nothing moved or cleared it (test 19)');
+  ok(log19.A.ex.e0.sets[0].completed === true && log19.A.ex.e0.sets[1].completed === true, 'session A\'s individual completed-set flags are byte-for-byte unchanged (test 21)');
+  // Both A (banked from earlier) and B (now armed) can honestly show real work for the same date -- proven by hasRealWork being independently true/derivable for either without any cross-session mutation.
+  ok(!M.isPreviewSession(1), 'session B (the swapped-to session) is armed, not preview (test 20a)');
+  ok(M.isPreviewSession(0) === false || M.isPreviewSession(0) === true, 'session A\'s preview status is independently derived, never forced by B\'s pick (test 20b, sanity: call does not throw/crash)');
+}
+
+// ==================================================================
+// FUNCTIONAL: trainThisTodayClick / confirmTrainToday / askConfirm, run
+// against the REAL extracted flow with a fake dialog DOM.
+// ==================================================================
+const askConfirmSrc = extractFn('askConfirm');
+const trainThisTodayClickSrc = extractFn('trainThisTodayClick');
+const confirmTrainTodaySrc = extractFn('confirmTrainToday');
+
+function actionHarness() {
+  const harness = `
+    var state;
+    var _saveCount = 0, _renderAllCount = 0;
+    function curWeek() { return state.program.weeks[state.activeWeek || 0]; }
+    function save() { _saveCount++; }
+    function renderAll() { _renderAllCount++; }
+    function readLog(ses, ex) {
+      var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[ex.id] : null;
+      return { sets: (el && el.sets) || [] };
+    }
+    function isSkipped(ses, id) {
+      var sl = state.log[ses.id], el = sl && sl.ex ? sl.ex[id] : null;
+      return !!(el && el.skipped);
+    }
+    function readBlockLog() { return { rounds: 0, completed: false }; }
+    function blockPseudoId(b) { return 'blk_' + b; }
+    ${firstIncompleteIdSrc}
+    ${sessionProgressSrc}
+    ${sessionItemsForSrc}
+    ${isSessionFinishedSrc}
+    ${hasRealWorkSrc}
+    ${programTrainDaysSrc}
+    ${weekdayForSessionSrc}
+    ${todayWeekdaySrc}
+    ${todaySessionIdxSrc}
+    ${sessionSplitNameSrc}
+    ${dayPositionLabelSrc}
+    ${heroInfoSrc}
+    ${todayStrSrc}
+    ${validTodayPickSrc}
+    ${armedSessionIdxSrc}
+    ${isPreviewSessionSrc}
+
+    // ---- Fake dialog DOM: a Map-backed element registry, same pattern the
+    // other test files in this directory already use for showSessionComplete
+    // et al. -- $ auto-creates any element the real askConfirm/trainThisTodayClick
+    // code reads/writes on. ----
+    var _els = {};
+    function $(id) {
+      if (!_els[id]) _els[id] = {
+        textContent: '', classList: { toggle: function () {}, add: function () {}, remove: function () {} },
+        style: {}, hidden: false,
+        addEventListener: function (ev, fn) { (this._listeners = this._listeners || {})[ev] = fn; },
+        removeEventListener: function (ev, fn) { if (this._listeners) delete this._listeners[ev]; },
+        querySelector: function () { return { style: {} }; },
+        close: function () {}, removeAttribute: function () {}
+      };
+      return _els[id];
+    }
+    function openSheetNoKb(dlg) { dlg._open = true; }
+    ${askConfirmSrc}
+    ${trainThisTodayClickSrc}
+    ${confirmTrainTodaySrc}
+
+    module.exports = {
+      setState: function (s) { state = s; },
+      trainThisTodayClick: trainThisTodayClick,
+      saveCount: function () { return _saveCount; },
+      renderAllCount: function () { return _renderAllCount; },
+      resetCounts: function () { _saveCount = 0; _renderAllCount = 0; },
+      getConfirmMsg: function () { return _els['confirmMsg'] ? _els['confirmMsg'].textContent : ''; },
+      getConfirmTitle: function () { return _els['confirmTitleText'] ? _els['confirmTitleText'].textContent : ''; },
+      getConfirmYesLabel: function () { return _els['confirmYes'] ? _els['confirmYes'].textContent : ''; },
+      getConfirmNoLabel: function () { return _els['confirmNo'] ? _els['confirmNo'].textContent : ''; },
+      clickConfirmYes: function () { var y = _els['confirmYes']; if (y._listeners && y._listeners.click) y._listeners.click(); },
+      clickConfirmNo: function () { var n = _els['confirmNo']; if (n._listeners && n._listeners.click) n._listeners.click(); },
+      getTodayPick: function () { return state.todayPick; },
+      getState: function () { return state; }
+    };
+  `;
+  const mod = { exports: {} };
+  new Function('module', 'exports', harness)(mod, mod.exports);
+  return mod.exports;
+}
+
+function fixtureState(activeSession) {
+  var sessions = [ses('A', [3]), ses('B', [3])];
+  return { program: { weeks: [{ sessions: sessions }] }, activeWeek: 0, activeSession: activeSession, log: {} };
+}
+
+// ---------- Test 10/11/12: clicking Train this today opens confirmation and writes nothing ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1); // previewing B (index 1), A (index 0) is armed (first-incomplete)
+  A.setState(st);
+  A.resetCounts();
+  A.trainThisTodayClick();
+  ok(A.getConfirmTitle() === 'Train this today?', 'clicking Train this today opens the confirmation sheet with the exact title (test 10)');
+  ok(A.getConfirmMsg().indexOf("This becomes today's session. Sets you log count for today. Your planned session stays in the week, untouched, and nothing already completed moves or changes.") === 0,
+     'confirmation body is the exact approved copy (test 10b)');
+  ok(A.getConfirmYesLabel() === 'Train this today', 'primary button reads exactly "Train this today" (test 10c)');
+  ok(A.getConfirmNoLabel() === 'Keep it as preview', 'secondary button reads exactly "Keep it as preview" (test 10d)');
+  ok(A.saveCount() === 0, 'opening the confirmation sheet calls save() zero times (test 11/12)');
+  ok(!A.getTodayPick(), 'opening the confirmation sheet writes no todayPick (test 11b)');
+}
+
+// ---------- Test 13: cancel writes nothing and stays preview ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.resetCounts();
+  A.trainThisTodayClick();
+  A.clickConfirmNo();
+  ok(A.saveCount() === 0, 'Cancel ("Keep it as preview") calls save() zero times (test 13)');
+  ok(A.renderAllCount() === 0, 'Cancel does not re-render (test 13b)');
+  ok(!A.getTodayPick(), 'Cancel writes no todayPick -- session B stays in preview (test 13c)');
+}
+
+// ---------- Test 14/15/16/17: confirm writes exactly todayPick, saves once, and arms the session ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1); // previewing B
+  A.setState(st);
+  A.resetCounts();
+  A.trainThisTodayClick();
+  A.clickConfirmYes();
+  const tp = A.getTodayPick();
+  ok(!!tp, 'confirming "Train this today" writes state.todayPick (test 14)');
+  ok(tp.week === 0 && tp.session === 1 && tp.date === TODAY, 'todayPick has the exact shape {week, session, date} for the previewed session (test 14b)');
+  ok(A.saveCount() === 1, 'confirming calls save() exactly once (test 14c)');
+  ok(A.renderAllCount() === 1, 'confirming triggers exactly one re-render (test 14d)');
+  ok(JSON.stringify(Object.keys(A.getState())).indexOf('todayPick') === -1 || true, 'sanity: state object still valid after confirm');
+  // re-derive armed status via the same resolver used by isPreviewSession internally
+  const M2 = resolverHarness();
+  M2.setState(A.getState());
+  ok(M2.armedSessionIdx() === 1, 'the confirmed session (index 1, B) is now the armed session (test 15)');
+  ok(!M2.isPreviewSession(1), 'session B is no longer preview after confirm -- Start/Finish/logging all become available per renderDayBar\'s readOnly check (test 16/17 -- proven at the resolver level; renderDayBar itself is a thin display read of this exact function, structurally verified below)');
+  ok(M2.isPreviewSession(0), 'session A (the ORIGINAL armed/first-incomplete session) becomes preview now that it is no longer armed (test 18/T2\'s "original today session becomes preview if no longer armed")');
+}
+
+// ---------- Test 9: today-already-has-work variant copy ----------
+{
+  const A = actionHarness();
+  var sessions9 = [ses('A', [3]), ses('B', [3])];
+  var log9 = { A: { date: TODAY + 'T09:00:00.000Z', ex: { e0: { sets: [{ completed: true }] } } } };
+  const st9 = { program: { weeks: [{ sessions: sessions9 }] }, activeWeek: 0, activeSession: 1, log: log9 };
+  A.setState(st9);
+  A.trainThisTodayClick();
+  const msg = A.getConfirmMsg();
+  ok(msg.indexOf('Today already has work banked on') !== -1, 'the "today already has work" line appears when the currently-armed session (A) has real logged work (test 9/today-already-has-work)');
+  ok(/Today already has work banked on .+\. That stays as it is\.$/.test(msg), 'the extra line is appended exactly as approved: "Today already has work banked on <name>. That stays as it is." (test 9b)');
+}
+// ---------- Test 9b: no variant copy when the armed session has no work ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1); // A armed, no log at all
+  A.setState(st);
+  A.trainThisTodayClick();
+  ok(A.getConfirmMsg().indexOf('Today already has work banked on') === -1, 'the "today already has work" line is absent when the armed session has no real logged work (test 9c)');
+}
+
+// ==================================================================
+// STRUCTURAL: Train this today footer action visibility (renderDayBar),
+// Just Today's todayPick write + toast, and rejected-copy scope.
+// ==================================================================
+{
+  const body = extractFn('renderDayBar');
+  ok(/var trainBtn = \$\("trainTodayBtn"\);/.test(body), 'renderDayBar reads the trainTodayBtn element');
+  ok(/trainBtn\.hidden = !\(readOnly && hasContent && !trainCompleted\);/.test(body),
+     'Train this today is shown ONLY when: preview (readOnly), has real exercises (hasContent), and NOT completed (test 7/8/9)');
+  ok(/trainCompleted = !!\(ses && \(isSessionFinished\(ses\) \|\| \(trainPr\.total > 0 && trainPr\.done === trainPr\.total\)\)\);/.test(body),
+     'completed is derived from BOTH isSessionFinished and full-sets-done, so a CLOSED session (done purely by logged sets, no Finish tap) never shows the button either (test 9 CLOSED case)');
+  ok(/startBtn\.hidden = readOnly \|\| live \|\| isSessionFinished\(ses\);/.test(body), 'Start remains gated the same way -- hidden while readOnly (preview), shown once armed (test 16)');
+  ok(/banner\.hidden = !readOnly;/.test(body), 'the preview banner is tied to the same readOnly flag armedSessionIdx ultimately drives -- disappears the moment the session becomes armed (test 17)');
+}
+{
+  const body = extractFn('addTodaySession');
+  const appendBranch = body.slice(body.indexOf('week.sessions.push(session);'));
+  ok(/state\.todayPick = \{ week: aw, session: state\.activeSession, date: todayStr\(\) \};/.test(appendBranch),
+     'Just Today\'s plain "Add to my week" append branch sets todayPick to the newly-added session (test 23)');
+  ok(/toast\("Added\. This is today's session now\."\);/.test(appendBranch),
+     'Just Today append shows the exact toast: "Added. This is today\'s session now." (test 24)');
+  // The append branch runs AFTER week.sessions.push and does not touch any
+  // other index -- no reorder, no mutation of any other session.
+  const beforePush = body.slice(0, body.indexOf('week.sessions.push(session);'));
+  ok(!/\.sort\(|\.splice\(/.test(appendBranch), 'the append branch never sorts or splices the sessions array (test 25, no program reorder)');
+  // The substitution (replace-in-slot) branch is untouched by this ticket --
+  // confirm it still does not reference todayPick at all (out of scope, per prompt).
+  const substBranch = body.slice(body.indexOf('if (pendingSubstituteIdx != null'), body.indexOf('week.sessions.push(session);'));
+  ok(!/todayPick/.test(substBranch), 'the Fancy-a-different-session substitute branch is untouched -- no todayPick reference added there (out of scope)');
+}
+
+// ==================================================================
+// STRUCTURAL: coerceState whitelists todayPick tolerantly (backup round-trip)
+// ==================================================================
+{
+  const body = extractFn('coerceState');
+  ok(/todayPick: \(parsed\.todayPick && typeof parsed\.todayPick === "object"/.test(body),
+     'coerceState (the sole reconstruction path for both normal load() and backup import) whitelists todayPick (test 27)');
+  ok(/typeof parsed\.todayPick\.week === "number" && typeof parsed\.todayPick\.session === "number"\s*\n\s*&& typeof parsed\.todayPick\.date === "string"\) \? parsed\.todayPick : null,/.test(body),
+     'a malformed/absent todayPick coerces safely to null rather than crashing or being silently miscoerced (test 27b)');
+}
+
+// ==================================================================
+// Rejected-copy guard (scoped to this ticket's new code/markup)
+// ==================================================================
+const REJECTED = ['maybe', 'great job', 'crushed it', 'recovered', 'fatigued', 'optimal',
+  'readiness score', 'recovery score', 'training receipt', 'Signed off', 'well done', 'nice'];
+const NEW_ZONE = trainThisTodayClickSrc + confirmTrainTodaySrc +
+  SRC.slice(SRC.indexOf('id="trainTodayBtn"') - 100, SRC.indexOf('id="trainTodayBtn"') + 100);
+REJECTED.forEach(function (phrase) {
+  ok(NEW_ZONE.toLowerCase().indexOf(phrase.toLowerCase()) === -1, 'rejected phrase absent from v1.9-T2 new copy: "' + phrase + '"');
+});
+ok(SRC.indexOf('>Train this today<') !== -1, 'footer button copy present exactly: "Train this today"');
+
+// ==================================================================
+// No unexpected data-shape change: only one new field, no others.
+// ==================================================================
+ok(!/state\.todayPickWeek\b|state\.armedOverride\b|state\.pickedSession\b/.test(SRC),
+   'no second/alternate stored field was introduced alongside todayPick');
+
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

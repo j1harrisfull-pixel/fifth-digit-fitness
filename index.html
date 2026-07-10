@@ -198,6 +198,11 @@ input, textarea { font: inherit; color: inherit; }
    framing, reusing existing tokens only (no new palette/design decision). */
 .daypreview-banner { margin: 0 14px 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--ink-dim); }
 .livebar__previewmsg { flex: 1 1 100%; font-size: 13px; line-height: 1.4; color: var(--ink-dim); margin: 4px 0 0; }
+/* v1.9-T2: reuses the same quiet, secondary treatment as .livebar__end --
+   this is an opt-in action, not the primary CTA of the screen (that's the
+   confirmation sheet's own primary button). */
+.livebar__trainbtn { flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; margin: 4px 0 0; }
+.livebar__trainbtn:hover { border-color: var(--ink); }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 /* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
 .home-hero { padding: 12px 14px 4px; }
@@ -1464,6 +1469,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <!-- v1.9-T1: shown only for a preview-only (non-armed) session, in
            place of Start/Finish (both hidden -- see renderDayBar). -->
       <p class="livebar__previewmsg" id="dayPreviewMsg" hidden>This session is planned for later. Training something else today is your call.</p>
+      <!-- v1.9-T2: the one explicit way to arm a previewed session. Only
+           shown alongside dayPreviewMsg (never on the armed session, never
+           on a completed one -- see renderDayBar). Opens a confirmation
+           sheet; writes nothing until confirmed. -->
+      <button type="button" class="livebar__trainbtn" id="trainTodayBtn" hidden>Train this today</button>
     </div>
     <div class="daybar view-day">
       <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
@@ -5517,6 +5527,13 @@ function resolveSpec(request, state) {
         program: program, activeWeek: clampInt(parsed.activeWeek, 0, program.weeks.length - 1, 0), activeSession: clampInt(parsed.activeSession, 0, 99, 0),
         log: migrateLogToSets(parsed.log && typeof parsed.log === "object" ? parsed.log : {}, program), archive: archive, restMuted: !!parsed.restMuted, warmups: parsed.warmups !== false, fillers: parsed.fillers !== false, view: parsed.view === "day" ? "day" : "week", activeExerciseId: parsed.activeExerciseId || null, buildPrefs: parsed.buildPrefs || null,
         readiness: (parsed.readiness && typeof parsed.readiness === "object" && [0, 1, 2].indexOf(parsed.readiness.value) >= 0 && typeof parsed.readiness.date === "string") ? parsed.readiness : null,
+        // v1.9-T2: todayPick is a same-shape, tolerant, optional pointer (week/
+        // session/date) -- round-trips through backup export/import exactly
+        // like readiness above; absent or malformed simply becomes null,
+        // which armedSessionIdx already treats as "no pick" (T1 behavior).
+        todayPick: (parsed.todayPick && typeof parsed.todayPick === "object"
+          && typeof parsed.todayPick.week === "number" && typeof parsed.todayPick.session === "number"
+          && typeof parsed.todayPick.date === "string") ? parsed.todayPick : null,
         unlockedSkills: Array.isArray(parsed.unlockedSkills) ? parsed.unlockedSkills.filter(function (x) { return typeof x === "string"; }) : [],
         userName: typeof parsed.userName === "string" ? parsed.userName.slice(0, 40) : "",
         todaySeedCounter: typeof parsed.todaySeedCounter === "number" ? parsed.todaySeedCounter : 0,
@@ -5985,19 +6002,92 @@ function resolveSpec(request, state) {
     var weekDone = nextIdx < 0 && wk.sessions.length > 0;
     return { nextIdx: nextIdx, weekDone: weekDone, weekFullyComplete: weekDone && allComplete, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
   }
-  // v1.9-T1: exactly one session is "armed" (startable/loggable) at a time --
-  // no new resolver logic, just naming the two existing sources of truth so
-  // the day screen can consult them. Scheduled programs arm today's weekday
-  // session (todaySessionIdx); flexible programs (or a scheduled program on
-  // a non-training day, where todaySessionIdx also reads -1) arm the same
+  // v1.9-T2: an explicit "Train this today" choice outranks both the
+  // schedule and the first-incomplete fallback -- but only for TODAY, and
+  // only while it still points at a real session. Validated inline (not just
+  // trusted) so a corrupted or stale pointer can never arm the wrong
+  // session; expireTodayPick() (below) is what actively clears a stale one
+  // from storage, but this check is a second, standalone guarantee.
+  function validTodayPick(wk) {
+    var tp = state.todayPick;
+    if (!tp || tp.date !== todayStr() || tp.week !== state.activeWeek) return -1;
+    var sessions = wk.sessions || [];
+    if (typeof tp.session !== "number" || tp.session < 0 || tp.session >= sessions.length) return -1;
+    return tp.session;
+  }
+  // v1.9-T1/T2: exactly one session is "armed" (startable/loggable) at a
+  // time. Resolver order: (1) a valid, same-day todayPick: the user's
+  // explicit "Train this today" choice or a Just-Today session that became
+  // today's session; (2) scheduled programs arm today's weekday session
+  // (todaySessionIdx); (3) flexible programs (or a scheduled program on a
+  // non-training day, where todaySessionIdx also reads -1) arm the same
   // first-incomplete session the Home hero already points at (heroInfo's
   // nextIdx). -1 means nothing is armed (week fully done).
   function armedSessionIdx(wk) {
     wk = wk || curWeek();
     var sessions = wk.sessions || [];
+    var picked = validTodayPick(wk);
+    if (picked >= 0) return picked;
     var td = todaySessionIdx(sessions);
     if (td >= 0) return td;
     return heroInfo(wk).nextIdx;
+  }
+  // v1.9-T2: todayPick is date-scoped like readiness -- it silently expires
+  // the moment the calendar date changes, or if it's structurally invalid
+  // (a corrupted/hand-edited backup). Actively cleared (not just ignored)
+  // so a stale pointer never lingers in the saved state; save() only fires
+  // when something was actually removed, so a session with no todayPick set
+  // never writes on every render. Called from renderAll()'s top, so it runs
+  // on every boot/navigation before anything reads armedSessionIdx.
+  function expireTodayPick() {
+    var tp = state.todayPick;
+    if (!tp) return false;
+    var stale = tp.date !== todayStr();
+    var weeks = state.program && state.program.weeks;
+    var wkPick = weeks && weeks[tp.week];
+    var corrupt = !wkPick || !Array.isArray(wkPick.sessions) || typeof tp.session !== "number" || tp.session < 0 || tp.session >= wkPick.sessions.length;
+    if (stale || corrupt) {
+      delete state.todayPick;
+      save();
+      return true;
+    }
+    return false;
+  }
+  // v1.9-T2: "Train this today" -- opens the confirmation sheet for the
+  // session currently being previewed. Writes NOTHING (no save, no
+  // todayPick) until the user actually confirms; the sheet itself reuses
+  // the existing generic askConfirm dialog, styled non-destructive
+  // (danger:false) since arming a session is a normal, reversible choice.
+  function trainThisTodayClick() {
+    var wk = curWeek(), pickIdx = state.activeSession;
+    var ses = wk.sessions && wk.sessions[pickIdx];
+    if (!ses) return;
+    var armedIdx = armedSessionIdx(wk);
+    var armedSes = armedIdx >= 0 ? wk.sessions[armedIdx] : null;
+    var body = "This becomes today's session. Sets you log count for today. Your planned session stays in the week, untouched, and nothing already completed moves or changes.";
+    // v1.9-T2: if today's currently armed session already has real logged
+    // work, name it honestly -- this is allowed (two same-day banked
+    // sessions are honest, never overwritten), just disclosed up front.
+    if (armedSes && hasRealWork(armedSes)) {
+      body += " Today already has work banked on " + dayPositionLabel(wk.sessions, armedIdx) + ". That stays as it is.";
+    }
+    askConfirm({
+      title: "Train this today?",
+      message: body,
+      confirmLabel: "Train this today",
+      cancelLabel: "Keep it as preview",
+      danger: false,
+      onConfirm: function () { confirmTrainToday(pickIdx); }
+    });
+  }
+  // Writes exactly one field: state.todayPick. No program mutation, no log
+  // mutation, no session copy -- the originally armed session (if different)
+  // simply stops being armed on the next render, per armedSessionIdx's
+  // resolver order.
+  function confirmTrainToday(pickIdx) {
+    state.todayPick = { week: state.activeWeek, session: pickIdx, date: todayStr() };
+    save();
+    renderAll(false);
   }
   // A session is preview-only when it is NOT the armed session. The one
   // exception is a session that's already finished/closed -- that is
@@ -6670,6 +6760,19 @@ function resolveSpec(request, state) {
       var complete = pr.total > 0 && pr.done === pr.total;
       endBtn.textContent = "Finish";
       endBtn.classList.toggle("livebar__end--ready", complete);
+    }
+    // v1.9-T2: "Train this today" is the one way to arm a previewed session.
+    // Only offered on a genuinely preview (non-armed, non-completed) session
+    // with real content -- never on the armed session (readOnly is false
+    // there), never on a CLOSED/completed one (isSessionFinished OR fully
+    // logged by sets alone -- a session can read "done" from completed sets
+    // without ever having had Finish tapped), never with no exercises.
+    var trainBtn = $("trainTodayBtn");
+    if (trainBtn) {
+      var trainPr = ses ? sessionProgress(sessionItemsFor(ses)) : { total: 0, done: 0 };
+      var trainCompleted = !!(ses && (isSessionFinished(ses) || (trainPr.total > 0 && trainPr.done === trainPr.total)));
+      var hasContent = !!(ses && Array.isArray(ses.exercises) && ses.exercises.length);
+      trainBtn.hidden = !(readOnly && hasContent && !trainCompleted);
     }
   }
   // Elapsed-time readout for the sticky live bar. The start TIMESTAMP is
@@ -7414,6 +7517,7 @@ function resolveSpec(request, state) {
     else listEl.classList.remove("reveal");
   }
   function renderAll(animate) {
+    expireTodayPick(); // v1.9-T2: date/validity check runs before anything else renders
     clampActive();
     appEl.setAttribute("data-view", state.view === "day" ? "day" : "week");
     // One Accent Rule: the program button is only "the next action" before a
@@ -7963,6 +8067,7 @@ function resolveSpec(request, state) {
   // then hides this button and reveals the ticking timer.
   $("liveBarStart").addEventListener("click", ensureSessionLive);
   $("liveBarEnd").addEventListener("click", endSession);
+  $("trainTodayBtn").addEventListener("click", trainThisTodayClick);
   $("coachHintDismiss").addEventListener("click", function () {
     try { localStorage.setItem("tl:coachHintSeen", "1"); } catch (e) {}
     $("coachHint").hidden = true;
@@ -8930,7 +9035,12 @@ function resolveSpec(request, state) {
     }
     week.sessions.push(session);
     state.activeSession = week.sessions.length - 1;
-    pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added " + session.name);
+    // v1.9-T2: a freshly-built Just Today session IS today's chosen training --
+    // arm it the same way an explicit "Train this today" confirm would,
+    // rather than leaving it to compete with the schedule/first-incomplete
+    // resolver. Existing planned sessions are untouched; nothing is replaced.
+    state.todayPick = { week: aw, session: state.activeSession, date: todayStr() };
+    pendingToday = null; hideRest(); save(); refreshWelcome(); renderAll(true); closePlan(); toast("Added. This is today's session now.");
   }
   function closePlan() { cancelBuildThinking(); cancelTodayThinking(); pendingSubstituteIdx = null; if (typeof planSheet.close === "function") planSheet.close(); else planSheet.removeAttribute("open"); }
   function copyRequest() {
@@ -9909,6 +10019,7 @@ function resolveSpec(request, state) {
     $("confirmTitleText").textContent = opts.title || "Are you sure?";
     $("confirmMsg").textContent = opts.message || "";
     yes.textContent = opts.confirmLabel || "Confirm";
+    no.textContent = opts.cancelLabel || "Cancel"; // v1.9-T2: optional, defaults unchanged for every existing caller
     // The dialog defaults to a destructive costume (red button + warning icon)
     // because most confirms here really are destructive. A caller can pass
     // danger:false for a reversible action (e.g. relabelling kg->lb loses
