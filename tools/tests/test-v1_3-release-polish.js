@@ -146,14 +146,14 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(!/Nice work this week/.test(SRC), '"Nice work this week" no longer appears anywhere (test 7)');
   ok(/Week's work done/.test(SRC), 'the week-complete hero heading now reads "Week\'s work done"');
   ok(!/"Session complete"/.test(SRC), 'the literal "Session complete" string is gone from source');
-  ok(/That's the work done/.test(SRC), '"That\'s the work done" appears for the completion receipt copy');
-  // Both the static markup default and the JS assignment were updated (not just one).
-  const staticIdx = SRC.indexOf('id="completeOverline">That\'s the work done<');
-  const jsIdx = SRC.indexOf('$("completeOverline").textContent = ended ? "Finished early" : "That\'s the work done";');
-  ok(staticIdx > 0, 'the static receipt markup default was updated to the new copy');
-  ok(jsIdx > 0, 'the JS assignment for the full-completion overline was updated to the new copy');
-  // Early-finish copy (v136A, untouched by this ticket) must survive unchanged.
-  ok(/"Finished early"/.test(SRC), 'the early-finish overline copy "Finished early" is untouched');
+  // v1.8 TEMPO Ticket 2 (approved) replaced the receipt's static overline
+  // default and the full-completion headline copy: "That's the work done"
+  // (straight apostrophe, no period) is now "That’s the work done." on the
+  // full-finish headline; "Finished early" was retired in favour of the
+  // partial-finish headline "Enough for today." Both changes are part of
+  // the approved finish-result-sheet contract, not a regression.
+  ok(/That’s the work done\./.test(SRC), '"That’s the work done." appears for the full-finish headline (v1.8 TEMPO)');
+  ok(/"Enough for today\."/.test(SRC), 'the partial-finish headline reads "Enough for today." (v1.8 TEMPO, replaces "Finished early")');
 }
 
 // ---------- v136A/v135/v136B regression guards (unchanged strings must survive) ----------

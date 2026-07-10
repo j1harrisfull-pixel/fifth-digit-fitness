@@ -38,10 +38,13 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 }
 
 // ---------- Test: receipt copy is honest for an early finish ----------
+// v1.8 TEMPO Ticket 2 (approved) replaced "Finished early" / "· finished
+// early" with the new partial-finish headline "Enough for today." -- the
+// negative "Session ended" wording this test originally guarded against
+// is still gone, which is the part of the original intent that still holds.
 {
-  ok(/"Finished early"/.test(SRC), 'early-finish receipt overline reads "Finished early", not "Session ended"');
+  ok(/"Enough for today\."/.test(SRC), 'partial-finish headline reads "Enough for today." (v1.8 TEMPO, approved)');
   ok(!/"Session ended"/.test(SRC), 'the negative "Session ended" copy is gone');
-  ok(/" · finished early"/.test(SRC), 'early-finish title suffix reads "· finished early"');
 }
 
 // ---------- Test 3/4/5: visible optional Skip is scoped to warm-up/cool-down ----------

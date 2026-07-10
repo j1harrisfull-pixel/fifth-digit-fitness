@@ -44,7 +44,7 @@ function extractFn(name) {
   return SRC.slice(at, i);
 }
 
-const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession'];
+const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession', 'countCompletedSets', 'sessionDensityRounds'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 // Sandbox: a mutable `state`, a stub `readLog` (surfaces exactly the sets the

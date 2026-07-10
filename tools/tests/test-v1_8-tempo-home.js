@@ -83,7 +83,11 @@ APPROVED_LITERALS.forEach(function (s) {
   ok(SRC.indexOf(s) !== -1, 'approved copy present: "' + s + '"');
 });
 ok(SRC.indexOf('CLOSED</span>') !== -1, 'week-row "CLOSED" status label present');
-ok(/BANKED · '\s*\+\s*pr\.done\s*\+\s*' SET/.test(SRC), 'week-row "BANKED · N SETS" status label present');
+// v1.8 TEMPO Ticket 2 fix-up (approved): the BANKED label now reads a true
+// completed-set count (bk.setsDone) instead of pr.done (which counts
+// completed EXERCISES, a different unit) -- see test-v1_8-tempo-finish.js
+// for the full unit-honesty test coverage of this fix.
+ok(/BANKED · " \+ bk\.setsDone \+ " SET/.test(SRC), 'week-row "BANKED · N SETS" status label present, uses true completed-set count (v1.8 fix-up)');
 ok(SRC.indexOf('READY</span>') !== -1, 'week-row "READY" status label present');
 ok(SRC.indexOf('SKIPPED</span>') !== -1, 'week-row "SKIPPED" status label present');
 ok(SRC.indexOf('’s session is banked.') !== -1, 'memory line 1 template present');

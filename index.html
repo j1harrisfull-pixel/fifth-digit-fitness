@@ -299,6 +299,56 @@ input, textarea { font: inherit; color: inherit; }
 .app[data-view="week"] .weekrow.is-current { background: color-mix(in srgb, var(--tempo-surface) 80%, transparent); }
 .app[data-view="week"] .weekrow.is-current .weekrow__name { color: var(--tempo-ink); }
 .app[data-view="week"] #weekList .empty__title, .app[data-view="week"] #weekList .empty__hint { color: var(--tempo-ink); }
+/* ============================================================
+   v1.8 TEMPO -- Finish Result Sheet (Ticket 2 of 3). Reuses Ticket 1's
+   --tempo-* tokens only -- no new palette. Every rule is scoped to
+   #completeSheet so no other dialog/screen changes. Finish LOGIC (what
+   counts as done/ended/density, elapsed-minute calc, honest-read rows, set/
+   round counting) lives entirely in showSessionComplete() and is untouched;
+   this block is presentation only. The blanket
+   `@media (prefers-reduced-motion: reduce)` rule earlier in this file
+   already neutralises the entrance animation below -- no separate guard
+   needed here. */
+#completeSheet.sheet { background: var(--tempo-bone); border-top-color: var(--tempo-bone-line); }
+#completeSheet .sheet__grip { background: var(--tempo-bone-dim); }
+#completeSheet .sheet__body { padding: 0; }
+#completeSheet .receipt-paper {
+  background: var(--tempo-bone); color: var(--tempo-bone-ink);
+  padding: 30px 22px 22px; margin: 0; box-shadow: none;
+  position: relative; overflow: hidden; min-height: 100%;
+  animation: tempoResultIn .22s ease-out;
+}
+@keyframes tempoResultIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* Clay action/progress band -- the one approved "top band" use of a solid
+   fill; full/partial scale it to real completion via --result-fill (set
+   inline from the same sessionProgress() data already driving completeSummary
+   elsewhere), density is always a solid full-width band (rounds/AMRAP aren't
+   measured in the same units as prescribed sets). */
+#completeSheet .receipt-paper::before { content: ""; position: absolute; top: 0; left: 0; height: 5px; background: var(--tempo-clay); width: var(--result-fill, 100%); }
+/* FD ghost watermark, opacity capped at 0.05 (test-enforced) -- same device as Ticket 1's Today card. */
+#completeSheet .receipt-paper::after { content: "FD"; position: absolute; right: -14px; bottom: -34px; font-family: var(--font-display); font-weight: 700; font-size: 170px; line-height: 1; color: var(--tempo-bone-ink); opacity: .045; pointer-events: none; }
+#completeSheet .receipt-paper__ov { position: relative; z-index: 1; font-family: "Spline Sans Mono", ui-monospace, monospace; color: var(--tempo-brass-ink); font-weight: 700; letter-spacing: .1em; }
+#completeSheet .receipt-paper__ov[hidden] { display: none; }
+#completeSheet .complete__title { position: relative; z-index: 1; color: var(--tempo-bone-ink); }
+#completeSheet .complete__meta { position: relative; z-index: 1; font-size: 13px; color: var(--tempo-bone-dim); margin: -6px 0 12px; }
+#completeSheet .complete__earned { position: relative; z-index: 1; color: var(--tempo-brass-ink); }
+#completeSheet .complete__fact,
+#completeSheet .complete__partial-note,
+#completeSheet .complete__density-line { position: relative; z-index: 1; color: var(--tempo-bone-dim); font-size: 14px; margin: 0 0 8px; }
+#completeSheet .complete__lift-progress { position: relative; z-index: 1; color: var(--tempo-brass-ink); font-weight: 700; font-size: 14px; margin: 0 0 14px; }
+#completeSheet .complete__summary { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
+#completeSheet .complete__pr-banner { position: relative; z-index: 1; color: var(--tempo-clay-deep); background: color-mix(in srgb, var(--tempo-clay) 14%, transparent); border-color: var(--tempo-clay); }
+#completeSheet .complete__read-title { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
+#completeSheet .complete__read-row { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); }
+#completeSheet .complete__read-name { color: var(--tempo-bone-ink); }
+#completeSheet .complete__read-detail { color: var(--tempo-bone-dim); }
+#completeSheet .complete__read-off { color: var(--tempo-bone-dim); }
+#completeSheet .receipt-paper__stamp { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); }
+#completeSheet .receipt-paper__mark { color: var(--tempo-bone-ink); }
+#completeSheet .receipt-paper__sig, #completeSheet .receipt-paper__sig b { color: var(--tempo-bone-dim); }
+#completeSheet .receipt-paper__sig b { color: var(--tempo-bone-ink); }
+#completeSheet .btn-row { position: relative; z-index: 1; padding: 16px 22px calc(env(safe-area-inset-bottom) + 16px); background: var(--tempo-bone); margin: 0; }
+#completeSheet .btn--primary { background: var(--tempo-bone-ink); color: var(--tempo-bone); border-radius: 999px; }
 /* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
    --line-strong outline made it a bordered box; pure fill-only elevation
    (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
@@ -819,6 +869,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    pattern from the Build/Just-Today flows rather than inventing a new one. */
 #completeSheet { position: relative; }
 .signoff-beat { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--surface); }
+/* v1.8 TEMPO Ticket 2 fix-up: display:flex above overrides the plain [hidden]
+   attribute (same author-style-beats-UA-style gotcha as .coachhint/.intro/etc
+   elsewhere in this file), so showSessionComplete()'s `beatEl.hidden = true`
+   was not reliably hiding the beat, leaving it visually on top of the result
+   sheet. Same narrow per-element fix as those other cases. */
+.signoff-beat[hidden] { display: none; }
 .sheet h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
 .sheet__lead { font-size: 13px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
 .sect { margin-bottom: 28px; }
@@ -1748,16 +1804,21 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   <div class="sheet__grip"></div>
   <div class="sheet__body">
     <div class="receipt-paper">
-      <p class="receipt-paper__ov" id="completeOverline">That's the work done</p>
+      <p class="receipt-paper__ov" id="completeOverline" hidden></p>
       <h2 class="complete__title" id="completeTitle"><span id="completeTitleText">Session done</span></h2>
+      <p class="complete__meta" id="completeMeta"></p>
       <p class="complete__earned" id="completeEarned" hidden></p>
+      <p class="complete__fact" id="completeFact" hidden></p>
+      <p class="complete__partial-note" id="completePartialNote" hidden></p>
+      <div id="completeDensityLines"></div>
+      <p class="complete__lift-progress" id="completeLiftProgress" hidden></p>
       <p class="complete__summary" id="completeSummary"></p>
       <p class="complete__pr-banner" id="completePrBanner" hidden></p>
       <div id="completeRead"></div>
       <p class="complete__read-detail" id="completeCoachNote" hidden></p>
       <div class="receipt-paper__stamp">
         <svg class="receipt-paper__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
-        <p class="receipt-paper__sig">Signed off<b id="completeSigLine"></b></p>
+        <p class="receipt-paper__sig"><b id="completeSigLine"></b></p>
       </div>
     </div>
     <div class="btn-row">
@@ -6303,7 +6364,15 @@ function resolveSpec(request, state) {
     // v136A: a session the user explicitly finished (but didn't fully complete)
     // is its own honest state -- "Finished · X of Y", never "Done". Takes
     // precedence over progress/skipped: the user closed it out on purpose.
-    if (isSessionFinished(sessions[i])) return { key: "finished", pr: pr, isAlt: isAlt };
+    // v1.8 TEMPO Ticket 2 fix-up: the BANKED label needs the true completed-
+    // SET count (and, for density sessions, the true rounds count) -- pr.done
+    // above only counts fully-completed EXERCISES, which is a different unit
+    // and was producing "BANKED · 0 SETS" after a single logged set.
+    if (isSessionFinished(sessions[i])) {
+      var slf = state.log[sessions[i].id];
+      var banked = { setsDone: countCompletedSets(slf), density: sessionDensityRounds(slf) };
+      return { key: "finished", pr: pr, isAlt: isAlt, banked: banked };
+    }
     if (pr.done > 0) return { key: "progress", pr: pr, isAlt: isAlt };
     var laterTouched = false;
     for (var j = i + 1; j < sessions.length; j++) { if (sessionProgress(sessionItemsFor(sessions[j])).done > 0) { laterTouched = true; break; } }
@@ -6343,9 +6412,18 @@ function resolveSpec(request, state) {
       if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' CLOSED</span>';
       // v136A: finished-early is its own honest tag -- no check icon (the
       // check is reserved for genuine completion), so it can never be
-      // mistaken for a full close. v1.8 TEMPO: "BANKED · N SETS" (the real
-      // completed-set count), not the old "Finished · X of Y" fraction.
-      else if (st.key === "finished") statHtml = '<span class="weekrow__tag weekrow__tag--finished">BANKED · ' + pr.done + ' SET' + (pr.done === 1 ? "" : "S") + '</span>';
+      // mistaken for a full close. v1.8 TEMPO Ticket 2 fix-up: the unit in
+      // the label must match the unit in the data -- true completed SETS
+      // when any exist, true density ROUNDS when the session is density-only,
+      // and a bare "BANKED" (never "BANKED · 0 SETS") when the only real
+      // work was a conditioning block marked done at zero rounds.
+      else if (st.key === "finished") {
+        var bk = st.banked || { setsDone: 0, density: { roundsTotal: 0, blockDoneZeroRounds: false } };
+        var bankedLabel = bk.setsDone > 0 ? ("BANKED · " + bk.setsDone + " SET" + (bk.setsDone === 1 ? "" : "S"))
+          : bk.density.roundsTotal > 0 ? ("BANKED · " + bk.density.roundsTotal + " ROUND" + (bk.density.roundsTotal === 1 ? "" : "S"))
+          : "BANKED";
+        statHtml = '<span class="weekrow__tag weekrow__tag--finished">' + bankedLabel + '</span>';
+      }
       else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
       else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
       else statHtml = '<span class="weekrow__tag weekrow__tag--pending">READY</span>';
@@ -8296,6 +8374,21 @@ function resolveSpec(request, state) {
     if (sl && sl.ex) { for (var k in sl.ex) { if (!Object.prototype.hasOwnProperty.call(sl.ex, k)) continue; var el = sl.ex[k]; if (el && Array.isArray(el.sets)) el.sets.forEach(function (s) { if (s && s.completed) n++; }); } }
     return n;
   }
+  // v1.8 TEMPO Ticket 2 fix-up: same rounds/completed-block reduction
+  // showSessionComplete() already does inline for the finish sheet, factored
+  // out so the Home week-row BANKED label (Fix 2) can use the identical,
+  // honest density read instead of duplicating the loop a third time.
+  function sessionDensityRounds(sl) {
+    var roundsTotal = 0, blockDoneZeroRounds = false;
+    if (sl && sl.blocks) {
+      Object.keys(sl.blocks).forEach(function (kind) {
+        var bl = sl.blocks[kind];
+        if (bl && typeof bl.rounds === "number" && bl.rounds > 0) roundsTotal += bl.rounds;
+        else if (bl && bl.completed) blockDoneZeroRounds = true;
+      });
+    }
+    return { roundsTotal: roundsTotal, blockDoneZeroRounds: blockDoneZeroRounds };
+  }
   function sessionLogDate(sl) {
     var d = sl && (sl.finishedAt || sl.date); if (!d) return null;
     try { var dt = new Date(d); return isNaN(dt.getTime()) ? null : dt; } catch (e) { return null; }
@@ -9199,6 +9292,37 @@ function resolveSpec(request, state) {
   // (all non-skipped exercises logged) OR ending early with work done (opts.ended).
   // The receipt is honest either way: 'complete' celebrates, 'ended' acknowledges
   // exactly what WAS done with no fake completion stamp.
+  // v1.8 TEMPO (Ticket 2): "<Lift> moved up this block." -- outside coach-span,
+  // read-only over state.program/state.log (the same shape Ticket 1's Home
+  // memory line reads), scoped to THIS finish's own session. A lift "moved up"
+  // when its logged weight here is strictly greater than the highest weight
+  // logged for the same exercise name in any OTHER session of the current
+  // program -- honest even without a full chronological ordering, since a
+  // higher-than-every-other-recorded-instance weight is a real increase.
+  function finishLiftProgressLine(ses) {
+    var sl = state.log[ses.id]; if (!sl || !sl.ex) return "";
+    var priorMax = {};
+    (state.program.weeks || []).forEach(function (w) {
+      (w.sessions || []).forEach(function (other) {
+        if (other.id === ses.id) return;
+        var osl = state.log[other.id]; if (!osl || !osl.ex) return;
+        (other.exercises || []).forEach(function (ex) {
+          var el = osl.ex[ex.id];
+          if (!el || el.weight == null || !(el.weight > 0)) return;
+          var key = String(ex.name);
+          if (!(key in priorMax) || el.weight > priorMax[key]) priorMax[key] = el.weight;
+        });
+      });
+    });
+    var found = "";
+    ses.exercises.some(function (ex) {
+      var el = sl.ex[ex.id]; if (!el || el.weight == null || !(el.weight > 0)) return false;
+      var key = String(ex.name);
+      if (priorMax[key] != null && el.weight > priorMax[key]) { found = ex.name; return true; }
+      return false;
+    });
+    return found ? (found + " moved up this block.") : "";
+  }
   function showSessionComplete(ses, opts) {
     opts = opts || {};
     var ended = !!opts.ended;
@@ -9244,8 +9368,6 @@ function resolveSpec(request, state) {
     var sessionsDone = 0;
     wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
 
-    $("completeOverline").textContent = ended ? "Finished early" : "That's the work done";
-    $("completeTitleText").textContent = dayPositionLabel(wk.sessions, state.activeSession) + (ended ? " · finished early" : " done");
     // v1.4: build the summary from honest parts rather than a fixed "X sets
     // logged" template -- a density-only session has setsDone === 0 but real
     // logged rounds, and the old template would have printed the lie "0 sets
@@ -9269,19 +9391,83 @@ function resolveSpec(request, state) {
     if (!ended && readyCount) summaryParts.push("ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts"));
     $("completeSummary").textContent = summaryParts.join(" · ");
 
+    // v1.8 TEMPO finish result sheet (Ticket 2, display-layer only): pick one
+    // of three honest headline states from data that's already computed
+    // above -- `ended` (existing full-vs-partial signal) and roundsTotal/
+    // blockDoneZeroRounds (existing density signal). A session only reads as
+    // "density" when it actually IS built with EMOM/AMRAP-tagged exercises
+    // (session.exercises[].densityMode, the same real field the active
+    // workout card already uses to render the rounds counter) AND there is
+    // genuine density work logged -- otherwise it falls through to the
+    // ordinary full/partial branch, per the "no fake density claims" rule.
+    var isDensitySession = ses.exercises.some(function (e) { return e.densityMode === "emom" || e.densityMode === "amrap"; });
+    var densityFinish = isDensitySession && (roundsTotal > 0 || blockDoneZeroRounds);
+    var finishKind = densityFinish ? "density" : (ended ? "partial" : "full");
+
+    // v1.8 TEMPO clay progress band: purely visual, reads the same
+    // prog.done/prog.total sessionProgress() already computed above (no new
+    // computation). Density is always a solid full band -- rounds/AMRAP
+    // aren't measured in the same units as prescribed sets.
+    var receiptEl = $("completeSheet") && $("completeSheet").querySelector ? $("completeSheet").querySelector(".receipt-paper") : null;
+    if (receiptEl && receiptEl.style) {
+      var fillPct = (finishKind === "density" || !(prog.total > 0)) ? 100 : Math.round((prog.done / prog.total) * 100);
+      receiptEl.style.setProperty("--result-fill", fillPct + "%");
+    }
+
+    var overlineEl = $("completeOverline");
+    if (finishKind === "full") { overlineEl.textContent = "SESSION CLOSED"; overlineEl.hidden = false; }
+    else { overlineEl.textContent = ""; overlineEl.hidden = true; }
+
+    $("completeTitleText").textContent = finishKind === "density" ? "Work logged."
+      : finishKind === "partial" ? "Enough for today."
+      : "That’s the work done.";
+    // The day/session label moves to a quiet meta line under the headline --
+    // still real data (dayPositionLabel, already computed everywhere else),
+    // just no longer doing double duty as the emotional headline itself.
+    var metaEl = $("completeMeta");
+    if (metaEl) metaEl.textContent = dayPositionLabel(wk.sessions, state.activeSession);
+
     // One unconditional earned line, above the honest read -- so the emotional
-    // peak leads with a win, not an audit of flat/down lifts.
+    // peak leads with a win, not an audit of flat/down lifts. Density has no
+    // earned line of its own (its lines live in #completeDensityLines below).
     var earnedEl = $("completeEarned");
     if (earnedEl) {
       var earnedTxt = "";
-      if (!ended && sessionsDone > 0) {
+      if (finishKind === "full" && sessionsDone > 0) {
         earnedTxt = (sessionsDone >= wk.sessions.length)
           ? "Week complete · all " + wk.sessions.length + " done"
           : "That's your " + ordinal(sessionsDone) + " session this week";
-      } else if (ended && (setsDone > 0 || roundsTotal > 0 || blockDoneZeroRounds)) {
-        earnedTxt = "Banked · every set still counts";
+      } else if (finishKind === "partial") {
+        earnedTxt = "every set still counts";
       }
       earnedEl.textContent = earnedTxt; earnedEl.hidden = !earnedTxt;
+    }
+    // Partial-only honest note: unconditional once we're genuinely in the
+    // partial branch (real work logged, session not fully completed) --
+    // no guilt, no score, just the state named plainly.
+    var partialNoteEl = $("completePartialNote");
+    if (partialNoteEl) { partialNoteEl.textContent = finishKind === "partial" ? "Short session. Still banked." : ""; partialNoteEl.hidden = finishKind !== "partial"; }
+    // Density lines: one per logged block, built only from sl.blocks'
+    // existing rounds/completed fields and the exercise's existing
+    // densityMode tag -- "AMRAP finished." only when that block's completed
+    // flag is true; otherwise an honest rounds count, same as the strength/
+    // EMOM block. No fabricated claim when a block has neither.
+    var densityLinesEl = $("completeDensityLines");
+    if (densityLinesEl) {
+      var densityHtml = "";
+      if (finishKind === "density" && sl && sl.blocks) {
+        Object.keys(sl.blocks).forEach(function (kind) {
+          var bl = sl.blocks[kind];
+          var ex = ses.exercises.filter(function (e) { return e.block === kind && e.densityMode; })[0];
+          if (!bl || !ex) return;
+          if (ex.densityMode === "amrap" && bl.completed) {
+            densityHtml += '<p class="complete__density-line">AMRAP finished.</p>';
+          } else if (bl.rounds > 0) {
+            densityHtml += '<p class="complete__density-line">' + bl.rounds + ' round' + (bl.rounds === 1 ? "" : "s") + ' banked.</p>';
+          }
+        });
+      }
+      densityLinesEl.innerHTML = densityHtml;
     }
 
     var honestRead = buildHonestRead(ses);
@@ -9338,6 +9524,28 @@ function resolveSpec(request, state) {
         if (m >= 1 && m <= 180) mins = m; // plausible single-session window only
       }
       sigLine.textContent = fmtDate(new Date().toISOString()) + (mins != null ? " · " + mins + " min" : "");
+      // v1.8 TEMPO fact line: the same setsDone/mins values already computed
+      // above, just also shown as one honest "N sets logged · M min" line on
+      // the result sheet itself (previously mins only lived in the stamp
+      // signature). Reads sets, not rounds -- density sessions get their own
+      // rounds/AMRAP lines above instead.
+      var factEl = $("completeFact");
+      if (factEl) {
+        var factTxt = (setsDone > 0 && mins != null) ? (setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged · " + mins + " min")
+          : (setsDone > 0 ? (setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged") : "");
+        factEl.textContent = factTxt; factEl.hidden = !factTxt;
+      }
+    }
+    // v1.8 TEMPO lift-progress line (full finish only): "<Lift> moved up this
+    // block." -- backed by at least two logged weights for the same
+    // exercise (this session's weight vs. the highest weight logged for it
+    // in any OTHER session of the current program) with a strict increase.
+    // Reads only state.program/state.log (existing fields); no coach-span
+    // call, no new data.
+    var liftProgressEl = $("completeLiftProgress");
+    if (liftProgressEl) {
+      var liftLine = (finishKind === "full") ? finishLiftProgressLine(ses) : "";
+      liftProgressEl.textContent = liftLine; liftProgressEl.hidden = !liftLine;
     }
     // CTA: "Back to week" is ALWAYS the primary -- the finish deserves a pause,
     // not an immediate next obligation. The secondary is contextual and opt-in:
