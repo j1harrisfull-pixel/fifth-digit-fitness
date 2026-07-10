@@ -96,7 +96,14 @@ const harness = `
   ${sessionLogDateSrc}
   ${collectLoggedSessionsSrc}
   function esc(s) { return String(s); }
+  // v1.9 Home Hero Flow added a todayPicked guard alongside weekDone to this
+  // exact gate (a todayPick already answers "what am I training", so the
+  // debt-reasoning line is suppressed rather than contradicting it) -- this
+  // harness call site fixes it to false (never a Chosen Today Review case)
+  // so every existing fixture below still exercises the untouched non-picked
+  // path this file was written to test.
   function homeReasonHtml(state, weekDone, heroFocus) {
+    var todayPicked = false;
     ${gateSrc}
     return reasonHtml;
   }
