@@ -447,12 +447,39 @@ function stateWith(sessionsAndLogs) {
   ok(!/fetch\(|XMLHttpRequest|navigator\.sendBeacon|analytics|telemetry/i.test(rollingSrc), 'computeRollingDebt introduces no network/analytics call (test 34)');
 }
 
-// ---------- Test 35: coach-span md5 zero-diff ----------
+// ---------- Test 35: coach-span functions v1.6 depends on are unchanged ----------
+// v1.7 (Time Budget Honesty) is an explicitly approved, separate coach-span
+// change scoped to prescription()/PRESCRIPTION_TABLE/buildEx/generateSession/
+// generateProgram's call-site wiring -- a whole-span md5 equality check is no
+// longer the right invariant for THIS test file (whose job is verifying v1.6's
+// own rolling-debt/reason-line machinery, not policing every unrelated
+// change). Narrowed to what v1.6 actually reads: computeWeeklyDebt (the
+// function computeRollingDebt is designed to mirror) and resolveSpec (which
+// v1.6's onBuildToday substitution must still call unmodified) must remain
+// byte-identical to the c556f29 baseline. The full coach-span-diff-scope
+// check (confirming ONLY the approved v1.7 prescription areas changed, and
+// nothing else) lives in tools/tests/test-v1_7-time-budget-honesty.js.
 {
   const { execSync } = require('child_process');
-  const current = execSync("sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5").toString().trim();
-  const baseline = execSync("git -C /Users/jamesharris/Desktop/training-log-app show c556f29:index.html | sed -n '/__COACH_START__/,/__COACH_END__/p' | md5").toString().trim();
-  ok(current === baseline, 'coach-span is byte-identical to the c556f29 baseline (test 35)');
+  const baselineSrc = execSync("git -C /Users/jamesharris/Desktop/training-log-app show c556f29:index.html").toString();
+  const baselineLines = baselineSrc.split('\n');
+  const bCsStart = baselineLines.findIndex(l => l.includes('/*__COACH_START__*/'));
+  const bCsEnd = baselineLines.findIndex(l => l.includes('/*__COACH_END__*/'));
+  const baselineCoachSpan = baselineLines.slice(bCsStart + 1, bCsEnd).join('\n');
+  ['computeWeeklyDebt', 'resolveSpec'].forEach(name => {
+    const cur = extractFn(name);
+    const at = baselineCoachSpan.indexOf('function ' + name + '(');
+    const base = at < 0 ? null : (function () {
+      const braceStart = baselineCoachSpan.indexOf('{', at);
+      let depth = 0, i = braceStart;
+      for (; i < baselineCoachSpan.length; i++) {
+        const c = baselineCoachSpan[i];
+        if (c === '{') depth++; else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
+      }
+      return baselineCoachSpan.slice(at, i);
+    })();
+    ok(cur === base, `${name} is byte-identical to the c556f29 baseline (test 35, v1.6-relevant scope only)`);
+  });
 }
 
 // ---------- Test 36: parity -- rolling window == current week produces matching byPattern ----------

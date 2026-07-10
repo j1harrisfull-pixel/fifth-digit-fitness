@@ -3363,7 +3363,7 @@ function pickFunctional(kind, allowed, used, seed, injuries) {
   var pool = LIBRARY.filter(function (e) { return e.type === "strength" && match(e) && equipOk(e, allowed) && !used[e.id] && !isExerciseInjuryFlagged(e, injuries); });
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
-function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
+function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload, blockBudgets) {
   weekNum = weekNum || 1;
   isDeload = !!isDeload;
 
@@ -3385,6 +3385,16 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
     }
     if (ex.intensity === "threshold") {
       return { sets: mins <= 35 ? 2 : 3, reps: "8 min", target: "Tempo · comfortably hard", rest: "3 min easy" };
+    }
+    // v1.7 (Time Budget Honesty): intervals now scale off the CONDITIONING
+    // BLOCK's own allocated minutes (blockBudgets.conditioning) rather than
+    // the session's raw total minutes -- a 4x4min interval doesn't fit a
+    // 10-min conditioning block just because the whole session is 45 minutes.
+    // Falls back to the prior mins<=35 rule when no blockBudgets is supplied
+    // (recoverySession/warm-up-cool-down callers never reach this branch).
+    if (blockBudgets && blockBudgets.conditioning != null) {
+      var ib = intervalBandForConditioningBlock(blockBudgets.conditioning);
+      return { sets: ib.sets, reps: ib.reps, target: "~90-95% HRmax · near-max effort", rest: ib.rest };
     }
     // Intervals: fewer rounds on a short session so the finisher fits the budget
     // instead of eating it whole (4x4min + rests was ~25 min inside a 30-min day).
@@ -3482,7 +3492,19 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
   // real numeric home instead of an opaque, stimulus-disconnected string.
   var rir = ririForWeek(stimRow.rirRange, weekNum, isDeload);
   var target = ririTargetString(rir);
-  return { sets: sets, reps: reps, rir: rir, target: target, rest: stimRow.rest };
+  // v1.7 (Time Budget Honesty): the strength-compound row's rest was a flat
+  // "3-5 min" regardless of the STRENGTH BLOCK's own allocated minutes --
+  // honest at a 60-min budget, dishonest at 20/30/45-min ones (confirmed by
+  // generated-output audit). Only overrides the strength/anchor row (tableGoal
+  // === "strength", which per the comment above is anchor-exclusive) -- the
+  // hypertrophy/general accessory rows already scale reasonably and are
+  // untouched. Falls back to the untouched flat rest when no blockBudgets is
+  // supplied (recoverySession/warm-up-cool-down callers never reach this
+  // row -- their exercises are mobility/general, not strength-compound).
+  var rest = (tableGoal === "strength" && blockBudgets && blockBudgets.strength != null)
+    ? restBandForStrengthBlock(blockBudgets.strength)
+    : stimRow.rest;
+  return { sets: sets, reps: reps, rir: rir, target: target, rest: rest };
 }
 // Programming Philosophy Phase 5, §3.4. Keyed by [stimulus][compound ? "compound" : "isolation"].
 // "strength" only has a compound row -- true strength work is never
@@ -3490,6 +3512,40 @@ function prescription(ex, goal, isAnchor, minutes, weekNum, isDeload) {
 // unchanged). rirRange is the STIMULUS BASELINE band; ririForWeek tightens
 // WITHIN this band across weekNum/isDeload -- the two mechanisms compose,
 // neither replaces the other.
+// v1.7 (Time Budget Honesty): the strength-compound row's rest was a flat
+// "3-5 min" regardless of how much time the session's own strength block
+// actually has -- honest for a 60-min block, but it silently broke the time
+// promise on 20/30/45-min sessions (confirmed by generated-output audit).
+// This band reads the STRENGTH BLOCK's own allocated minutes (computeBlockBudgets'
+// `strength` bucket -- already the single source of truth attachBlocks uses to
+// render the block-time summary the user sees), not the session's raw total
+// minutes, so the rest actually fits the time the anchor has to work with.
+// Strength-compound/anchor rest ONLY -- accessory rest (hypertrophy/general
+// rows) is untouched per the approved v1.7 contract.
+function restBandForStrengthBlock(strengthBudgetMinutes) {
+  var b = strengthBudgetMinutes;
+  if (!(b > 0)) return "3-5 min"; // no budget known -- keep prior flat behaviour
+  if (b <= 16) return "60-90s";
+  if (b <= 24) return "90s";
+  if (b <= 34) return "90s-2 min";
+  return "2-3 min";
+}
+// v1.7 (Time Budget Honesty): interval conditioning was scaled off the
+// session's raw total minutes (mins<=35 ? 3x3min : 4x4min), which is why a
+// 4x4min interval (~23.5 real minutes) could land inside a conditioning block
+// budgeted at only 10 minutes (45-min session, confirmed by audit). This
+// reads the CONDITIONING BLOCK's own allocated minutes instead, so the
+// interval count/duration fits the block it's actually placed in. Not
+// Strength-specific -- applies wherever interval conditioning is generated.
+// Zone 2 and threshold conditioning are untouched (approved contract).
+function intervalBandForConditioningBlock(conditioningBudgetMinutes) {
+  var b = conditioningBudgetMinutes;
+  if (!(b > 0)) return { sets: 4, reps: "4 min", rest: "2 min easy" }; // no budget known -- prior long-format default
+  if (b <= 8)  return { sets: 2, reps: "2 min", rest: "1 min easy" };
+  if (b <= 12) return { sets: 3, reps: "2 min", rest: "1 min easy" };
+  if (b <= 18) return { sets: 3, reps: "3 min", rest: "2 min easy" };
+  return { sets: 4, reps: "4 min", rest: "2 min easy" };
+}
 var PRESCRIPTION_TABLE = {
   // NOTE: strength.compound.reps ("6-8") is the ANCHOR-BUT-NOT-A-TRUE-RAMP
   // default (a compound lift leading the day that isn't built for grinding --
@@ -3627,8 +3683,8 @@ function defaultWhy(ex) {
   if (ex.type === "mobility") return "Mobility work";
   return "General accessory work";
 }
-function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why, weeklyVolume) {
-  var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload);
+function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, lastLogs, ease, why, weeklyVolume, blockBudgets) {
+  var p = prescription(ex, goal, isAnchor, minutes, weekNum, isDeload, blockBudgets);
   var w = weightMap[canonicalExName(ex.name)];
   // Per-exercise autoregulation: real RPE-based autoregulation responds to what
   // actually happened, not just the calendar. If the last logged session for
@@ -4495,6 +4551,12 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   }
   var ctx = { used: {}, pat: {}, dl: 0 };
   var strengthEx = [], extraEx = [];
+  // v1.7 (Time Budget Honesty): the same block-minute allocation attachBlocks
+  // already uses to render the honest blocks[] summary, computed here (before
+  // prescription) so the strength/conditioning rest and interval prescriptions
+  // can be scaled against the ACTUAL minutes those blocks have, not the
+  // session's raw total.
+  var blockBudgets = computeBlockBudgets(minutes);
   var picks = selectComplementary({
     baseSlots: baseSlots, count: strengthSlots, selGoal: selGoal, allowed: allowed, ctx: ctx,
     seed: seed, patCap: patCap, dlCap: 1, focusPatterns: allowPats, role: parsed.role,
@@ -4506,9 +4568,9 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
   // backstop) is decided independently of the whole-program calendar deload --
   // generateSession has no such calendar concept, so it's ALWAYS the anchor's
   // own decision here. Reuses the existing deload prescription math verbatim.
-  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k], weeklyVolume)); });
+  picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, 1, !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, ease, picks.why && picks.why[k], weeklyVolume, blockBudgets)); });
   var floorGaps = topUpThinDay(strengthEx, parsed.role, athlete && athlete.injuries);
-  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5, athlete && athlete.injuries); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease)); } }
+  if (includeCon) { var con = pickConditioning("interval", allowed, ctx.used, seed + 5, athlete && athlete.injuries); if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, 1, false, lastLogs, ease, undefined, undefined, blockBudgets)); } }
   if (includeMob) {
     // A fresh COPY of ctx.used, not the shared reference: warm-up/cool-down
     // content should repeat every session (that's normal -- a lifter does
@@ -4609,6 +4671,12 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
   else if (isEnd)   strengthSlots = Math.max(0, Math.min(2, slotsTotal - 5)); // run-focused: a little optional runner strength
   else              strengthSlots = Math.max(2, Math.min(6, slotsTotal - (includeMob ? 1 : 0) - (includeCon ? 1 : 0)));
 
+  // v1.7 (Time Budget Honesty): same block-minute allocation attachBlocks
+  // already uses for the honest blocks[] summary, computed once here so every
+  // week's strength/conditioning prescriptions can be scaled against the
+  // session's actual block minutes instead of its raw total.
+  var blockBudgets = computeBlockBudgets(minutes);
+
   var roleList = splitForDays(days, goal, allowed);
   var totalOf  = {};
   roleList.forEach(function (r) { totalOf[r] = (totalOf[r] || 0) + 1; });
@@ -4680,7 +4748,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
       // existing deload prescription math for that one exercise; a sibling
       // exercise in the same session that isn't itself a frozen anchor is
       // only ever affected by the calendar deload, exactly as before.
-      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weeklyVolume)); });
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weeklyVolume, blockBudgets)); });
       var floorGaps = topUpThinDay(strengthEx, role, athlete && athlete.injuries);
 
       if (includeCon) {
@@ -4696,7 +4764,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
           // by its own run path above.
           var intensity = (si === hardConIdx && !isDeload) ? "interval" : "z2";
           var con = pickConditioning(intensity, allowed, ctx.used, seed + si * 5 + wn * 11, athlete && athlete.injuries);
-          if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload, lastLogs)); }
+          if (con) { ctx.used[con.id] = 1; extraEx.push(buildEx(con, goal, false, weightMap, minutes, wn, isDeload, lastLogs, false, undefined, undefined, blockBudgets)); }
         }
       }
 
