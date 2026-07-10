@@ -48,8 +48,11 @@ ok(spanMd5 === '39026b0244cb88bf92c0d0c6615f01dd', 'coach-span md5 unchanged (39
 }
 
 // ================= FIX 2: BANKED unit honesty =================
+// v1.9 Train This Today Hero Fix: heroInfo now calls validTodayPick internally
+// -- extracted alongside it so this harness's copy stays real. No fixture in
+// this file sets state.todayPick, so it safely short-circuits to "no pick".
 const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo',
-  'weekDayStatus', 'countCompletedSets', 'sessionDensityRounds'];
+  'weekDayStatus', 'countCompletedSets', 'sessionDensityRounds', 'validTodayPick'];
 const body = NAMES.map(extractFn).join('\n\n');
 const harness = `
   var state = { log: {} };

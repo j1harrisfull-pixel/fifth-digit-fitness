@@ -6017,7 +6017,25 @@ function resolveSpec(request, state) {
       if (!terminal && nextIdx < 0) nextIdx = i;
     }
     var weekDone = nextIdx < 0 && wk.sessions.length > 0;
-    return { nextIdx: nextIdx, weekDone: weekDone, weekFullyComplete: weekDone && allComplete, heroIdx: weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx) };
+    // v1.9 Train This Today Hero Fix: a valid todayPick is the SAME explicit
+    // choice armedSessionIdx already treats as outranking everything else --
+    // Home must never show a different "today" than the workout screen does.
+    // Folded in here (not just at the armedSessionIdx call site) so both
+    // heroIdx (what Home displays) and nextIdx (what the week list omits, and
+    // what armedSessionIdx falls back to) agree with the one armed session.
+    var picked = validTodayPick(wk);
+    var heroIdx = picked >= 0 ? picked : (weekDone ? wk.sessions.length - 1 : Math.max(0, nextIdx));
+    // A todayPick means something is startable today even if the rest of the
+    // week already reads as done -- so the hero must not claim "week complete"
+    // while the picked session is still open.
+    var effectiveWeekDone = weekDone && picked < 0;
+    return {
+      nextIdx: picked >= 0 ? picked : nextIdx,
+      weekDone: effectiveWeekDone,
+      weekFullyComplete: effectiveWeekDone && allComplete,
+      heroIdx: heroIdx,
+      picked: picked
+    };
   }
   // v1.9-T2: an explicit "Train this today" choice outranks both the
   // schedule and the first-incomplete fallback -- but only for TODAY, and
@@ -6299,7 +6317,7 @@ function resolveSpec(request, state) {
       var sl = state.log[s.id];
       if (sl && sl.date && String(sl.date).slice(0, 10) === todayStr()) wonTodayName = dayPositionLabel(wk.sessions, idx);
     });
-    var hi = heroInfo(wk), weekDone = hi.weekDone, weekFullyComplete = hi.weekFullyComplete, heroIdx = hi.heroIdx;
+    var hi = heroInfo(wk), weekDone = hi.weekDone, weekFullyComplete = hi.weekFullyComplete, heroIdx = hi.heroIdx, todayPicked = hi.picked >= 0;
     var winHtml = (wonTodayName && !weekDone)
       ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> · ' + ordinal(doneThisWeek) + ' of ' + wk.sessions.length + ' done this week</span></div>'
       : "";
@@ -6309,7 +6327,10 @@ function resolveSpec(request, state) {
     // v136A: "Week complete" only when every session was actually completed. A
     // week that's DONE-with only because a session was finished early reads
     // "Week wrapped" -- honest, never claiming completion that didn't happen.
-    var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : "Up next";
+    // v1.9 Train This Today Hero Fix: an explicit todayPick gets its own
+    // honest label -- "Up next" implies the normal schedule/first-incomplete
+    // order chose this session, when really the user did.
+    var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : (todayPicked ? "Chosen today" : "Up next");
     var name = weekDone ? "Week's work done" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
     // Subline leads with the session's muscle focus (the coached detail), not a
     // generic "pick up where you left off". Mid-session it appends the honest

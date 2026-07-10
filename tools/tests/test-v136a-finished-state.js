@@ -44,7 +44,13 @@ function extractFn(name) {
   return SRC.slice(at, i);
 }
 
-const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession', 'countCompletedSets', 'sessionDensityRounds'];
+// v1.9 Train This Today Hero Fix: heroInfo now calls validTodayPick internally
+// (a todayPick outranks the completion-based "up next" fallback) -- extracted
+// alongside heroInfo so this harness's copy of the real function stays real,
+// not reimplemented. None of this file's fixtures set state.todayPick, so it
+// safely short-circuits to "no pick" (-1) and every existing assertion below
+// is unaffected.
+const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession', 'countCompletedSets', 'sessionDensityRounds', 'validTodayPick'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 // Sandbox: a mutable `state`, a stub `readLog` (surfaces exactly the sets the

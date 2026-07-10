@@ -104,6 +104,8 @@ function resolverHarness() {
       isPreviewSession: isPreviewSession,
       expireTodayPick: expireTodayPick,
       validTodayPick: validTodayPick,
+      heroInfo: heroInfo,
+      dayPositionLabel: dayPositionLabel,
       hasRealWork: hasRealWork,
       todayStr: todayStr,
       saveCount: function () { return _saveCount; },
@@ -411,6 +413,60 @@ function fixtureState(activeSession) {
      'coerceState (the sole reconstruction path for both normal load() and backup import) whitelists todayPick (test 27)');
   ok(/typeof parsed\.todayPick\.week === "number" && typeof parsed\.todayPick\.session === "number"\s*\n\s*&& typeof parsed\.todayPick\.date === "string"\) \? parsed\.todayPick : null,/.test(body),
      'a malformed/absent todayPick coerces safely to null rather than crashing or being silently miscoerced (test 27b)');
+}
+
+// ==================================================================
+// v1.9 Train This Today Hero Fix: Home hero must use the same armed-session
+// resolver as the workout screen -- a valid todayPick outranks the
+// completion-based "up next" fallback in heroInfo() itself, not just at the
+// armedSessionIdx call site. Run against the REAL extracted heroInfo (same
+// resolverHarness M already used above).
+// ==================================================================
+{
+  // ---------- Test A: Home hero uses todayPick (heroIdx points at the pick) ----------
+  var sessionsH1 = [ses('A', [3]), ses('B', [3]), ses('C', [3])];
+  var stateH1 = { program: { weeks: [{ sessions: sessionsH1 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 2, date: TODAY } };
+  M.setState(stateH1);
+  var hiH1 = M.heroInfo(stateH1.program.weeks[0]);
+  ok(hiH1.heroIdx === 2, 'Home hero (heroInfo.heroIdx) points at the picked session, not the first-incomplete fallback (test A/1/2)');
+  ok(hiH1.picked === 2, 'heroInfo surfaces which index was explicitly picked, for hero-copy branching');
+
+  // ---------- Test B: Home hero title changes to the selected session ----------
+  var titleH1 = M.dayPositionLabel(sessionsH1, hiH1.heroIdx);
+  ok(titleH1 === M.dayPositionLabel(sessionsH1, 2) && titleH1 !== M.dayPositionLabel(sessionsH1, 0),
+     'the hero title (dayPositionLabel at heroIdx) is the picked session\'s own name, not the originally up-next session\'s (test 3)');
+
+  // ---------- Test C: original scheduled/up-next session is no longer the hero ----------
+  ok(hiH1.heroIdx !== 0, 'the original first-incomplete session (index 0) is no longer shown as the Home hero once a todayPick is active (test 4)');
+
+  // ---------- Test D: original scheduled session remains in the week, untouched ----------
+  ok(sessionsH1.length === 3 && sessionsH1[0].id === 'A' && sessionsH1[0].exercises.length === 1,
+     'the original session A is still present in the week array, unmodified, at its original index (test 5)');
+
+  // ---------- Test E: Start the session opens the picked session (armedSessionIdx agrees with heroInfo) ----------
+  ok(M.armedSessionIdx() === hiH1.heroIdx, 'armedSessionIdx() (what Start the session opens) agrees exactly with heroInfo.heroIdx (what Home shows) -- Home never contradicts the workout screen (test 6)');
+
+  // ---------- Test F: week row for the picked session is armed; original is preview ----------
+  ok(!M.isPreviewSession(2), 'the picked session (index 2) is armed, not preview (test 7)');
+  ok(M.isPreviewSession(0), 'the original scheduled/up-next session (index 0) is preview now that it is no longer armed (test 8)');
+
+  // ---------- Test G: todayPick expiry returns Home hero to the normal resolver next day ----------
+  var stateH2 = { program: { weeks: [{ sessions: sessionsH1 }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 2, date: '2000-01-01' } };
+  M.setState(stateH2);
+  var hiH2 = M.heroInfo(stateH2.program.weeks[0]);
+  ok(hiH2.heroIdx === 0 && hiH2.picked === -1, 'a stale (yesterday) todayPick is ignored by heroInfo -- the hero falls back to the normal first-incomplete resolver (test 9)');
+
+  // ---------- Test H: flexible-programme fallback still works (no todayPick, no schedule) ----------
+  var stateH3 = { program: { weeks: [{ sessions: sessionsH1 }] }, activeWeek: 0, log: {} };
+  M.setState(stateH3);
+  var hiH3 = M.heroInfo(stateH3.program.weeks[0]);
+  ok(hiH3.heroIdx === 0 && hiH3.picked === -1, 'with no todayPick and no schedule, heroInfo still falls back to the first-incomplete session (flexible-programme behavior unchanged) (test 10)');
+
+  // ---------- Test I: scheduled-programme fallback still works when todayPick absent ----------
+  var td = new Date().getDay();
+  var stateH4 = { program: { trainDays: [td], weeks: [{ sessions: sessionsH1 }] }, activeWeek: 0, log: {} };
+  M.setState(stateH4);
+  ok(M.armedSessionIdx() === 0, 'with no todayPick, a scheduled program still arms today\'s weekday session exactly as before (test 11)');
 }
 
 // ==================================================================
