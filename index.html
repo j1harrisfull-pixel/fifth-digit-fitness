@@ -382,6 +382,61 @@ input, textarea { font: inherit; color: inherit; }
    other reused .pulse contexts (e.g. the density round row) keep their own
    timing untouched. */
 .app[data-view="day"] .setrow.is-done.pulse .setrow__done { animation: pulse .12s ease; }
+/* ============================================================
+   v1.8 TEMPO -- Opening Alignment. Brings the boot splash, intro/onboarding
+   overlay, first-use plan sheet, first-use empty state, and readiness title
+   onto the same graphite/bone/clay/brass system Tickets 1-3 already shipped
+   for Home/Finish/Workout. Scoped overrides only (#bootSplash, .intro,
+   #planSheet, the week-list first-use .empty, #readinessPromptTitle) -- the
+   shared base rules (.btn--primary, .confirm__title, dialog.sheet, .empty)
+   are left untouched so Settings, other dialogs, and the day-view empty
+   state are unaffected. No onboarding logic, step order, or copy changed
+   anywhere in this block -- presentation only. */
+#bootSplash, .intro, #planSheet.sheet { background: var(--tempo-bg); }
+.intro { color: var(--tempo-ink); overflow-x: hidden; }
+.intro__mark { color: var(--tempo-ink); }
+.intro__wordmark, .intro__title, .intro__ask { color: var(--tempo-ink); }
+.intro__product, .intro__mission, .intro__how { color: var(--tempo-dim); }
+.intro__mission { border-top-color: var(--tempo-line); }
+.intro__list li { color: var(--tempo-ink); }
+.intro__fine { color: var(--tempo-faint); }
+.intro__skip { color: var(--tempo-dim); }
+.intro__skip:hover { color: var(--tempo-ink); }
+.intro__name { background: var(--tempo-surface); border-color: var(--tempo-line); color: var(--tempo-ink); }
+.intro__name:focus { border-color: var(--tempo-brass); }
+/* FD ghost mark replaces the old thumbprint wash on intro -- restrained
+   system identity instead of the pre-TEMPO maker's-mark texture. Same
+   <=5% ink watermark device as the Home/Finish cards, just on a dark
+   surface here (so it uses --tempo-ink, not --tempo-bone-ink). */
+/* #intro (ID-scoped) beats the later plain .intro::before thumbprint rule on
+   specificity regardless of source order, the same way #planSheet.sheet and
+   #readinessPromptTitle already win their own base rules in this file. */
+#intro::before { content: "FD"; background: none; width: auto; aspect-ratio: auto; top: auto; left: auto; bottom: -6%; right: -4%; transform: none; font-family: var(--font-display); font-weight: 700; font-size: 42vw; line-height: 1; color: var(--tempo-ink); opacity: .045; }
+/* Primary intro actions: clay action fill (was brass), matching the exact
+   contrast-safe pairing already test-enforced in Tickets 2/3. */
+.intro .btn--primary { background: var(--tempo-clay-deep); border-color: transparent; color: var(--tempo-bone); }
+/* Plan sheet (Build Week / Just Today / goal-days-time-equipment): graphite
+   base, clay primary actions. Chip/segment UNSELECTED fill was still the
+   old warm --surface-2, which read as a leftover warm-brown pill against
+   the new graphite sheet -- retoned to --tempo-surface. The SELECTED-state
+   language (ink ring, no fill swap) was already quiet/contrast-safe and
+   carries over unchanged. */
+#planSheet.sheet { border-top-color: var(--tempo-line); color: var(--tempo-ink); }
+#planSheet .btn--primary { background: var(--tempo-clay-deep); border-color: transparent; color: var(--tempo-bone); }
+#planSheet .seg { background: var(--tempo-surface); border-color: var(--tempo-line); }
+#planSheet .seg button { color: var(--tempo-dim); }
+#planSheet .seg button[aria-pressed="true"] { background: var(--tempo-bg); color: var(--tempo-ink); box-shadow: inset 0 0 0 1.5px var(--tempo-ink); }
+#planSheet .chip { background: var(--tempo-surface); border-color: var(--tempo-line); color: var(--tempo-dim); }
+#planSheet .chip[aria-pressed="true"] { background: var(--tempo-bg); border-color: var(--tempo-ink); box-shadow: inset 0 0 0 .5px var(--tempo-ink); color: var(--tempo-ink); }
+#planSheet .adv { border-top-color: var(--tempo-line); }
+/* First-use "no sessions yet" empty state: same FD ghost device as intro,
+   replacing the old thumbprint wash; scoped to the week-list's own empty
+   state only (the day-view's "Nothing here yet" list keeps the existing
+   .empty rule untouched, out of this ticket's scope). */
+.app[data-view="week"] #weekList .empty::before { content: "FD"; background: none; width: auto; aspect-ratio: auto; font-family: var(--font-display); font-weight: 700; font-size: 30vw; line-height: 1; color: var(--tempo-ink); opacity: .045; }
+/* Readiness prompt title: identity brass instead of alarm --danger red --
+   colour only, same element/copy/behavior. */
+#readinessPromptTitle { color: var(--tempo-brass); }
 /* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
    --line-strong outline made it a bordered box; pure fill-only elevation
    (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
@@ -1333,7 +1388,9 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
    own dark surface even paints -- a beat of ceremony on launch, gone by the
    time anyone could call it a loading screen. Never the thumbprint here --
    that mark stays earned, spent only at session-complete. */
-#bootSplash { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: #0F0C09; pointer-events: none; animation: bootSplashOut .3s ease-out 2s forwards; }
+/* v1.8 TEMPO Opening Alignment: graphite base (was the old warm #0F0C09),
+   matching the direction Tickets 1-3 already shipped everywhere else. */
+#bootSplash { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: var(--tempo-bg); pointer-events: none; animation: bootSplashOut .3s ease-out 2s forwards; }
 #bootSplash svg { width: 64px; height: auto; color: var(--ink); opacity: .95; }
 @keyframes bootSplashOut { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { #bootSplash { animation: none; opacity: 0; visibility: hidden; } }
@@ -1698,7 +1755,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <svg viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-hidden="true">
         <path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/>
       </svg>
-      <span>Fifth Digit Coach · v1.3 · works fully offline</span>
+      <span>Fifth Digit Coach · v1.8 · works fully offline</span>
     </p>
   </div>
 </dialog>

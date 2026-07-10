@@ -33,8 +33,12 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 2/3: user-facing version ----------
 {
-  ok(/Fifth Digit Coach · v1\.3 · works fully offline/.test(SRC),
-     'the footer/Settings shows "Fifth Digit Coach · v1.3 · works fully offline" (test 2)');
+  // v1.8 TEMPO Opening Alignment (approved) bumped the stale user-facing
+  // version string from v1.3 to v1.8 -- the footer format/behavior this test
+  // actually guards (a plain user-facing release string, not the internal
+  // schema version) is unchanged.
+  ok(/Fifth Digit Coach · v1\.8 · works fully offline/.test(SRC),
+     'the footer/Settings shows "Fifth Digit Coach · v1.8 · works fully offline" (test 2, v1.8 TEMPO)');
   ok(!/Fifth Digit Coach · v2 ·/.test(SRC),
      'the footer no longer shows the internal schema version "v2" as the user-facing release (test 3)');
   // The internal storage schema marker (a totally different concern) must be untouched.
