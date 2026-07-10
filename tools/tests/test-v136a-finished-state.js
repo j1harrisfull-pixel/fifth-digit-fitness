@@ -65,6 +65,10 @@ const harness = `
   function backToWeek() { _backCount++; }
   function toast() { _toastCount++; }
   var _curSession = null, _toastCount = 0;
+  // v1.9-T1: endSession now starts with an isPreviewSession(state.activeSession)
+  // guard. Every case in this file exercises the armed (loggable) session, so
+  // this stub is simply "never preview" -- it does not change what's under test.
+  function isPreviewSession() { return false; }
   ${body}
   module.exports = {
     get state() { return state; }, set state(v) { state = v; },

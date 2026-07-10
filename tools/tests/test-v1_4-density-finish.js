@@ -53,6 +53,9 @@ const harness = `
   var _saveCount = 0, _backCount = 0, _toastMsgs = [], _hideRestCount = 0, _ensureLiveCount = 0;
   function save() { _saveCount++; }
   function backToWeek() { _backCount++; }
+  // v1.9-T1: endSession now starts with an isPreviewSession(state.activeSession)
+  // guard. Every case here exercises the armed (loggable) session.
+  function isPreviewSession() { return false; }
   function toast(msg) { _toastMsgs.push(msg); }
   function hideRest() { _hideRestCount++; }
   function ensureSessionLive() { _ensureLiveCount++; }
@@ -242,7 +245,9 @@ function setup(ses, log, wk) {
 // is UI-event-wired and not independently extractable without a DOM harness) ----------
 {
   var actIdx = SRC.indexOf('function onDensityAct(act, kind, btn)');
-  var actBody = SRC.slice(actIdx, actIdx + 2600);
+  // v1.9-T1 added a short leading isPreviewSession guard line to onDensityAct
+  // -- window widened slightly to absorb that shift.
+  var actBody = SRC.slice(actIdx, actIdx + 2700);
   // v1.6 added a guarded sl.date stamp comment+line inside both branches
   // (between the finishedAt clear and the ensureSessionLive call), so the
   // proximity windows below were widened to still match through it.

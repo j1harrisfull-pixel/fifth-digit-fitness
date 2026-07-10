@@ -55,6 +55,9 @@ const harness = `
   function save() { _saveCount++; }
   function backToWeek() { _backCount++; }
   function toast(msg) { _toastMsgs.push(msg); }
+  // v1.9-T1: endSession now starts with an isPreviewSession(state.activeSession)
+  // guard. Every case here exercises the armed (loggable) session.
+  function isPreviewSession() { return false; }
   function hideRest() {}
   function ensureSessionLive() {}
   function unlockAudio() {}

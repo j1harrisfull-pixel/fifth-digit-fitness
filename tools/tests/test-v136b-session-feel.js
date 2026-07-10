@@ -63,8 +63,11 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(/id="liveBarStart">Start<\/button>/.test(SRC), 'the workout screen has a visible Start control');
   ok(/\$\("liveBarStart"\)\.addEventListener\("click", ensureSessionLive\);/.test(SRC),
      'tapping Start calls the EXISTING ensureSessionLive() directly -- reuses the same timer-start path the first logged set has always used, no new timer state (test: workout Start action starts timer)');
-  ok(/var startBtn = \$\("liveBarStart"\);\s*\n\s*if \(startBtn && ses\) startBtn\.hidden = live \|\| isSessionFinished\(ses\);/.test(SRC),
-     'renderDayBar shows Start only when the session is open, not live, and not already finished');
+  // v1.9-T1: renderDayBar gained a leading readOnly (preview-only session)
+  // check -- Start is now hidden when readOnly, in addition to the original
+  // live/finished conditions, which are otherwise unchanged.
+  ok(/var startBtn = \$\("liveBarStart"\);\s*\n\s*if \(startBtn && ses\) startBtn\.hidden = readOnly \|\| live \|\| isSessionFinished\(ses\);/.test(SRC),
+     'renderDayBar shows Start only when the session is open, not read-only-preview, not live, and not already finished');
 }
 
 // ---------- Test 3: receipt duration prefers the live timer start ----------
