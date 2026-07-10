@@ -194,15 +194,32 @@ input, textarea { font: inherit; color: inherit; }
 .daybar__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; border-radius: var(--radius); cursor: pointer; }
 .daybar__back:hover { color: var(--ink); }
 .daybar__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: -.01em; }
-/* v1.9-T1: preview-only (non-armed) session -- quiet, deliberate read-only
-   framing, reusing existing tokens only (no new palette/design decision). */
-.daypreview-banner { margin: 0 14px 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--ink-dim); }
-.livebar__previewmsg { flex: 1 1 100%; font-size: 13px; line-height: 1.4; color: var(--ink-dim); margin: 4px 0 0; }
-/* v1.9-T2: reuses the same quiet, secondary treatment as .livebar__end --
-   this is an opt-in action, not the primary CTA of the screen (that's the
-   confirmation sheet's own primary button). */
-.livebar__trainbtn { flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: var(--radius); cursor: pointer; margin: 4px 0 0; }
-.livebar__trainbtn:hover { border-color: var(--ink); }
+/* v1.9 Preview Clarity (Option A, approved): ONE compact banner row is the
+   entire preview signal -- label + action, no wrap, no duplicate state.
+   Reuses existing tokens only (bone/graphite/ink-dim/line), no new palette. */
+.daypreview-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 14px 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.daypreview-banner__label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ink-dim); }
+/* Quiet outline, same secondary treatment as .livebar__end -- this is an
+   opt-in action, not the primary CTA (that's the confirmation sheet's own
+   primary button). Clay is reserved for logging/Start, per the One Accent
+   Rule, so this button deliberately does not use it. */
+.daypreview-banner__btn { flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: var(--radius); cursor: pointer; white-space: nowrap; }
+.daypreview-banner__btn:hover { border-color: var(--ink); }
+/* v1.9 Preview Clarity: preview is not an active workout -- the whole
+   Reset + "N/M exercises" progress row (#sessionHead) is absent, not
+   greyed, exactly like Start/Finish already are in preview. */
+.app.is-day-preview #sessionHead { display: none; }
+/* Per-exercise "N/M sets" header and thin progress bar inside an open card
+   read the same way at exercise scale -- absent in preview, present once
+   armed. Set grid, weight field, steppers, RPE, and Skip likewise never
+   render in preview (see buildCard's own preview branch, not CSS). */
+.app.is-day-preview .setshead,
+.app.is-day-preview .card__exprogress,
+.app.is-day-preview .startweight,
+.app.is-day-preview .weight-note,
+.app.is-day-preview .setlist,
+.app.is-day-preview .card__skip-optional,
+.app.is-day-preview .warm-pills { display: none; }
 .daybar__nav { margin-left: auto; display: flex; gap: 2px; }
 /* ---------- Home hero (week view): recovery ring + today's session + week strip ---------- */
 .home-hero { padding: 12px 14px 4px; }
@@ -1466,21 +1483,21 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
            EXISTING timer system (ensureSessionLive) -- no new timer state. -->
       <button type="button" class="livebar__start" id="liveBarStart">Start</button>
       <button type="button" class="livebar__end" id="liveBarEnd">Finish</button>
-      <!-- v1.9-T1: shown only for a preview-only (non-armed) session, in
-           place of Start/Finish (both hidden -- see renderDayBar). -->
-      <p class="livebar__previewmsg" id="dayPreviewMsg" hidden>This session is planned for later. Training something else today is your call.</p>
-      <!-- v1.9-T2: the one explicit way to arm a previewed session. Only
-           shown alongside dayPreviewMsg (never on the armed session, never
-           on a completed one -- see renderDayBar). Opens a confirmation
-           sheet; writes nothing until confirmed. -->
-      <button type="button" class="livebar__trainbtn" id="trainTodayBtn" hidden>Train this today</button>
     </div>
     <div class="daybar view-day">
       <button class="daybar__back" id="backWeek" type="button" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
       <span class="daybar__title" id="dayTitle"></span>
     </div>
-    <!-- v1.9-T1: quiet banner marking a non-armed session as view-only. -->
-    <p class="daypreview-banner view-day" id="dayPreviewBanner" hidden>Preview · not today's session</p>
+    <!-- v1.9 Preview Clarity (Option A, approved): ONE compact banner is the
+         single preview signal -- label + the one available action, in place
+         of the old stacked banner + long message + separate button (which
+         wrapped badly and duplicated the "preview" signal). Hidden/shown as
+         one unit by renderDayBar; trainTodayBtn keeps its existing id/click
+         binding, only its markup position and styling changed. -->
+    <div class="daypreview-banner view-day" id="dayPreviewBanner" hidden>
+      <span class="daypreview-banner__label">PREVIEW · Planned for later.</span>
+      <button type="button" class="daypreview-banner__btn" id="trainTodayBtn">Train this today</button>
+    </div>
   </div>
 
   <main>
@@ -6718,13 +6735,16 @@ function resolveSpec(request, state) {
     var wk = curWeek(), sessions = wk.sessions;
     $("dayTitle").textContent = dayPositionLabel(sessions, state.activeSession);
     var lbl = $("liveBarLabel"), bar = $("liveBar"), ses = curSession();
-    // v1.9-T1: a non-armed, not-yet-finished session is preview-only -- a
-    // quiet banner + message replace Start/Finish. Display-layer read of
-    // isPreviewSession only; writes nothing and does not change armed-session
-    // behavior at all.
+    // v1.9-T1/Preview Clarity: a non-armed, not-yet-finished session is
+    // preview-only -- ONE compact banner (label + Train this today) replaces
+    // Start/Finish. Display-layer read of isPreviewSession only; writes
+    // nothing and does not change armed-session behavior at all.
     var readOnly = !!(ses && isPreviewSession(state.activeSession, wk));
     var banner = $("dayPreviewBanner"); if (banner) banner.hidden = !readOnly;
-    var previewMsg = $("dayPreviewMsg"); if (previewMsg) previewMsg.hidden = !readOnly;
+    // v1.9 Preview Clarity: a single class drives every "this doesn't look
+    // active" CSS hide (Reset, the exercise-count progress row) -- pure
+    // display, read from the same readOnly flag, no new logic.
+    if (appEl) appEl.classList.toggle("is-day-preview", readOnly);
     // Redesign Pass 1: the focus reads in normal case (not shouted uppercase)
     // and without the "LIVE ·" broadcast prefix -- an active coaching session,
     // not an ops console. The live boolean still drives the preview class and
@@ -7166,6 +7186,14 @@ function resolveSpec(request, state) {
   // sessions with no ses.blocks) falls back to exactly today's behaviour.
   function buildCard(e, i, ses, badge, ctx) {
     ctx = ctx || {};
+    // v1.9 Preview Clarity: set/weight/warm-up controls are hidden by CSS
+    // (.app.is-day-preview, see renderDayBar), never by removing them from
+    // the DOM -- so this flag is only needed for the two things CSS can't
+    // do: substituting the coach-note's "today's session" wording, and
+    // supplying a prescription line for non-strength (mobility/warm-up)
+    // exercises, which don't otherwise get one (statRow below is
+    // strength-only). Both reuse data this function already computes.
+    var preview = !!ctx.preview;
     // Skipped today: the exercise is set aside so the session can still finish.
     // Render a compact strip -- name, a quiet "skipped" tag, and Undo -- instead
     // of the full logging UI. It's out of the way but never gone.
@@ -7264,6 +7292,15 @@ function resolveSpec(request, state) {
       ? '<p class="card__rx">' + statCells.map(function (c) { return '<span class="card__rx-v mono">' + esc(c.v) + '</span> ' + esc(c.l.toLowerCase()); }).join(' <span class="card__rx-sep">·</span> ')
         + (statCells.length && effortText ? ' <span class="card__rx-sep">·</span> ' : '') + (effortText ? esc(effortText) : '') + '</p>'
       : '';
+    // v1.9 Preview Clarity: non-strength (mobility/warm-up, cooldown, some
+    // conditioning) exercises have no statRow above -- in preview, with the
+    // set grid hidden by CSS, they'd otherwise show no prescription at all.
+    // Reuses the exact sets×reps text already computed for the collapsed
+    // card view below (planHint) -- no new data, no new logic, just shown
+    // here too when it's the only prescription line preview has.
+    var previewRx = (preview && !statRow && (total > 0 || e.reps))
+      ? '<p class="card__rx">' + esc((total > 1 ? total + " × " : "") + String(e.reps || "")) + '</p>'
+      : '';
     // Pass 2 (ramp explainer, item 5): the very first set of a ramp anchor is
     // deliberately lighter than the working weight shown above it -- gated
     // strictly on e.curve === "ramp" (set at generation time by curveFor/
@@ -7314,8 +7351,13 @@ function resolveSpec(request, state) {
     // Visual System Phase C: the why-text itself is unchanged (same string,
     // same isInformativeWhy/anchor gating) -- only wrapped in a labeled
     // "Coach note" block so it reads as spoken guidance, not a stray line.
+    // v1.9 Preview Clarity Fix 4: preview mode display-only substitution --
+    // "today's session" reads as a contradiction when this session isn't
+    // today's. e.why itself, coach-span, and generation are untouched; only
+    // the rendered text swaps "today's" -> "this" here.
+    var whyDisplay = preview ? String(e.why || "").replace(/today’s session/g, "this session").replace(/today's session/g, "this session") : e.why;
     var subLine = (showTag || showWhy)
-      ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<div class="card__coachnote"><span class="card__coachnote-label">Coach note</span><p class="card__why">' + esc(e.why) + '</p></div>' : '') + '</div>'
+      ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<div class="card__coachnote"><span class="card__coachnote-label">Coach note</span><p class="card__why">' + esc(whyDisplay) + '</p></div>' : '') + '</div>'
       : '';
     // Step 4 (Active screen): the coaching cue collapses behind its own toggle
     // again, default collapsed -- the always-visible face from Task 2 competed
@@ -7386,6 +7428,7 @@ function resolveSpec(request, state) {
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
       subLine +
       statRow +
+      previewRx +
       rampLine +
       formNotes +
       weightCtrl +
@@ -7436,7 +7479,7 @@ function resolveSpec(request, state) {
   // collapsed/expanded shell as buildCard (`.card:not(.is-current)` hides
   // `.card__full` and shows `.card__collapsed` via shared CSS) so it sits in
   // the same one-exercise-at-a-time flow as every other card.
-  function buildDensityCard(items, ses, block, i) {
+  function buildDensityCard(items, ses, block, i, preview) {
     var kind = block.kind, mode = block.mode, bid = blockPseudoId(kind), unit = state.program.unit;
     var bl = readBlockLog(ses, kind);
     var moves = items.map(function (e) {
@@ -7462,10 +7505,13 @@ function resolveSpec(request, state) {
       '<header class="card__head"><h3 class="card__name">' + esc(BLOCK_MODE_LABEL[mode] || mode) + '</h3></header>' +
       '<p class="dc__format">' + esc(formatLine) + '</p>' +
       '<ul class="dc__list">' + moves + '</ul>' +
+      // v1.9 Preview Clarity: density blocks are logged by rounds/timer, not
+      // sets -- same "absent, not disabled" rule as buildCard's set controls.
+      (preview ? '' :
       '<div class="dc__timer" data-blk="' + kind + '" hidden></div>' +
       '<button type="button" class="dc__timerbtn" data-act="blktimer" data-blk="' + kind + '" data-mode="' + mode + '" data-min="' + block.minutes + '">Start timer</button>' +
       '<div class="dc__rounds"><span class="dc__roundslabel">Rounds completed</span><div class="stepper" role="group" aria-label="Rounds completed"><button type="button" class="step" data-act="blkrounds-" data-blk="' + kind + '" aria-label="One fewer round">−</button><span class="stepper__val mono" id="blkrounds-' + kind + '">' + bl.rounds + '</span><button type="button" class="step" data-act="blkrounds+" data-blk="' + kind + '" aria-label="One more round">+</button></div></div>' +
-      '<button type="button" class="dc__done' + (done ? " is-done" : "") + '" data-act="blkdone" data-blk="' + kind + '">' + (done ? "Done ✓" : "Mark block done") + '</button>' +
+      '<button type="button" class="dc__done' + (done ? " is-done" : "") + '" data-act="blkdone" data-blk="' + kind + '">' + (done ? "Done ✓" : "Mark block done") + '</button>') +
       '</div></article>';
   }
   function renderList(animate) {
@@ -7484,6 +7530,10 @@ function resolveSpec(request, state) {
     // once per render, read-only, never affects selection.
     var anchorEx = ses.exercises.filter(function (e) { return e.type === "strength"; })[0];
     var anchorId = anchorEx ? anchorEx.id : null;
+    // v1.9 Preview Clarity: same isPreviewSession resolver T1/T2 already use
+    // for the write-guard and banner -- threaded into buildCard via the
+    // existing ctx object, zero new logic.
+    var isPreview = isPreviewSession(state.activeSession, curWeek());
     // Gold-standard Phase A: a session built with the new engine carries
     // ses.blocks (four time-budgeted phases). Older stored/imported programs
     // don't -- feature-detect and fall back to the exact legacy flat render, so
@@ -7495,14 +7545,14 @@ function resolveSpec(request, state) {
         var items = byBlock[b.kind] || [];
         if (!items.length) return; // blocks[] only lists non-empty kinds, but stay defensive
         html += phaseHeaderHtml(b.kind, b.minutes, b.mode);
-        if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i); i++; }
+        if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i, isPreview); i++; }
         else {
-          var ctx = { anchorId: anchorId, blockItems: items, blockLabel: PHASE_LABEL[b.kind] || "Exercise" };
+          var ctx = { anchorId: anchorId, blockItems: items, blockLabel: PHASE_LABEL[b.kind] || "Exercise", preview: isPreview };
           var r = renderCardRun(items, ses, i, ctx); html += r.html; i = r.i;
         }
       });
     } else {
-      var r2 = renderCardRun(ses.exercises, ses, i, { anchorId: anchorId }); html = r2.html; i = r2.i;
+      var r2 = renderCardRun(ses.exercises, ses, i, { anchorId: anchorId, preview: isPreview }); html = r2.html; i = r2.i;
     }
     // Quiet, out-of-the-way home for the rare "delete this day" action, at the
     // very end of the day so it's off the hot path (undo-backed, like before).

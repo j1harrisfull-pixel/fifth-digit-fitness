@@ -59,8 +59,11 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   // for a non-warmup/cooldown block -- guaranteed by the gate above being the
   // ONLY place the class is produced.
   const occurrences = (SRC.match(/card__skip-optional/g) || []).length;
-  // Expected: 2 CSS rules (base + :hover) + 1 in the gated button string = 3.
-  ok(occurrences === 3, 'card__skip-optional appears only in its two CSS rules and the one gated button (no leak onto main exercises) (test 5) — found ' + occurrences);
+  // Expected: 2 CSS rules (base + :hover) + 1 in the gated button string + 1
+  // more in the v1.9 Preview Clarity .app.is-day-preview hide-list (approved:
+  // this control is an active-workout affordance, hidden like the rest in
+  // preview) = 4.
+  ok(occurrences === 4, 'card__skip-optional appears only in its two CSS rules, the one gated button, and the v1.9 Preview Clarity hide-rule (no leak onto main exercises) (test 5) — found ' + occurrences);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

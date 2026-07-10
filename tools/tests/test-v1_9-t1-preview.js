@@ -494,16 +494,19 @@ GUARDED_FNS.forEach(function (name) {
 // ==================================================================
 // Copy: exact approved strings present, nothing else new.
 // ==================================================================
-ok(SRC.indexOf('Preview · not today\'s session') !== -1, 'preview header copy present exactly: "Preview · not today\'s session"');
-ok(SRC.indexOf('This session is planned for later. Training something else today is your call.') !== -1,
-   'preview message copy present exactly');
+// v1.9 Preview Clarity Fix (approved): the old two-signal preview UI (a
+// standalone banner paragraph PLUS a long .livebar message) is replaced by
+// ONE compact banner. Old copy must be GONE, not just superseded.
+ok(SRC.indexOf('PREVIEW · Planned for later.') !== -1, 'preview header copy present exactly: "PREVIEW · Planned for later."');
+ok(SRC.indexOf('Preview · not today\'s session') === -1, 'old preview header copy "Preview · not today\'s session" is gone (test 1/2)');
+ok(SRC.indexOf('This session is planned for later. Training something else today is your call.') === -1,
+   'old long preview message copy is gone -- no second preview signal (test 3)');
+ok(!/id="dayPreviewMsg"/.test(SRC), 'dayPreviewMsg no longer exists -- the message line was removed, not just hidden (test 4)');
 ok(/id="dayPreviewBanner"[^>]*hidden/.test(SRC), 'dayPreviewBanner defaults to hidden in markup');
-ok(/id="dayPreviewMsg"[^>]*hidden/.test(SRC), 'dayPreviewMsg defaults to hidden in markup');
 
-// ---------- Rejected-copy guard, scoped to the new v1.9-T1 markup/CSS ----------
+// ---------- Rejected-copy guard, scoped to the new v1.9 Preview Clarity markup/CSS ----------
 const bannerIdx = SRC.indexOf('id="dayPreviewBanner"');
-const msgIdx = SRC.indexOf('id="dayPreviewMsg"');
-const NEW_COPY_ZONE = SRC.slice(Math.min(bannerIdx, msgIdx) - 50, Math.max(bannerIdx, msgIdx) + 250);
+const NEW_COPY_ZONE = SRC.slice(bannerIdx - 50, bannerIdx + 400);
 const REJECTED = ['maybe', 'great job', 'crushed it', 'recovered', 'fatigued', 'optimal',
   'readiness score', 'recovery score', 'training receipt', 'Signed off', 'well done', 'nice'];
 REJECTED.forEach(function (phrase) {
@@ -520,8 +523,9 @@ REJECTED.forEach(function (phrase) {
   ok(/startBtn\.hidden = readOnly \|\| live \|\| isSessionFinished\(ses\);/.test(body),
      'Start is hidden when readOnly (preview), in addition to the existing live/finished checks');
   ok(/endBtn\.hidden = readOnly;/.test(body), 'Finish is hidden when readOnly (preview)');
-  ok(/banner\.hidden = !readOnly;/.test(body) && /previewMsg\.hidden = !readOnly;/.test(body),
-     'the preview banner and message are shown exactly when readOnly is true');
+  ok(/banner\.hidden = !readOnly;/.test(body), 'the single compact preview banner is shown exactly when readOnly is true');
+  ok(/appEl\.classList\.toggle\("is-day-preview", readOnly\);/.test(body),
+     'v1.9 Preview Clarity: readOnly also drives the is-day-preview class (hides active-workout controls via CSS)');
 }
 
 // ==================================================================
