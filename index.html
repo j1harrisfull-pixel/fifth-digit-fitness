@@ -1290,6 +1290,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .confirm__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
 .confirm__icon { flex: none; }
 .confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
+/* v1.9 Chosen Today Review: a dedicated, non-confirm sheet -- this is an
+   acknowledgment of a choice already made, not a "are you sure?" gate, so it
+   gets its own dialog/ids/copy instead of borrowing #confirmSheet's warning
+   framing (same house pattern as #planSheet/#completeSheet: independent
+   dialogs sharing only the base dialog.sheet/.btn/.btn-row chrome). */
+.chosentoday__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; color: var(--ink); }
+.chosentoday__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; white-space: pre-line; }
+#chosenTodaySheet .btn--clay { background: var(--tempo-clay-deep); border-color: transparent; color: var(--tempo-bone); }
 /* The receipt: an actual cream card floating on the dark sheet -- shadow
    allowed here (the one exception; see --shadow doctrine note at :root),
    because this is the single moment the brand spends its bold move. */
@@ -1903,6 +1911,23 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="btn-row">
       <button class="btn btn--danger" id="confirmYes" type="button">Confirm</button>
       <button class="btn" id="confirmNo" type="button">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- v1.9 Chosen Today Review: a dedicated, non-confirm sheet -- nothing is
+     being confirmed here (todayPick is already written by the time this
+     shows), so it doesn't borrow #confirmSheet's warning-dialog framing/ids.
+     Same house pattern as #planSheet/#completeSheet: its own dialog, sharing
+     only the base dialog.sheet/.btn/.btn-row chrome. -->
+<dialog class="sheet" id="chosenTodaySheet" aria-labelledby="chosenTodayTitle">
+  <div class="sheet__grip"></div>
+  <div class="sheet__body">
+    <h2 class="chosentoday__title" id="chosenTodayTitle">Chosen today</h2>
+    <p class="chosentoday__msg" id="chosenTodayMsg"></p>
+    <div class="btn-row">
+      <button class="btn btn--clay" id="chosenTodayStart" type="button">Start the session</button>
+      <button class="btn" id="chosenTodayNotYet" type="button">Not yet</button>
     </div>
   </div>
 </dialog>
@@ -6123,6 +6148,33 @@ function resolveSpec(request, state) {
     state.todayPick = { week: state.activeWeek, session: pickIdx, date: todayStr() };
     save();
     renderAll(false);
+    showChosenTodayReview(pickIdx);
+  }
+  // v1.9 Chosen Today Review: the one calm beat between "confirmed" and
+  // "training". Deliberately its OWN dialog (#chosenTodaySheet), not
+  // #confirmSheet -- nothing is being confirmed here (todayPick is already
+  // written by the time this shows), so it doesn't borrow the confirm
+  // dialog's warning framing/ids/ARIA. No new persisted state; this sheet
+  // does not need to survive refresh -- the day screen underneath, already
+  // re-rendered armed by confirmTrainToday above, is the honest fallback.
+  // "Start the session" converges on the exact same ensureSessionLive() the
+  // day bar's own Start button calls -- one start path, idempotent, so a
+  // second tap (or a stale/expired pick) can never double-start or crash.
+  // "Not yet" is a plain dialog dismiss: writes nothing, starts nothing.
+  // Listener wiring mirrors askConfirm's own cleanup/close pattern exactly
+  // (same idiom, not a new one) -- just scoped to this sheet's own elements.
+  function showChosenTodayReview(pickIdx) {
+    var wk = curWeek();
+    var name = dayPositionLabel(wk.sessions, pickIdx);
+    var dlg = $("chosenTodaySheet"), start = $("chosenTodayStart"), notYet = $("chosenTodayNotYet");
+    $("chosenTodayMsg").textContent = name + " is set for today.\nNothing else moved.";
+    function cleanup() { start.removeEventListener("click", onStart); notYet.removeEventListener("click", onNotYet); dlg.removeEventListener("close", onClose); }
+    function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); cleanup(); }
+    function onStart() { closeDlg(); ensureSessionLive(); }
+    function onNotYet() { closeDlg(); }
+    function onClose() { cleanup(); }
+    start.addEventListener("click", onStart); notYet.addEventListener("click", onNotYet); dlg.addEventListener("close", onClose);
+    openSheetNoKb(dlg);
   }
   // A session is preview-only when it is NOT the armed session. The one
   // exception is a session that's already finished/closed -- that is

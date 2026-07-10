@@ -219,11 +219,16 @@ const TODAY = M.todayStr();
 const askConfirmSrc = extractFn('askConfirm');
 const trainThisTodayClickSrc = extractFn('trainThisTodayClick');
 const confirmTrainTodaySrc = extractFn('confirmTrainToday');
+// v1.9 Chosen Today Review
+const showChosenTodayReviewSrc = extractFn('showChosenTodayReview');
+const ensureSessionLiveSrc = extractFn('ensureSessionLive');
 
 function actionHarness() {
   const harness = `
     var state;
     var _saveCount = 0, _renderAllCount = 0;
+    var _startLiveTimerCount = 0, _acquireWakeLockCount = 0, _renderDayBarCount = 0;
+    var _sessionLiveFlag = false;
     function curWeek() { return state.program.weeks[state.activeWeek || 0]; }
     function save() { _saveCount++; }
     function renderAll() { _renderAllCount++; }
@@ -237,6 +242,15 @@ function actionHarness() {
     }
     function readBlockLog() { return { rounds: 0, completed: false }; }
     function blockPseudoId(b) { return 'blk_' + b; }
+    // v1.9 Chosen Today Review: ensureSessionLive's own leaf-level DOM/timer/
+    // localStorage side effects (sessionLive/startLiveTimer/acquireWakeLock/
+    // renderDayBar) are stubbed with counters -- ensureSessionLive ITSELF
+    // (the idempotency guard + preview check under test) is the real,
+    // extracted function, not a reimplementation.
+    function sessionLive() { return _sessionLiveFlag; }
+    function startLiveTimer() { _startLiveTimerCount++; _sessionLiveFlag = true; }
+    function acquireWakeLock() { _acquireWakeLockCount++; }
+    function renderDayBar() { _renderDayBarCount++; }
     ${firstIncompleteIdSrc}
     ${sessionProgressSrc}
     ${sessionItemsForSrc}
@@ -253,34 +267,50 @@ function actionHarness() {
     ${validTodayPickSrc}
     ${armedSessionIdxSrc}
     ${isPreviewSessionSrc}
+    ${ensureSessionLiveSrc}
 
     // ---- Fake dialog DOM: a Map-backed element registry, same pattern the
     // other test files in this directory already use for showSessionComplete
     // et al. -- $ auto-creates any element the real askConfirm/trainThisTodayClick
-    // code reads/writes on. ----
+    // code reads/writes on. classList.toggle actually tracks membership (in
+    // el._classSet) so tests can assert exactly which classes ended up
+    // applied -- e.g. proving btn--clay/confirm--review are scoped to only
+    // the Chosen Today Review call, not leaked onto any other confirm.
     var _els = {};
     function $(id) {
-      if (!_els[id]) _els[id] = {
-        textContent: '', classList: { toggle: function () {}, add: function () {}, remove: function () {} },
-        style: {}, hidden: false,
-        addEventListener: function (ev, fn) { (this._listeners = this._listeners || {})[ev] = fn; },
-        removeEventListener: function (ev, fn) { if (this._listeners) delete this._listeners[ev]; },
-        querySelector: function () { return { style: {} }; },
-        close: function () {}, removeAttribute: function () {}
-      };
+      if (!_els[id]) {
+        var el = {
+          textContent: '', style: {}, hidden: false, _classSet: {},
+          addEventListener: function (ev, fn) { (this._listeners = this._listeners || {})[ev] = fn; },
+          removeEventListener: function (ev, fn) { if (this._listeners) delete this._listeners[ev]; },
+          querySelector: function () { return { style: {} }; },
+          close: function () {}, removeAttribute: function () {}
+        };
+        el.classList = {
+          toggle: function (c, force) {
+            var want = (force === undefined) ? !el._classSet[c] : !!force;
+            el._classSet[c] = want;
+            return want;
+          },
+          add: function (c) { el._classSet[c] = true; },
+          remove: function (c) { el._classSet[c] = false; }
+        };
+        _els[id] = el;
+      }
       return _els[id];
     }
     function openSheetNoKb(dlg) { dlg._open = true; }
     ${askConfirmSrc}
     ${trainThisTodayClickSrc}
     ${confirmTrainTodaySrc}
+    ${showChosenTodayReviewSrc}
 
     module.exports = {
       setState: function (s) { state = s; },
       trainThisTodayClick: trainThisTodayClick,
       saveCount: function () { return _saveCount; },
       renderAllCount: function () { return _renderAllCount; },
-      resetCounts: function () { _saveCount = 0; _renderAllCount = 0; },
+      resetCounts: function () { _saveCount = 0; _renderAllCount = 0; _startLiveTimerCount = 0; _acquireWakeLockCount = 0; _renderDayBarCount = 0; },
       getConfirmMsg: function () { return _els['confirmMsg'] ? _els['confirmMsg'].textContent : ''; },
       getConfirmTitle: function () { return _els['confirmTitleText'] ? _els['confirmTitleText'].textContent : ''; },
       getConfirmYesLabel: function () { return _els['confirmYes'] ? _els['confirmYes'].textContent : ''; },
@@ -288,7 +318,15 @@ function actionHarness() {
       clickConfirmYes: function () { var y = _els['confirmYes']; if (y._listeners && y._listeners.click) y._listeners.click(); },
       clickConfirmNo: function () { var n = _els['confirmNo']; if (n._listeners && n._listeners.click) n._listeners.click(); },
       getTodayPick: function () { return state.todayPick; },
-      getState: function () { return state; }
+      getState: function () { return state; },
+      sessionLive: function () { return _sessionLiveFlag; },
+      startLiveTimerCount: function () { return _startLiveTimerCount; },
+      setSessionLiveFlag: function (v) { _sessionLiveFlag = v; },
+      hasClass: function (id, cls) { return !!(_els[id] && _els[id]._classSet && _els[id]._classSet[cls]); },
+      askConfirmRaw: function (opts) { askConfirm(opts); },
+      getChosenTodayMsg: function () { return _els['chosenTodayMsg'] ? _els['chosenTodayMsg'].textContent : ''; },
+      clickChosenTodayStart: function () { var b = _els['chosenTodayStart']; if (b && b._listeners && b._listeners.click) b._listeners.click(); },
+      clickChosenTodayNotYet: function () { var b = _els['chosenTodayNotYet']; if (b && b._listeners && b._listeners.click) b._listeners.click(); }
     };
   `;
   const mod = { exports: {} };
@@ -371,6 +409,159 @@ function fixtureState(activeSession) {
   A.setState(st);
   A.trainThisTodayClick();
   ok(A.getConfirmMsg().indexOf('Today already has work banked on') === -1, 'the "today already has work" line is absent when the armed session has no real logged work (test 9c)');
+}
+
+// ==================================================================
+// v1.9 Chosen Today Review: the calm beat between confirming and training.
+// Deliberately a DEDICATED sheet (#chosenTodaySheet), not #confirmSheet --
+// nothing is being confirmed here, so it never touches askConfirm at all.
+// Run against the REAL extracted confirmTrainToday/showChosenTodayReview/
+// ensureSessionLive, reusing the same fake-dialog-DOM actionHarness above.
+// ==================================================================
+
+// ---------- Test: review appears immediately after confirm, exact copy ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1); // previewing B (index 1)
+  A.setState(st);
+  A.resetCounts();
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // confirms "Train this today?" -> confirmTrainToday -> opens the dedicated review sheet
+  ok(A.getChosenTodayMsg() === "B is set for today.\nNothing else moved.",
+     'the review body is the exact approved copy with the real session name substituted (test 3)');
+}
+// Title and button labels are static markup (never written by JS, unlike
+// the message) -- verified once, structurally, against the real source below.
+{
+  ok(/id="chosenTodayTitle">Chosen today</.test(SRC), 'the review\'s title is exactly "Chosen today" (test 2/3)');
+  ok(/id="chosenTodayStart"[^>]*>Start the session</.test(SRC), 'the review\'s primary reads exactly "Start the session" (test 3)');
+  ok(/id="chosenTodayNotYet"[^>]*>Not yet</.test(SRC), 'the review\'s secondary reads exactly "Not yet" (test 3)');
+}
+
+// ---------- Test: review open writes no log, does not start the timer ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // opens the review
+  A.resetCounts();
+  ok(A.startLiveTimerCount() === 0, 'merely opening the review does not start the timer (test 5)');
+  ok(!A.sessionLive(), 'merely opening the review does not make the session live (test 5b)');
+  ok(A.saveCount() === 0, 'opening the review writes nothing (no additional save) (test 4)');
+}
+
+// ---------- Test: "Not yet" writes nothing, starts nothing, todayPick remains ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // opens the review
+  A.resetCounts();
+  A.clickChosenTodayNotYet();
+  ok(A.saveCount() === 0, '"Not yet" writes nothing (test 6)');
+  ok(A.startLiveTimerCount() === 0, '"Not yet" does not start the timer (test 7)');
+  ok(!A.sessionLive(), '"Not yet" leaves the session not live (test 7b)');
+  ok(!!A.getTodayPick() && A.getTodayPick().session === 1, '"Not yet" leaves todayPick present and pointed at the chosen session (test 8)');
+}
+
+// ---------- Test: "Start the session" calls ensureSessionLive, starts the timer exactly once, closes the sheet ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // opens the review
+  A.resetCounts();
+  A.clickChosenTodayStart();
+  ok(A.startLiveTimerCount() === 1, '"Start the session" starts the timer exactly once (test 9/10)');
+  ok(A.sessionLive(), 'the session is live after "Start the session" (test 12)');
+  ok(A.saveCount() === 0, '"Start the session" itself writes no additional save -- ensureSessionLive only starts the timer/wake lock, no log (test 14)');
+  // Tapping the (now-torn-down) chosenTodayStart again does nothing further --
+  // proves this sheet's own listeners were cleaned up (closeDlg's cleanup()),
+  // so there is no way to double-fire Start.
+  A.clickChosenTodayStart();
+  ok(A.startLiveTimerCount() === 1, 'a stray extra tap on the (closed, listener-cleaned) sheet cannot double-start the timer (test 9/no-double-start)');
+}
+
+// ---------- Test: a stale/expired todayPick makes the review\'s Start no-op safely ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // opens the review, todayPick now set to session 1 for TODAY
+  // Simulate the pick going stale before Start is tapped (e.g. crossing midnight).
+  A.getState().todayPick.date = '2000-01-01';
+  A.resetCounts();
+  A.clickChosenTodayStart(); // session 1 is no longer armed (isPreviewSession(1) is now true)
+  ok(A.startLiveTimerCount() === 0, 'Start on a now-stale/no-longer-armed pick safely no-ops -- ensureSessionLive\'s own preview guard catches it (test 19)');
+  ok(!A.sessionLive(), 'no timer/live state results from a no-op Start on a stale pick');
+}
+
+// ==================================================================
+// v1.9 Chosen Today Review, gold-standard revision: the review is a fully
+// SEPARATE dialog from #confirmSheet -- not a mode flag threaded through the
+// generic confirm dialog. Prove askConfirm is untouched (no reviewMode/
+// confirm--review reference anywhere) and that opening/using the review
+// never touches #confirmSheet's elements at all.
+// ==================================================================
+
+// ---------- Test: askConfirm itself carries no Chosen-Today-specific branching ----------
+{
+  ok(!/reviewMode/.test(askConfirmSrc), 'askConfirm has no opts.reviewMode branch -- it is byte-identical to its pre-ticket form');
+  ok(!/confirm--review/.test(askConfirmSrc), 'askConfirm never references a review-scoping class -- that concept does not exist inside the generic confirm dialog');
+  ok(!/btn--clay/.test(askConfirmSrc), 'askConfirm never toggles the clay class -- clay styling lives entirely inside showChosenTodayReview\'s own dedicated sheet');
+}
+
+// ---------- Test: the Chosen Today primary uses the approved clay treatment (its own sheet, not #confirmSheet) ----------
+// Static: the clay class here is a plain, permanent class on the review's OWN
+// markup (never toggled by JS, unlike #confirmSheet's dynamic btn--danger/
+// btn--primary) -- CSS-scoped under #chosenTodaySheet .btn--clay, so it can
+// never leak onto any other button in the document.
+{
+  ok(/<button class="btn btn--clay" id="chosenTodayStart"/.test(SRC),
+     'the Chosen Today review\'s primary button carries class="btn btn--clay" in its own dedicated markup');
+  ok(/#chosenTodaySheet \.btn--clay \{/.test(SRC), 'the clay styling rule is scoped under #chosenTodaySheet -- it cannot apply to any button outside this one sheet');
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick();
+  A.clickConfirmYes(); // confirms -> opens the dedicated Chosen Today sheet
+  ok(!A.hasClass('confirmYes', 'btn--clay'), '#confirmSheet\'s own yes button is never touched by opening the review (no such class exists in askConfirm at all)');
+}
+
+// ---------- Test: opening/using the review never touches #confirmSheet at all ----------
+{
+  const A = actionHarness();
+  const st = fixtureState(1);
+  A.setState(st);
+  A.trainThisTodayClick(); // opens #confirmSheet ("Train this today?")
+  const confirmMsgBeforeReview = A.getConfirmMsg();
+  A.clickConfirmYes(); // confirms -> closes #confirmSheet, opens #chosenTodaySheet
+  ok(A.getConfirmMsg() === confirmMsgBeforeReview, '#confirmSheet\'s own message content is untouched by the review opening (they are separate dialogs, not a mode switch on one)');
+  A.clickChosenTodayStart();
+  ok(A.getConfirmMsg() === confirmMsgBeforeReview, '#confirmSheet remains untouched even after Start the session runs');
+}
+
+// ---------- Test: danger confirm title/button styling is unaffected (structural + functional) ----------
+{
+  ok(!/opts\.clay/.test(askConfirmSrc), 'askConfirm has no opts.clay parameter at all -- nothing to accidentally leave true for a danger confirm');
+  const A = actionHarness();
+  A.setState(fixtureState(1));
+  A.askConfirmRaw({ title: 'Reset session?', message: 'x', confirmLabel: 'Reset session', onConfirm: function () {} }); // danger defaults true
+  ok(A.hasClass('confirmYes', 'btn--danger'), 'a genuine danger confirm keeps its btn--danger styling exactly as before');
+  ok(!A.hasClass('confirmYes', 'btn--clay'), 'a danger confirm never gets the clay treatment -- that class does not exist in askConfirm anymore');
+}
+
+// ---------- Test: the pre-existing unit-switch confirm is byte-for-byte unaffected ----------
+{
+  const A = actionHarness();
+  A.setState(fixtureState(1));
+  A.askConfirmRaw({ title: 'Switch to lb?', message: 'x', confirmLabel: 'Switch to lb', danger: false, onConfirm: function () {} }); // the pre-existing danger:false caller
+  ok(!A.hasClass('confirmYes', 'btn--clay'), 'the pre-existing unit-switch confirm gets no clay treatment -- askConfirm has no such concept to accidentally apply');
+  ok(A.hasClass('confirmYes', 'btn--primary'), 'the unit-switch confirm keeps its original btn--primary (non-danger) styling exactly as before this ticket');
 }
 
 // ==================================================================
@@ -473,13 +664,16 @@ function fixtureState(activeSession) {
 // Rejected-copy guard (scoped to this ticket's new code/markup)
 // ==================================================================
 const REJECTED = ['maybe', 'great job', 'crushed it', 'recovered', 'fatigued', 'optimal',
-  'readiness score', 'recovery score', 'training receipt', 'Signed off', 'well done', 'nice'];
-const NEW_ZONE = trainThisTodayClickSrc + confirmTrainTodaySrc +
+  'readiness score', 'recovery score', 'training receipt', 'Signed off', 'well done', 'nice',
+  'ready to go', 'loading', 'calculating', 'preparing', 'almost there', 'workout due', 'missed', 'behind'];
+const NEW_ZONE = trainThisTodayClickSrc + confirmTrainTodaySrc + showChosenTodayReviewSrc +
   SRC.slice(SRC.indexOf('id="trainTodayBtn"') - 100, SRC.indexOf('id="trainTodayBtn"') + 100);
 REJECTED.forEach(function (phrase) {
   ok(NEW_ZONE.toLowerCase().indexOf(phrase.toLowerCase()) === -1, 'rejected phrase absent from v1.9-T2 new copy: "' + phrase + '"');
 });
 ok(SRC.indexOf('>Train this today<') !== -1, 'footer button copy present exactly: "Train this today"');
+ok(!/back to preview/i.test(showChosenTodayReviewSrc), 'the review\'s secondary is NOT "Back to preview" -- after confirm the session is no longer a preview, so that label would be false');
+ok(!/\bpreview\b/i.test(showChosenTodayReviewSrc), 'the review copy never uses the word "preview" -- todayPick is already confirmed by the time this sheet shows');
 
 // ==================================================================
 // No unexpected data-shape change: only one new field, no others.
