@@ -88,7 +88,8 @@ ok(/^\.empty \{ position: relative; text-align: center; padding: 48px 24px; over
    'the shared .empty base rule is untouched (day-view "Nothing here yet" list keeps its own existing thumbprint treatment, out of this ticket\'s scope)');
 
 // ---------- 7. Footer version string ----------
-ok(/Fifth Digit Coach · v1\.8 · works fully offline/.test(SRC), 'footer version string updated to v1.8');
+// v1.9 Training Flow Trust deploy (approved) bumped this further, v1.8 -> v1.9.
+ok(/Fifth Digit Coach · v1\.9 · works fully offline/.test(SRC), 'footer version string updated to v1.9');
 ok(!/Fifth Digit Coach · v1\.3 · works fully offline/.test(SRC), 'stale v1.3 footer string is gone');
 
 // ---------- 8. No copy change beyond the approved footer string ----------
