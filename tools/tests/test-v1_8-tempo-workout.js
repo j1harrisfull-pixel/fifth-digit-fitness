@@ -44,8 +44,8 @@ ok(/id="liveBarEnd">Finish<\/button>/.test(SRC), 'Finish control markup unchange
 ok(/id="readinessPromptSkip"/.test(SRC), 'readiness prompt skip control unchanged');
 ok(/toast\("Nothing logged\. Left as is\."\);/.test(SRC), 'zero-logged finish toast copy unchanged');
 
-// ---------- 6. Ticket 2 finish sheet untouched by this ticket ----------
-ok(/\$\("completeTitleText"\)\.textContent = finishKind === "density" \? "Work logged\."/.test(SRC), 'Ticket 2 finish headline logic untouched');
+// ---------- 6. Finish sheet spoken line (v1.10 Ticket 5 THE PAGE) ----------
+ok(/\$\("completeTitleText"\)\.textContent = finishKind === "partial" \? "Enough for today\." : "Work logged\.";/.test(SRC), 'finish spoken-line logic present (partial vs full/density)');
 ok(/#completeSheet\.sheet \{ background: var\(--tempo-bone\)/.test(SRC), 'Ticket 2 finish sheet CSS untouched');
 
 // ---------- 7. Motion scope ----------

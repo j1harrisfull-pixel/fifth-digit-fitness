@@ -82,6 +82,13 @@ const harness = `
   var reduceMotion = true;
   function fmtDate() { return 'Date'; }
   function openSheetNoKb() {}
+  // v1.10 Ticket 5 (THE PAGE): new display-layer dependencies of
+  // showSessionComplete -- same-shape stubs as the rest of this harness.
+  var WARM_LOADED = ['barbell', 'dumbbell', 'machine', 'cable', 'kettlebell', 'smith'];
+  var BLOCK_MODE_LABEL = { emom: 'EMOM', amrap: 'AMRAP' };
+  function est1RM(w, r) { return w * (1 + r / 30); }
+  function exTimed() { return false; }
+  function esc(s) { return String(s == null ? '' : s); }
 
   // readLog: a minimal stub surfacing exactly the completed-set flags the
   // test wired into state.log[ses.id].ex[ex.id].sets -- same shape/behaviour
@@ -156,11 +163,9 @@ function setup(ses, log, wk) {
   ok(M.hasRealWork(ses), 'one completed set: hasRealWork is true (test 2)');
   M.endSession();
   ok(!!log.S2.finishedAt, 'one completed set: finishedAt written');
-  // v1.8 TEMPO Final Lock fix: "N set(s) logged" moved to #completeFact only
-  // (paired with duration) so the receipt doesn't say it twice -- summary no
-  // longer carries this phrase at all.
-  ok(M.els().completeSummary.textContent === '', 'one completed set: summary no longer duplicates the set count (now on #completeFact only)');
-  ok(M.els().completeFact.textContent === '1 set logged', 'one completed set: #completeFact carries "1 set logged" exactly once');
+  // v1.10 Ticket 5 THE PAGE: the closing sentence carries the honest count.
+  ok(/^1 set kept/.test(M.els().completeClose.textContent), 'one completed set: closing sentence says "1 set kept" (singular), got: ' + M.els().completeClose.textContent);
+  ok(M.els().completeLedger.innerHTML.indexOf('finish-page__row') !== -1, 'one completed set: ledger renders a row for the exercise');
 }
 
 // ---------- Test 3: skips only ----------
@@ -193,8 +198,8 @@ function setup(ses, log, wk) {
   ok(M.hasRealWork(ses), 'density one round: hasRealWork is true (test 5)');
   M.endSession();
   ok(!!log.S5.finishedAt, 'density one round: finishedAt written');
-  ok(M.els().completeSummary.textContent === '1 round logged', 'density one round: receipt says "1 round logged" (singular)');
-  ok(!/0 sets logged/.test(M.els().completeSummary.textContent), 'density one round: never says "0 sets logged"');
+  ok(/^1 round kept/.test(M.els().completeClose.textContent), 'density one round: closing sentence says "1 round kept" (singular), got: ' + M.els().completeClose.textContent);
+  ok(!/0 sets/.test(M.els().completeClose.textContent), 'density one round: never says "0 sets"');
 }
 
 // ---------- Test 6: density, multiple rounds ----------
@@ -203,7 +208,7 @@ function setup(ses, log, wk) {
   var log = { S6: { date: null, ex: {}, blocks: { strength: { rounds: 6, completed: false } } } };
   setup(ses, log);
   M.endSession();
-  ok(M.els().completeSummary.textContent === '6 rounds logged', 'density multiple rounds: receipt says "6 rounds logged" (test 6)');
+  ok(/^6 rounds kept/.test(M.els().completeClose.textContent), 'density multiple rounds: closing sentence says "6 rounds kept" (test 6), got: ' + M.els().completeClose.textContent);
 }
 
 // ---------- Test 7: density block done at 0 rounds ----------
@@ -214,7 +219,8 @@ function setup(ses, log, wk) {
   ok(M.hasRealWork(ses), 'density block done at 0 rounds: hasRealWork is true (test 7)');
   M.endSession();
   ok(!!log.S7.finishedAt, 'density block done at 0 rounds: finishedAt written');
-  ok(M.els().completeSummary.textContent === 'conditioning done', 'density block done at 0 rounds: receipt says "conditioning done", no fake round count');
+  ok(/^conditioning done/.test(M.els().completeClose.textContent), 'density block done at 0 rounds: closing sentence says "conditioning done", no fake round count, got: ' + M.els().completeClose.textContent);
+  ok(!/0 rounds/.test(M.els().completeClose.textContent), 'density block done at 0 rounds: never prints "0 rounds"');
 }
 
 // ---------- Test 8: mixed sets + density rounds ----------
@@ -223,13 +229,10 @@ function setup(ses, log, wk) {
   var log = { S8: { date: null, ex: { e0: { sets: [{ completed: true }, { completed: true }, { completed: false }, { completed: false }] } }, blocks: { con: { rounds: 3, completed: false } } } };
   setup(ses, log);
   M.endSession();
-  var summary = M.els().completeSummary.textContent;
-  // v1.8 TEMPO Final Lock fix: "2 sets logged" is dropped from the summary
-  // (it now lives only on #completeFact) so the rounds count is the only
-  // thing this line carries; the set count is still shown, exactly once,
-  // on #completeFact.
-  ok(summary === '3 rounds logged', 'mixed session: summary shows only the rounds part now (test 8), got: ' + summary);
-  ok(M.els().completeFact.textContent === '2 sets logged', 'mixed session: #completeFact carries "2 sets logged" exactly once, got: ' + M.els().completeFact.textContent);
+  var close = M.els().completeClose.textContent;
+  // v1.10 Ticket 5 THE PAGE: sets outrank rounds in the closing sentence --
+  // the ledger rows carry the per-exercise detail.
+  ok(/^2 sets kept/.test(close), 'mixed session: closing sentence leads with "2 sets kept" (test 8), got: ' + close);
 }
 
 // ---------- Test 9: density after finishedAt (re-entry via endSession re-run is out of scope here --

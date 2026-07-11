@@ -340,55 +340,41 @@ input, textarea { font: inherit; color: inherit; }
 .app[data-view="week"] .weekrow.is-current .weekrow__name { color: var(--tempo-ink); }
 .app[data-view="week"] #weekList .empty__title, .app[data-view="week"] #weekList .empty__hint { color: var(--tempo-ink); }
 /* ============================================================
-   v1.8 TEMPO -- Finish Result Sheet (Ticket 2 of 3). Reuses Ticket 1's
-   --tempo-* tokens only -- no new palette. Every rule is scoped to
+   v1.10 Ticket 5 -- THE PAGE (finish signature moment). Replaces the v1.8
+   receipt sheet: the whole viewport becomes bone paper -- no grip, no clay
+   band, no watermark, no receipt chrome. Every rule is scoped to
    #completeSheet so no other dialog/screen changes. Finish LOGIC (what
-   counts as done/ended/density, elapsed-minute calc, honest-read rows, set/
-   round counting) lives entirely in showSessionComplete() and is untouched;
-   this block is presentation only. The blanket
-   `@media (prefers-reduced-motion: reduce)` rule earlier in this file
-   already neutralises the entrance animation below -- no separate guard
-   needed here. */
-#completeSheet.sheet { background: var(--tempo-bone); border-top-color: var(--tempo-bone-line); }
-#completeSheet .sheet__grip { background: var(--tempo-bone-dim); }
-#completeSheet .sheet__body { padding: 0; }
-#completeSheet .receipt-paper {
-  background: var(--tempo-bone); color: var(--tempo-bone-ink);
-  padding: 30px 22px 22px; margin: 0; box-shadow: none;
-  position: relative; overflow: hidden; min-height: 100%;
-  animation: tempoResultIn .22s ease-out;
+   counts as done/ended/density, finishedAt honesty, zero-logged toast)
+   lives in endSession/showSessionComplete's data half and is untouched;
+   this block is presentation only. The stamp settle below is the page's
+   ONLY motion (~300ms) and is neutralised by this file's existing blanket
+   `@media (prefers-reduced-motion: reduce)` rule. */
+#completeSheet.sheet { background: var(--tempo-bone); border: 0; max-width: none; max-height: 100svh; height: 100svh; margin: 0; width: 100%; }
+#completeSheet .sheet__body { padding: 0; max-height: 100svh; height: 100%; }
+#completeSheet .finish-page__inner {
+  min-height: 100%; background: var(--tempo-bone); color: var(--tempo-bone-ink);
+  display: flex; flex-direction: column;
+  /* deep top margin: the page's headspace -- whitespace carries the meaning */
+  padding: calc(env(safe-area-inset-top) + 72px) 26px calc(env(safe-area-inset-bottom) + 18px);
 }
-@keyframes tempoResultIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-/* Clay action/progress band -- the one approved "top band" use of a solid
-   fill; full/partial scale it to real completion via --result-fill (set
-   inline from the same sessionProgress() data already driving completeSummary
-   elsewhere), density is always a solid full-width band (rounds/AMRAP aren't
-   measured in the same units as prescribed sets). */
-#completeSheet .receipt-paper::before { content: ""; position: absolute; top: 0; left: 0; height: 5px; background: var(--tempo-clay); width: var(--result-fill, 100%); }
-/* FD ghost watermark, opacity capped at 0.05 (test-enforced) -- same device as Ticket 1's Today card. */
-#completeSheet .receipt-paper::after { content: "FD"; position: absolute; right: -14px; bottom: -34px; font-family: var(--font-display); font-weight: 700; font-size: 170px; line-height: 1; color: var(--tempo-bone-ink); opacity: .045; pointer-events: none; }
-#completeSheet .receipt-paper__ov { position: relative; z-index: 1; font-family: "Spline Sans Mono", ui-monospace, monospace; color: var(--tempo-brass-ink); font-weight: 700; letter-spacing: .1em; }
-#completeSheet .receipt-paper__ov[hidden] { display: none; }
-#completeSheet .complete__title { position: relative; z-index: 1; color: var(--tempo-bone-ink); }
-#completeSheet .complete__meta { position: relative; z-index: 1; font-size: 13px; color: var(--tempo-bone-dim); margin: -6px 0 12px; }
-#completeSheet .complete__earned { position: relative; z-index: 1; color: var(--tempo-brass-ink); }
-#completeSheet .complete__fact,
-#completeSheet .complete__partial-note,
-#completeSheet .complete__density-line { position: relative; z-index: 1; color: var(--tempo-bone-dim); font-size: 14px; margin: 0 0 8px; }
-#completeSheet .complete__lift-progress { position: relative; z-index: 1; color: var(--tempo-brass-ink); font-weight: 700; font-size: 14px; margin: 0 0 14px; }
-#completeSheet .complete__summary { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
-#completeSheet .complete__pr-banner { position: relative; z-index: 1; color: var(--tempo-clay-deep); background: color-mix(in srgb, var(--tempo-clay) 14%, transparent); border-color: var(--tempo-clay); }
-#completeSheet .complete__read-title { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
-#completeSheet .complete__read-row { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); }
-#completeSheet .complete__read-name { color: var(--tempo-bone-ink); }
-#completeSheet .complete__read-detail { color: var(--tempo-bone-dim); }
-#completeSheet .complete__read-off { color: var(--tempo-bone-dim); }
-#completeSheet .receipt-paper__stamp { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); }
-#completeSheet .receipt-paper__mark { color: var(--tempo-bone-ink); }
-#completeSheet .receipt-paper__sig, #completeSheet .receipt-paper__sig b { color: var(--tempo-bone-dim); }
-#completeSheet .receipt-paper__sig b { color: var(--tempo-bone-ink); }
-#completeSheet .btn-row { position: relative; z-index: 1; padding: 16px 22px calc(env(safe-area-inset-bottom) + 16px); background: var(--tempo-bone); margin: 0; }
-#completeSheet .btn--primary { background: var(--tempo-bone-ink); color: var(--tempo-bone); border-radius: 999px; }
+#completeSheet .finish-page__date { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 11px; color: var(--tempo-bone-dim); margin: 0 0 36px; font-variant-numeric: tabular-nums; }
+/* The product speaking once -- small, body-size, unbolded. */
+#completeSheet .finish-page__spoken { font-size: 15px; font-weight: 400; color: var(--tempo-bone-ink); margin: 0 0 10px; font-family: var(--font-body); letter-spacing: 0; }
+/* The hero: how a person remembers a day. The page's only large element. */
+#completeSheet .finish-page__name { font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.08; margin: 0 0 32px; color: var(--tempo-bone-ink); }
+/* The ledger: names left, best-kept result right in mono. Row air replaces
+   every rule -- no dividers, no headers, no table furniture. */
+#completeSheet .finish-page__ledger { margin: 0 0 26px; }
+#completeSheet .finish-page__row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 6px 0; }
+#completeSheet .finish-page__ex { font-size: 15px; color: var(--tempo-bone-ink); min-width: 0; }
+#completeSheet .finish-page__kept { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 13px; color: var(--tempo-bone-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#completeSheet .finish-page__close { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 13px; color: var(--tempo-bone-dim); margin: 0 0 24px; font-variant-numeric: tabular-nums; }
+/* Pressed FD chop: certifies the entry above it. ~60% ink, never full black. */
+#completeSheet .finish-page__stamp { width: 34px; color: var(--tempo-bone-ink); opacity: .6; animation: fdStampSettle .3s ease-out; }
+#completeSheet .finish-page__mark { display: block; width: 34px; height: auto; }
+@keyframes fdStampSettle { from { opacity: 0; transform: scale(1.12); } to { opacity: .6; transform: none; } }
+/* The exit is a courtesy, not a control: one dim word at the bottom edge. */
+#completeSheet .finish-page__done { margin-top: auto; padding: 40px 0 6px; background: none; border: 0; font-size: 12px; color: var(--tempo-bone-dim); cursor: pointer; text-align: center; width: 100%; font-family: var(--font-body); }
 /* ============================================================
    v1.8 TEMPO -- Active Workout Card (Ticket 3 of 3). Reuses Ticket 1's
    --tempo-* tokens only -- no new palette. Scoped to the day view's expanded
@@ -1980,33 +1966,29 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 </dialog>
 
-<dialog class="sheet" id="completeSheet" aria-labelledby="completeTitle">
-  <div class="sheet__grip"></div>
+<!-- v1.10 Ticket 5 -- THE PAGE: the finish moment is today's page from the
+     kept training record, full-bleed bone, no sheet grip, no receipt chrome.
+     Hierarchy (approved contract): date -> spoken line -> session name ->
+     ledger of best-kept results -> closing sentence -> FD stamp -> Done.
+     Zero-logged finishes never open this dialog (endSession's else branch,
+     unchanged). The signoff beat and the Done button's close+backToWeek
+     mechanics are preserved exactly. -->
+<dialog class="sheet finish-page" id="completeSheet" aria-labelledby="completeTitle">
   <div class="sheet__body">
-    <div class="receipt-paper">
-      <p class="receipt-paper__ov" id="completeOverline" hidden></p>
-      <h2 class="complete__title" id="completeTitle"><span id="completeTitleText">Session done</span></h2>
-      <p class="complete__meta" id="completeMeta"></p>
-      <p class="complete__earned" id="completeEarned" hidden></p>
-      <p class="complete__fact" id="completeFact" hidden></p>
-      <p class="complete__partial-note" id="completePartialNote" hidden></p>
-      <div id="completeDensityLines"></div>
-      <p class="complete__lift-progress" id="completeLiftProgress" hidden></p>
-      <p class="complete__summary" id="completeSummary"></p>
-      <p class="complete__pr-banner" id="completePrBanner" hidden></p>
-      <div id="completeRead"></div>
-      <p class="complete__read-detail" id="completeCoachNote" hidden></p>
-      <div class="receipt-paper__stamp">
-        <svg class="receipt-paper__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
-        <p class="receipt-paper__sig"><b id="completeSigLine"></b></p>
+    <div class="finish-page__inner">
+      <p class="finish-page__date" id="completeDate"></p>
+      <h2 class="finish-page__spoken" id="completeTitle"><span id="completeTitleText">Work logged.</span></h2>
+      <p class="finish-page__name" id="completeSessionName"></p>
+      <div class="finish-page__ledger" id="completeLedger"></div>
+      <p class="finish-page__close" id="completeClose"></p>
+      <div class="finish-page__stamp" id="completeStamp">
+        <svg class="finish-page__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
       </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn--primary" id="completeNext" type="button">Done</button>
+      <button class="finish-page__done" id="completeNext" type="button">Done.</button>
     </div>
   </div>
   <!-- v136B: a brief, honest sign-off beat covers the already-populated,
-       already-saved receipt for a few hundred ms after Finish -- reveals it
+       already-saved record for a few hundred ms after Finish -- reveals it
        rather than delaying the actual save. See showSessionComplete(). -->
   <div class="signoff-beat" id="signoffBeat" hidden>
     <span class="building__spin" aria-hidden="true"></span>
@@ -9881,39 +9863,11 @@ function resolveSpec(request, state) {
   function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   // The one closure moment every session exit routes through -- a genuine finish
   // (all non-skipped exercises logged) OR ending early with work done (opts.ended).
-  // The receipt is honest either way: 'complete' celebrates, 'ended' acknowledges
-  // exactly what WAS done with no fake completion stamp.
-  // v1.8 TEMPO (Ticket 2): "<Lift> moved up this block." -- outside coach-span,
-  // read-only over state.program/state.log (the same shape Ticket 1's Home
-  // memory line reads), scoped to THIS finish's own session. A lift "moved up"
-  // when its logged weight here is strictly greater than the highest weight
-  // logged for the same exercise name in any OTHER session of the current
-  // program -- honest even without a full chronological ordering, since a
-  // higher-than-every-other-recorded-instance weight is a real increase.
-  function finishLiftProgressLine(ses) {
-    var sl = state.log[ses.id]; if (!sl || !sl.ex) return "";
-    var priorMax = {};
-    (state.program.weeks || []).forEach(function (w) {
-      (w.sessions || []).forEach(function (other) {
-        if (other.id === ses.id) return;
-        var osl = state.log[other.id]; if (!osl || !osl.ex) return;
-        (other.exercises || []).forEach(function (ex) {
-          var el = osl.ex[ex.id];
-          if (!el || el.weight == null || !(el.weight > 0)) return;
-          var key = String(ex.name);
-          if (!(key in priorMax) || el.weight > priorMax[key]) priorMax[key] = el.weight;
-        });
-      });
-    });
-    var found = "";
-    ses.exercises.some(function (ex) {
-      var el = sl.ex[ex.id]; if (!el || el.weight == null || !(el.weight > 0)) return false;
-      var key = String(ex.name);
-      if (priorMax[key] != null && el.weight > priorMax[key]) { found = ex.name; return true; }
-      return false;
-    });
-    return found ? (found + " moved up this block.") : "";
-  }
+  // The page is honest either way: 'Work logged.' records, 'Enough for today.'
+  // acknowledges exactly what WAS done with no fake completion stamp.
+  // (v1.10 Ticket 5: finishLiftProgressLine was removed with the receipt's
+  // lift-progress line -- its only caller; the page carries no interpretation
+  // beyond "· best yet" on the ledger row where a genuine PR happened.)
   function showSessionComplete(ses, opts) {
     opts = opts || {};
     var ended = !!opts.ended;
@@ -9954,10 +9908,7 @@ function resolveSpec(request, state) {
       }
     });
     save();
-    var prog = sessionProgress(sessionItemsFor(ses));
     var wk = curWeek();
-    var sessionsDone = 0;
-    wk.sessions.forEach(function (s) { var pp = sessionProgress(sessionItemsFor(s)); if (pp.total > 0 && pp.done === pp.total) sessionsDone++; });
 
     // v1.4: build the summary from honest parts rather than a fixed "X sets
     // logged" template -- a density-only session has setsDone === 0 but real
@@ -9974,176 +9925,123 @@ function resolveSpec(request, state) {
         else if (bl && bl.completed) blockDoneZeroRounds = true;
       });
     }
-    // v1.8 TEMPO Final Lock fix: the "N set(s) logged" phrase is dropped from
-    // this summary line -- it duplicated the honest "N sets logged · M min"
-    // fact line built below (#completeFact). Sets-count is still shown there,
-    // exactly once; this line now carries only the OTHER honest facts
-    // (rounds, conditioning-done, skipped, ready-to-add-weight).
-    var summaryParts = [];
-    if (roundsTotal > 0) summaryParts.push(roundsTotal + " round" + (roundsTotal === 1 ? "" : "s") + " logged");
-    if (blockDoneZeroRounds) summaryParts.push("conditioning done");
-    if (prog.skipped) summaryParts.push(prog.skipped + " skipped");
-    if (!ended && readyCount) summaryParts.push("ready to add weight on " + readyCount + (readyCount === 1 ? " lift" : " lifts"));
-    var summaryTxt = summaryParts.join(" · ");
-    var summaryEl = $("completeSummary");
-    summaryEl.textContent = summaryTxt; summaryEl.hidden = !summaryTxt;
-
-    // v1.8 TEMPO finish result sheet (Ticket 2, display-layer only): pick one
-    // of three honest headline states from data that's already computed
-    // above -- `ended` (existing full-vs-partial signal) and roundsTotal/
-    // blockDoneZeroRounds (existing density signal). A session only reads as
-    // "density" when it actually IS built with EMOM/AMRAP-tagged exercises
-    // (session.exercises[].densityMode, the same real field the active
-    // workout card already uses to render the rounds counter) AND there is
-    // genuine density work logged -- otherwise it falls through to the
-    // ordinary full/partial branch, per the "no fake density claims" rule.
+    // v1.8 TEMPO finish state pick (unchanged logic): one of three honest
+    // states from data already computed above -- `ended` (existing
+    // full-vs-partial signal) and roundsTotal/blockDoneZeroRounds (existing
+    // density signal). A session only reads as "density" when it actually
+    // IS built with EMOM/AMRAP-tagged exercises AND genuine density work
+    // was logged -- otherwise it falls through to full/partial, per the
+    // "no fake density claims" rule.
     var isDensitySession = ses.exercises.some(function (e) { return e.densityMode === "emom" || e.densityMode === "amrap"; });
     var densityFinish = isDensitySession && (roundsTotal > 0 || blockDoneZeroRounds);
     var finishKind = densityFinish ? "density" : (ended ? "partial" : "full");
 
-    // v1.8 TEMPO clay progress band: purely visual, reads the same
-    // prog.done/prog.total sessionProgress() already computed above (no new
-    // computation). Density is always a solid full band -- rounds/AMRAP
-    // aren't measured in the same units as prescribed sets.
-    var receiptEl = $("completeSheet") && $("completeSheet").querySelector ? $("completeSheet").querySelector(".receipt-paper") : null;
-    if (receiptEl && receiptEl.style) {
-      var fillPct = (finishKind === "density" || !(prog.total > 0)) ? 100 : Math.round((prog.done / prog.total) * 100);
-      receiptEl.style.setProperty("--result-fill", fillPct + "%");
+    // v1.10 Ticket 5 -- THE PAGE population. Display layer only: every value
+    // below is read from data already computed above (finishKind, sl,
+    // roundsTotal, setsDone) or from the real logged sets via readLog.
+    //
+    // Date line: today, written the way a notebook entry opens.
+    var dateEl = $("completeDate");
+    if (dateEl) {
+      var dNow = new Date();
+      dateEl.textContent = dNow.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).replace(/,/g, "").toUpperCase();
     }
-
-    var overlineEl = $("completeOverline");
-    if (finishKind === "full") { overlineEl.textContent = "SESSION CLOSED"; overlineEl.hidden = false; }
-    else { overlineEl.textContent = ""; overlineEl.hidden = true; }
-
-    $("completeTitleText").textContent = finishKind === "density" ? "Work logged."
-      : finishKind === "partial" ? "Enough for today."
-      : "That’s the work done.";
-    // The day/session label moves to a quiet meta line under the headline --
-    // still real data (dayPositionLabel, already computed everywhere else),
-    // just no longer doing double duty as the emotional headline itself.
-    var metaEl = $("completeMeta");
-    if (metaEl) metaEl.textContent = dayPositionLabel(wk.sessions, state.activeSession);
-
-    // One unconditional earned line, above the honest read -- so the emotional
-    // peak leads with a win, not an audit of flat/down lifts. Density has no
-    // earned line of its own (its lines live in #completeDensityLines below).
-    var earnedEl = $("completeEarned");
-    if (earnedEl) {
-      var earnedTxt = "";
-      if (finishKind === "full" && sessionsDone > 0) {
-        earnedTxt = (sessionsDone >= wk.sessions.length)
-          ? "Week complete · all " + wk.sessions.length + " done"
-          : "That's your " + ordinal(sessionsDone) + " session this week";
-      } else if (finishKind === "partial") {
-        earnedTxt = "every set still counts";
-      }
-      earnedEl.textContent = earnedTxt; earnedEl.hidden = !earnedTxt;
-    }
-    // Partial-only honest note: unconditional once we're genuinely in the
-    // partial branch (real work logged, session not fully completed) --
-    // no guilt, no score, just the state named plainly.
-    var partialNoteEl = $("completePartialNote");
-    if (partialNoteEl) { partialNoteEl.textContent = finishKind === "partial" ? "Short session. Still banked." : ""; partialNoteEl.hidden = finishKind !== "partial"; }
-    // Density lines: one per logged block, built only from sl.blocks'
-    // existing rounds/completed fields and the exercise's existing
-    // densityMode tag -- "AMRAP finished." only when that block's completed
-    // flag is true; otherwise an honest rounds count, same as the strength/
-    // EMOM block. No fabricated claim when a block has neither.
-    var densityLinesEl = $("completeDensityLines");
-    if (densityLinesEl) {
-      var densityHtml = "";
-      if (finishKind === "density" && sl && sl.blocks) {
+    // The product speaking once. Full and density finishes both record real
+    // completed work -> "Work logged."; only a deliberate early finish reads
+    // "Enough for today." (protected copy, unchanged strings).
+    $("completeTitleText").textContent = finishKind === "partial" ? "Enough for today." : "Work logged.";
+    // The hero: the session's name, the way a person remembers a day.
+    var nameEl = $("completeSessionName");
+    if (nameEl) nameEl.textContent = dayPositionLabel(wk.sessions, state.activeSession);
+    // The ledger: one row per exercise with kept work -- the BEST KEPT set,
+    // in record grammar ("80 kg × 5", "12 reps", "45 sec"), never the
+    // prescription. Best = highest est-1RM among this session's completed
+    // sets (the same est1RM already used everywhere); rep-only/timed work
+    // falls back to the highest completed reps/seconds. Exercises with no
+    // completed sets render nothing -- the page never knows what wasn't
+    // done. "· best yet" marks a genuine all-time PR, read from the same
+    // buildHonestRead history comparison the receipt already trusted.
+    var honestRead = buildHonestRead(ses);
+    var prNames = {};
+    honestRead.prs.forEach(function (p) { prNames[p.name] = true; });
+    var ledgerEl = $("completeLedger");
+    if (ledgerEl) {
+      var rowsHtml = "";
+      ses.exercises.forEach(function (e) {
+        if (e.densityMode) return; // density blocks get their own rows below
+        var lg = readLog(ses, e);
+        var doneSets = lg.sets.filter(function (s) { return s.completed; });
+        if (!doneSets.length) return;
+        var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
+        var keptTxt = "";
+        if (loadable) {
+          var best = null, bestScore = -1;
+          doneSets.forEach(function (s) {
+            var w = s.weight > 0 ? s.weight : 0, r = s.reps > 0 ? s.reps : 0;
+            var score = (w > 0 && r > 0) ? est1RM(w, r) : w;
+            if (score > bestScore) { bestScore = score; best = s; }
+          });
+          if (best && best.weight > 0) keptTxt = roundW(best.weight) + " " + unit + " × " + (best.reps > 0 ? best.reps : 1);
+        }
+        if (!keptTxt) {
+          var bestReps = 0;
+          doneSets.forEach(function (s) { if (s.reps > bestReps) bestReps = s.reps; });
+          if (bestReps > 0) keptTxt = bestReps + (exTimed(e.name) ? " sec" : " reps");
+          else keptTxt = doneSets.length + (doneSets.length === 1 ? " set" : " sets");
+        }
+        if (prNames[e.name]) keptTxt += " · best yet";
+        rowsHtml += '<div class="finish-page__row"><span class="finish-page__ex">' + esc(e.name) + '</span><span class="finish-page__kept">' + esc(keptTxt) + '</span></div>';
+      });
+      // Density blocks: one row per logged block, record grammar -- real
+      // rounds, or "finished" only when the block's completed flag is true.
+      if (sl && sl.blocks) {
         Object.keys(sl.blocks).forEach(function (kind) {
           var bl = sl.blocks[kind];
           var ex = ses.exercises.filter(function (e) { return e.block === kind && e.densityMode; })[0];
           if (!bl || !ex) return;
-          if (ex.densityMode === "amrap" && bl.completed) {
-            densityHtml += '<p class="complete__density-line">AMRAP finished.</p>';
-          } else if (bl.rounds > 0) {
-            densityHtml += '<p class="complete__density-line">' + bl.rounds + ' round' + (bl.rounds === 1 ? "" : "s") + ' banked.</p>';
-          }
+          var blTxt = "";
+          if (ex.densityMode === "amrap" && bl.completed) blTxt = bl.rounds > 0 ? (bl.rounds + " rounds · finished") : "finished";
+          else if (bl.rounds > 0) blTxt = bl.rounds + " round" + (bl.rounds === 1 ? "" : "s");
+          if (!blTxt) return;
+          rowsHtml += '<div class="finish-page__row"><span class="finish-page__ex">' + esc(BLOCK_MODE_LABEL[ex.densityMode] || ex.densityMode) + '</span><span class="finish-page__kept">' + esc(blTxt) + '</span></div>';
         });
       }
-      densityLinesEl.innerHTML = densityHtml;
+      ledgerEl.innerHTML = rowsHtml;
     }
-
-    var honestRead = buildHonestRead(ses);
-    $("completeRead").innerHTML = honestRead.html;
-    // The PR moment: promoted out of the honest-read list into its own line,
-    // right where the eye lands first -- a real new all-time best deserves
-    // more than a clause at the end of an "up" sentence.
-    var prBanner = $("completePrBanner");
-    if (prBanner) {
-      if (honestRead.prs.length) {
-        var unit2 = state.program.unit;
-        var prText = honestRead.prs.length === 1
-          ? "New best · " + honestRead.prs[0].name + " " + honestRead.prs[0].orm + unit2
-          : "New bests · " + honestRead.prs.map(function (p) { return p.name; }).join(", ");
-        prBanner.textContent = prText; prBanner.hidden = false;
-      } else { prBanner.hidden = true; prBanner.textContent = ""; }
+    // Closing sentence: real counts only. Sets when sets were kept, rounds
+    // when the session's real work was rounds; the plausible-window elapsed
+    // minutes (v136B logic, unchanged); real lifted volume, OMITTED entirely
+    // (never 0 kg) when the session had no meaningful load.
+    var slc = state.log[ses.id];
+    var logMs = (slc && slc.date) ? Date.parse(slc.date) : 0;
+    var startMs = 0;
+    if (liveTimerStart && logMs) startMs = Math.min(liveTimerStart, logMs);
+    else if (liveTimerStart) startMs = liveTimerStart;
+    else if (logMs) startMs = logMs;
+    var mins = null;
+    if (startMs) {
+      var m = Math.round((Date.now() - startMs) / 60000);
+      if (m >= 1 && m <= 180) mins = m; // plausible single-session window only
     }
-    // Pass 2 (finish card upgrade, item 7): a real one-line coach note --
-    // the week's actual phase intent (phaseLabel, e.g. "Accumulation: build
-    // work capacity, 3 reps in reserve" / "Deload: consolidate, 50% volume,
-    // Effort 6"), already computed by generateProgram and shown nowhere else
-    // on this screen. Only real multi-week programs carry a wk.focus value --
-    // a Just Today build's wrapper week has focus: "" by construction, so
-    // this stays honestly hidden rather than inventing a note for it.
-    var coachNoteEl = $("completeCoachNote");
-    if (coachNoteEl) {
-      var noteTxt = (!ended && wk.focus) ? wk.focus : "";
-      coachNoteEl.textContent = noteTxt; coachNoteEl.hidden = !noteTxt;
-    }
-    // The stamp's sig line: today's date + the real session duration. v136B:
-    // prefer the LIVE TIMER's start over the first logged set's timestamp when
-    // the timer began earlier -- tapping the workout screen's own Start action
-    // now starts the clock before any set is logged (Home only ENTERS the
-    // workout; it no longer starts the timer itself), so warm-up and any timed
-    // work before the first log should count rather than being silently
-    // dropped. Falls back to the first logged set's date if the timer was
-    // never explicitly started early (e.g. the user just logs straight away,
-    // which still promotes the session live the same way it always has), and
-    // to a bare no-duration read if neither exists. And since we don't track
-    // pauses, an implausibly long span (left the app open, walked away) is
-    // suppressed rather than printed as a fabricated-looking duration -- an
-    // honest blank beats a wrong number.
-    var sigLine = $("completeSigLine");
-    if (sigLine) {
-      var slc = state.log[ses.id];
-      var logMs = (slc && slc.date) ? Date.parse(slc.date) : 0;
-      var startMs = 0;
-      if (liveTimerStart && logMs) startMs = Math.min(liveTimerStart, logMs);
-      else if (liveTimerStart) startMs = liveTimerStart;
-      else if (logMs) startMs = logMs;
-      var mins = null;
-      if (startMs) {
-        var m = Math.round((Date.now() - startMs) / 60000);
-        if (m >= 1 && m <= 180) mins = m; // plausible single-session window only
-      }
-      sigLine.textContent = fmtDate(new Date().toISOString()) + (mins != null ? " · " + mins + " min" : "");
-      // v1.8 TEMPO fact line: the same setsDone/mins values already computed
-      // above, just also shown as one honest "N sets logged · M min" line on
-      // the result sheet itself (previously mins only lived in the stamp
-      // signature). Reads sets, not rounds -- density sessions get their own
-      // rounds/AMRAP lines above instead.
-      var factEl = $("completeFact");
-      if (factEl) {
-        var factTxt = (setsDone > 0 && mins != null) ? (setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged · " + mins + " min")
-          : (setsDone > 0 ? (setsDone + " set" + (setsDone === 1 ? "" : "s") + " logged") : "");
-        factEl.textContent = factTxt; factEl.hidden = !factTxt;
-      }
-    }
-    // v1.8 TEMPO lift-progress line (full finish only): "<Lift> moved up this
-    // block." -- backed by at least two logged weights for the same
-    // exercise (this session's weight vs. the highest weight logged for it
-    // in any OTHER session of the current program) with a strict increase.
-    // Reads only state.program/state.log (existing fields); no coach-span
-    // call, no new data.
-    var liftProgressEl = $("completeLiftProgress");
-    if (liftProgressEl) {
-      var liftLine = (finishKind === "full") ? finishLiftProgressLine(ses) : "";
-      liftProgressEl.textContent = liftLine; liftProgressEl.hidden = !liftLine;
-    }
+    var volume = 0;
+    ses.exercises.forEach(function (e) {
+      if (e.densityMode) return;
+      var lgv = readLog(ses, e);
+      lgv.sets.forEach(function (s) { if (s.completed && s.weight > 0 && s.reps > 0) volume += s.weight * s.reps; });
+    });
+    var closeParts = [];
+    if (setsDone > 0) closeParts.push(setsDone + " set" + (setsDone === 1 ? "" : "s") + " kept");
+    else if (roundsTotal > 0) closeParts.push(roundsTotal + " round" + (roundsTotal === 1 ? "" : "s") + " kept");
+    else if (blockDoneZeroRounds) closeParts.push("conditioning done"); // real work asserted, no fake round count
+    if (mins != null) closeParts.push(mins + " min");
+    if (volume > 0) closeParts.push(Math.round(volume).toLocaleString() + " " + unit);
+    var closeEl = $("completeClose");
+    if (closeEl) { closeEl.textContent = closeParts.join(" · "); closeEl.hidden = !closeParts.length; }
+    // The stamp settle is pure CSS (restarted by re-triggering the
+    // animation), the page's only motion, reduced-motion suppressed by the
+    // existing blanket rule. Re-trigger so every finish gets its one settle.
+    var stampEl = $("completeStamp");
+    if (stampEl && stampEl.style) { stampEl.style.animation = "none"; void (stampEl.offsetWidth); stampEl.style.animation = ""; }
     // CTA: "Back to week" is ALWAYS the primary -- the finish deserves a pause,
     // not an immediate next obligation. The secondary is contextual and opt-in:
     // 'Keep going' when ended early (stay in the session), or a quiet 'Start
@@ -10159,7 +10057,7 @@ function resolveSpec(request, state) {
     // backdrop/Escape handlers) rather than on the dialog 'close' event --
     // close() doesn't reliably fire 'close' for this sheet in every engine, so
     // the button owns its navigation.
-    primaryBtn.textContent = "Done";
+    primaryBtn.textContent = "Done.";
     primaryBtn.onclick = function () { closeDlg(); backToWeek(); };
     // v136B: a brief "Signing off session…" beat covers the reveal. Everything
     // above this line (save(), the receipt's DOM population) has ALREADY run

@@ -389,5 +389,49 @@ ok(/'<p class="card__zonelabel card__zonelabel--current">Current<\/p>'/.test(bui
 ok(/\.card__zonelabel--current \{ color: var\(--tempo-moss/.test(SRC), '.card__zonelabel--current is moss-coloured');
 ok(/\.card__zonelabel--next \{ color: var\(--tempo-brass/.test(SRC), '.card__zonelabel--next is brass-coloured');
 
+// ---------- 10. v1.10 Ticket 5 (THE PAGE finish signature moment) proofs ----------
+// Spoken line: exactly the two protected sentences, chosen by the real
+// finishKind (partial vs full/density) -- never a praise headline.
+ok(/\$\("completeTitleText"\)\.textContent = finishKind === "partial" \? "Enough for today\." : "Work logged\.";/.test(showSessionCompleteBody),
+   'THE PAGE spoken line is exactly "Enough for today." (partial) / "Work logged." (full+density), keyed off the real finishKind');
+
+// Record grammar, not prescription grammar: the kept column is built from
+// the best COMPLETED set ("80 kg × 5"), reps/seconds honesty for unloaded
+// work, and a plain sets fallback -- never target/planned language.
+ok(/roundW\(best\.weight\) \+ " " \+ unit \+ " × " \+ \(best\.reps > 0 \? best\.reps : 1\)/.test(showSessionCompleteBody),
+   'ledger kept column uses record grammar "W kg × R" from the best completed set');
+ok(/bestReps \+ \(exTimed\(e\.name\) \? " sec" : " reps"\)/.test(showSessionCompleteBody),
+   'unloaded work renders honest "N reps" / "N sec" from real logged values');
+['target', 'planned', 'prescribed', 'goal'].forEach(function (frag) {
+  ok(showSessionCompleteBody.toLowerCase().indexOf('"' + frag) === -1 && showSessionCompleteBody.toLowerCase().indexOf(frag + ' ') === -1,
+     'THE PAGE renders no prescription-grammar word: "' + frag + '"');
+});
+
+// Closing sentence: real counts only, "kept" grammar, volume omitted when
+// meaningless (only pushed when > 0 -- never "0 kg").
+ok(/if \(volume > 0\)/.test(showSessionCompleteBody), 'volume line only rendered when > 0 (never "0 kg")');
+ok(/" kept"/.test(showSessionCompleteBody), 'closing sentence uses "kept" grammar');
+
+// PR marker: literal "· best yet", only from buildHonestRead's real prs --
+// no badges, no colour classes.
+ok(/ · best yet/.test(showSessionCompleteBody), '"· best yet" marker present');
+ok(/prNames/.test(showSessionCompleteBody) && /buildHonestRead/.test(showSessionCompleteBody),
+   '"· best yet" is driven by buildHonestRead PRs, not a separate/fake PR check');
+
+// Rejected copy stays off the page (the RENDERED_SURFACES sweep covers this
+// too; assert the receipt-era phrases the ticket names explicitly).
+['training receipt', 'signed off', 'work done'].forEach(function (phrase) {
+  ok(showSessionCompleteBody.toLowerCase().indexOf(phrase) === -1,
+     'THE PAGE renders no retired receipt phrase: "' + phrase + '"');
+});
+
+// Zero-logged stays toast-only: the protected toast copy is intact and the
+// page is only reached through endSession's hasRealWork gate.
+ok(/toast\("Nothing logged\. Left as is\."\);/.test(SRC), 'zero-logged toast copy is exactly "Nothing logged. Left as is."');
+
+// Done exit: quiet "Done." label, mechanics unchanged (closeDlg + backToWeek).
+ok(/primaryBtn\.textContent = "Done\.";/.test(showSessionCompleteBody), 'exit action is labelled exactly "Done."');
+ok(/closeDlg\(\);[\s\S]{0,60}backToWeek\(\);/.test(showSessionCompleteBody), 'Done keeps the closeDlg + backToWeek mechanics');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

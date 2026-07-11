@@ -209,18 +209,22 @@ const LIBRARY_STUB_NOTE = 'computeWeeklyDebt looks up LIBRARY by exercise name -
 // ==================================================================
 // FIX 2: partial/full/density finish receipt no longer duplicates "N sets logged"
 // ==================================================================
+// v1.10 Ticket 5 THE PAGE: the receipt's summary/fact split is gone -- the
+// closing sentence is now the single honest counts line. The Fix-2 property
+// this block protected (the set count is stated exactly once) still holds:
+// only closeParts carries it.
 {
-  const summaryIdx = SRC.indexOf('var summaryParts = [];');
-  const factIdx = SRC.indexOf('var factEl = $("completeFact");');
-  ok(summaryIdx > 0 && factIdx > summaryIdx, 'summary + fact blocks located in order');
-  const summaryBlock = SRC.slice(summaryIdx, SRC.indexOf('$("completeSummary")', summaryIdx) + 200);
-  ok(!/summaryParts\.push\(setsDone \+ " set"/.test(summaryBlock),
-     'the summary line no longer pushes a "N set(s) logged" phrase (Fix 2)');
-  ok(/summaryParts\.push\(roundsTotal \+ " round"/.test(summaryBlock),
-     'the summary line still carries the rounds-logged phrase (density behavior unchanged apart from the dedup)');
-  ok(/summaryEl\.hidden = !summaryTxt;/.test(SRC), 'the summary element is hidden when it has nothing left to say (e.g. a clean full finish with no skips/rounds/ready lifts)');
-  ok(/factTxt = \(setsDone > 0 && mins != null\) \? \(setsDone \+ " set" \+ \(setsDone === 1 \? "" : "s"\) \+ " logged · " \+ mins \+ " min"\)/.test(SRC),
-     '#completeFact still carries the single authoritative "N sets logged · M min" line');
+  const closeIdx = SRC.indexOf('var closeParts = [];');
+  ok(closeIdx > 0, 'closing-sentence block located');
+  const closeBlock = SRC.slice(closeIdx, closeIdx + 1400);
+  ok(/closeParts\.push\(setsDone \+ " set" \+ \(setsDone === 1 \? "" : "s"\) \+ " kept"\)/.test(closeBlock),
+     'closing sentence carries the single "N set(s) kept" count');
+  ok(/closeParts\.push\(roundsTotal \+ " round" \+ \(roundsTotal === 1 \? "" : "s"\) \+ " kept"\)/.test(closeBlock),
+     'closing sentence still carries the honest rounds count for density-only sessions');
+  ok(!/completeSummary/.test(SRC) && !/completeFact/.test(SRC),
+     'the old summary/fact receipt elements are fully gone (no duplicate counts possible)');
+  ok((SRC.match(/" kept"/g) || []).length >= 2 && !/logged · /.test(closeBlock.replace(/sets kept/g, '')),
+     'set count is stated exactly once, in "kept" grammar, with no leftover "logged ·" line');
 }
 
 // ---------- Regression: zero-logged finish, full finish, density finish still correct ----------
@@ -228,8 +232,10 @@ const LIBRARY_STUB_NOTE = 'computeWeeklyDebt looks up LIBRARY by exercise name -
 // in test-v1_4-density-finish.js and test-v1_8-tempo-finish.js -- re-run here
 // as part of the required regression list via the shared harness pattern.)
 ok(/toast\("Nothing logged\. Left as is\."\);/.test(SRC), 'zero-logged finish toast copy is exactly "Nothing logged. Left as is." (unchanged)');
-ok(/"That’s the work done\."/.test(SRC), 'full finish headline unchanged ("That’s the work done.")');
-ok(/"Work logged\."/.test(SRC), 'density finish headline unchanged ("Work logged.")');
+// v1.10 Ticket 5 THE PAGE: the spoken line replaced the old headlines --
+// "Work logged." (full/density) / "Enough for today." (partial).
+ok(/"Work logged\."/.test(SRC), 'full/density finish spoken line is "Work logged."');
+ok(/"Enough for today\."/.test(SRC), 'partial finish spoken line is "Enough for today."');
 
 // ==================================================================
 // FIX 3: em dash copy replaced

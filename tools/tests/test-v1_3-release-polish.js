@@ -150,14 +150,13 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(!/Nice work this week/.test(SRC), '"Nice work this week" no longer appears anywhere (test 7)');
   ok(/Week's work done/.test(SRC), 'the week-complete hero heading now reads "Week\'s work done"');
   ok(!/"Session complete"/.test(SRC), 'the literal "Session complete" string is gone from source');
-  // v1.8 TEMPO Ticket 2 (approved) replaced the receipt's static overline
-  // default and the full-completion headline copy: "That's the work done"
-  // (straight apostrophe, no period) is now "That’s the work done." on the
-  // full-finish headline; "Finished early" was retired in favour of the
-  // partial-finish headline "Enough for today." Both changes are part of
-  // the approved finish-result-sheet contract, not a regression.
-  ok(/That’s the work done\./.test(SRC), '"That’s the work done." appears for the full-finish headline (v1.8 TEMPO)');
-  ok(/"Enough for today\."/.test(SRC), 'the partial-finish headline reads "Enough for today." (v1.8 TEMPO, replaces "Finished early")');
+  // v1.10 Ticket 5 THE PAGE (approved) replaced the receipt headlines with
+  // the spoken line: "Work logged." on full/density finishes, "Enough for
+  // today." on partial finishes. "That's the work done." was retired with
+  // the receipt sheet. Both are approved copy contract, not a regression.
+  ok(!/work done\./.test(SRC), 'the retired receipt headline "That\'s the work done." is gone (v1.10 Ticket 5)');
+  ok(/"Work logged\."/.test(SRC), 'the full-finish spoken line reads "Work logged." (v1.10 Ticket 5)');
+  ok(/"Enough for today\."/.test(SRC), 'the partial-finish spoken line reads "Enough for today." (v1.8 TEMPO, kept by v1.10 Ticket 5)');
 }
 
 // ---------- v136A/v135/v136B regression guards (unchanged strings must survive) ----------
