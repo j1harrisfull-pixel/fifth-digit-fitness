@@ -539,5 +539,12 @@ REJECTED.forEach(function (phrase) {
 ok(!/state\.armed\b|state\.preview\b|state\.todayPick\b/.test(isPreviewSessionSrc + armedSessionIdxSrc),
    'no new stored field introduced by the armed-session resolver');
 
+// Ticket 6 QA fix guard: .daypreview-banner uses display:flex, which beats
+// the plain [hidden] attribute (same trap as .coachhint / .signoff-beat).
+// Without the explicit override the banner renders on ARMED sessions too,
+// claiming "Nothing logs from here" while logging actually works.
+ok(/\.daypreview-banner\[hidden\] \{ display: none; \}/.test(SRC),
+   '.daypreview-banner[hidden] display:none override exists (banner truly hides on armed sessions)');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

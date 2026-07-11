@@ -205,6 +205,10 @@ input, textarea { font: inherit; color: inherit; }
    Rule, so this button deliberately does not use it. */
 .daypreview-banner__btn { flex: none; background: none; border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: var(--radius); cursor: pointer; white-space: nowrap; }
 .daypreview-banner__btn:hover { border-color: var(--ink); }
+/* display:flex above overrides the plain [hidden] attribute (same trap as
+   .coachhint / .signoff-beat) -- without this, the preview banner shows on
+   ARMED sessions too, saying "Nothing logs from here" while logging works. */
+.daypreview-banner[hidden] { display: none; }
 /* v1.9 Preview Clarity: preview is not an active workout -- the whole
    Reset + "N/M exercises" progress row (#sessionHead) is absent, not
    greyed, exactly like Start/Finish already are in preview. */
