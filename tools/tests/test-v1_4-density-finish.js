@@ -45,7 +45,7 @@ function extractFn(name) {
 }
 
 const NAMES = ['isSkipped', 'isSessionFinished', 'hasRealWork', 'blockPseudoId', 'readBlockLog', 'writeBlockLog',
-  'sessionProgress', 'sessionItemsFor', 'compactLog', 'endSession', 'showSessionComplete'];
+  'sessionProgress', 'displayOrderedExercises', 'sessionItemsFor', 'compactLog', 'endSession', 'showSessionComplete'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 const harness = `

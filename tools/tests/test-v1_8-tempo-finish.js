@@ -42,7 +42,7 @@ ok(extractFn('showSessionComplete').indexOf('moved up this block') === -1, 'the 
 
 // ---------- Harness: real showSessionComplete/endSession/hasRealWork/etc ----------
 const NAMES = ['isSkipped', 'isSessionFinished', 'hasRealWork', 'blockPseudoId', 'readBlockLog', 'writeBlockLog',
-  'sessionProgress', 'sessionItemsFor', 'compactLog', 'endSession', 'showSessionComplete'];
+  'sessionProgress', 'displayOrderedExercises', 'sessionItemsFor', 'compactLog', 'endSession', 'showSessionComplete'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 const harness = `

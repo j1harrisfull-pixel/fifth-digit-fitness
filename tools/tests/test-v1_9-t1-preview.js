@@ -63,6 +63,7 @@ const spanStart = SRC.indexOf('/*__COACH_START__*/'), spanEnd = SRC.indexOf('/*_
 // ==================================================================
 const firstIncompleteIdSrc = extractFn('firstIncompleteId');
 const sessionProgressSrc = extractFn('sessionProgress');
+const displayOrderedExercisesSrc = extractFn('displayOrderedExercises');
 const sessionItemsForSrc = extractFn('sessionItemsFor');
 const isSessionFinishedSrc = extractFn('isSessionFinished');
 const programTrainDaysSrc = extractFn('programTrainDays');
@@ -94,7 +95,8 @@ const harness = `
   function blockPseudoId(b) { return 'blk_' + b; }
   ${firstIncompleteIdSrc}
   ${sessionProgressSrc}
-  ${sessionItemsForSrc}
+  ${displayOrderedExercisesSrc}
+    ${sessionItemsForSrc}
   ${isSessionFinishedSrc}
   ${programTrainDaysSrc}
   ${weekdayForSessionSrc}
@@ -273,6 +275,7 @@ GUARDED_FNS.forEach(function (name) {
     function readBlockLog() { return { rounds: 0, completed: false }; }
     function blockPseudoId(b) { return 'blk_' + b; }
     ${sessionProgressSrc}
+    ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
     function sessionItems() { return sessionItemsFor(curSession()); }
     ${firstIncompleteIdSrc}

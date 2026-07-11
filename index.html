@@ -5993,9 +5993,33 @@ function resolveSpec(request, state) {
   // ("x/y exercises"), firstIncompleteId, and currentId all treat it as one
   // thing to complete, exactly like any other item, with no changes to that
   // shared logic.
+  // v1.11.1 (NEXT Highlight fix): walk exercises in the SAME order the
+  // screen actually displays them, not the raw storage order. renderList
+  // groups cards by .block into displayOrder (warmup, strength,
+  // conditioning, cooldown) via ses.blocks -- but the underlying
+  // ses.exercises array is assembled by the generator as
+  // strengthEx.concat(extraEx), i.e. strength/conditioning FIRST, then
+  // warm-up/cool-down appended after. Every other caller of sessionItemsFor
+  // only ever sums done/total (order-irrelevant), but currentId()'s
+  // firstIncompleteId() and computeNextUpcomingId() walk this list looking
+  // for the FIRST incomplete item -- on a fresh session that mismatch made
+  // CURRENT default to the first STRENGTH exercise while three untouched
+  // warm-up cards sat above it on screen, unhighlighted. Mirroring
+  // renderList's own grouping here (same ses.blocks order, same fallback to
+  // raw order when ses.blocks is absent) makes "first incomplete" agree
+  // with "first card on screen" -- no data-shape change, no coach-span
+  // touch, no change to any sum-based caller.
+  function displayOrderedExercises(ses) {
+    if (!Array.isArray(ses.blocks) || !ses.blocks.length) return ses.exercises;
+    var byBlock = {};
+    ses.exercises.forEach(function (e) { var k = e.block || "strength"; (byBlock[k] = byBlock[k] || []).push(e); });
+    var ordered = [];
+    ses.blocks.forEach(function (b) { (byBlock[b.kind] || []).forEach(function (e) { ordered.push(e); }); });
+    return ordered;
+  }
   function sessionItemsFor(ses) {
     var items = [], seenBlock = {};
-    ses.exercises.forEach(function (e) {
+    displayOrderedExercises(ses).forEach(function (e) {
       if (e.densityMode) {
         var bid = blockPseudoId(e.block);
         if (seenBlock[bid]) return;
@@ -6053,8 +6077,39 @@ function resolveSpec(request, state) {
   }
   function applyGlance() {
     var items = sessionItems(), cid = currentId(), p = sessionProgress(items);
+    // v1.11.1 (NEXT Highlight fix): applyGlance is called after every live
+    // DOM patch (set logged/unlogged, exercise selected/collapsed, skip/
+    // unskip) but previously only ever toggled .is-current -- .is-up-next
+    // and the visible zone-label word (Done/Next/Then) were baked in at
+    // full-render time and never revisited, so a card that became DONE or
+    // stopped being NEXT mid-session kept its stale label until the next
+    // full renderList(). This makes applyGlance the single live owner of
+    // ALL zone state, recomputing nextId the exact same way renderList does
+    // (computeNextUpcomingId, unchanged) and re-deriving each card's zone
+    // word with the exact same mapping buildCard/buildDensityCard already
+    // use at render time (complete -> Done, id === nextId -> Next, else
+    // Then) -- so a full render and a live patch can never disagree.
+    var nextId = computeNextUpcomingId(cid);
+    var byId = {}; for (var k = 0; k < items.length; k++) byId[items[k].id] = items[k];
     var cards = listEl.querySelectorAll(".card");
-    for (var i = 0; i < cards.length; i++) cards[i].classList.toggle("is-current", cards[i].getAttribute("data-ex") === cid);
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i], exId = card.getAttribute("data-ex");
+      card.classList.toggle("is-current", exId === cid);
+      var isUpNext = !!(nextId && exId === nextId);
+      card.classList.toggle("is-up-next", isUpNext);
+      var it = byId[exId];
+      var complete = !!(it && it.sets > 0 && (it.doneCount || 0) === it.sets);
+      // The first .card__zonelabel in a card is always the COLLAPSED row's
+      // word (Then/Next/Done) -- the expanded (.card__full) CURRENT card
+      // has its own separate, always-literal "Current" label later in the
+      // markup, which never needs updating here.
+      var zoneEl = card.querySelector(".card__zonelabel");
+      if (zoneEl) {
+        var zoneWord = complete ? "Done" : isUpNext ? "Next" : "Then";
+        zoneEl.textContent = zoneWord;
+        zoneEl.className = "card__zonelabel card__zonelabel--" + zoneWord.toLowerCase();
+      }
+    }
     var fill = document.getElementById("sprogFill"), txt = document.getElementById("sprogTxt");
     if (fill) fill.style.transform = "scaleX(" + (p.total ? p.done / p.total : 0) + ")";
     if (txt) txt.textContent = p.done + "/" + p.total + " exercises";

@@ -50,7 +50,7 @@ function extractFn(name) {
 // not reimplemented. None of this file's fixtures set state.todayPick, so it
 // safely short-circuits to "no pick" (-1) and every existing assertion below
 // is unaffected.
-const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession', 'countCompletedSets', 'sessionDensityRounds', 'validTodayPick'];
+const NAMES = ['sessionProgress', 'isSkipped', 'isSessionFinished', 'hasRealWork', 'displayOrderedExercises', 'sessionItemsFor', 'heroInfo', 'weekDayStatus', 'compactLog', 'endSession', 'countCompletedSets', 'sessionDensityRounds', 'validTodayPick'];
 const body = NAMES.map(extractFn).join('\n\n');
 
 // Sandbox: a mutable `state`, a stub `readLog` (surfaces exactly the sets the

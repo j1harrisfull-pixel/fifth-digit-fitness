@@ -49,6 +49,7 @@ const spanStart = SRC.indexOf('/*__COACH_START__*/'), spanEnd = SRC.indexOf('/*_
 // ==================================================================
 const firstIncompleteIdSrc = extractFn('firstIncompleteId');
 const sessionProgressSrc = extractFn('sessionProgress');
+const displayOrderedExercisesSrc = extractFn('displayOrderedExercises');
 const sessionItemsForSrc = extractFn('sessionItemsFor');
 const isSessionFinishedSrc = extractFn('isSessionFinished');
 const hasRealWorkSrc = extractFn('hasRealWork');
@@ -83,6 +84,7 @@ function resolverHarness() {
     function blockPseudoId(b) { return 'blk_' + b; }
     ${firstIncompleteIdSrc}
     ${sessionProgressSrc}
+    ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
     ${isSessionFinishedSrc}
     ${hasRealWorkSrc}
@@ -240,6 +242,7 @@ function actionHarness() {
     function blockPseudoId(b) { return 'blk_' + b; }
     ${firstIncompleteIdSrc}
     ${sessionProgressSrc}
+    ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
     ${isSessionFinishedSrc}
     ${hasRealWorkSrc}
