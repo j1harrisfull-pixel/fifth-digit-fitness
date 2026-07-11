@@ -232,9 +232,13 @@ input, textarea { font: inherit; color: inherit; }
    coach check-in, not a muted label -- still clearly lighter (500) than the
    hero name's 800, so the today-card stays the loudest thing on screen. */
 .home-hero__greeting { font-family: var(--font-body); font-weight: 500; font-size: 18px; line-height: 1.3; color: var(--ink); margin: 0 0 14px; }
-.home-hero__win { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 11px 13px; border: 1px solid var(--ready); background: color-mix(in srgb, var(--ready) 9%, transparent); font-size: 14px; font-weight: 600; color: var(--ink); }
-.home-hero__win-check { flex: none; display: grid; place-items: center; color: var(--ready); }
-.home-hero__win-check svg { width: 17px; height: 17px; }
+/* v1.10 Human Feel Ticket 2: this used to be a bordered, tinted alert box --
+   a status badge, exactly the "dashboard card" feel the direction moves
+   away from. Now a plain two-line sentence with a small quiet check mark,
+   same weight as the reading line above it. */
+.home-hero__win { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 14px; font-size: 14px; font-weight: 500; color: var(--ink); }
+.home-hero__win-check { flex: none; display: grid; place-items: center; color: var(--ready); margin-top: 2px; }
+.home-hero__win-check svg { width: 15px; height: 15px; }
 .home-hero__win b { font-weight: 700; }
 /* Consistency strip: the last 14 days, filled purely on whether a session was
    logged. No red for a gap -- an untrained day and a scheduled rest day look
@@ -283,8 +287,11 @@ input, textarea { font: inherit; color: inherit; }
 .app[data-view="week"] .home-hero__reading-dot { background: var(--tempo-brass); }
 .app[data-view="week"] .home-hero__reading.is-manage .home-hero__reading-dot { background: var(--manage); }
 .app[data-view="week"] .home-hero__reading.is-rough .home-hero__reading-dot { background: var(--rough); }
-.app[data-view="week"] .home-hero__win { border-color: var(--tempo-clay); background: color-mix(in srgb, var(--tempo-clay) 12%, transparent); color: var(--tempo-ink); }
-.app[data-view="week"] .home-hero__win-check { color: var(--tempo-clay); }
+/* v1.10 Human Feel Ticket 2: clay is reserved for the primary action (the
+   CTA below); this quiet confirmation line now reads in the same dim ink as
+   every other ledger mark on Home, not a second accent color. */
+.app[data-view="week"] .home-hero__win { color: var(--tempo-ink); }
+.app[data-view="week"] .home-hero__win-check { color: var(--tempo-dim); }
 /* Memory line: one honest, read-only recall of real logged data (see
    homeMemoryLine() in the display layer -- reads state.log/state.archive
    only, never coach-span, never writes). Quiet -- a footnote to the
@@ -306,6 +313,7 @@ input, textarea { font: inherit; color: inherit; }
 .app[data-view="week"] .today-card__lift { position: relative; z-index: 1; border-top-color: var(--tempo-bone-line); color: var(--tempo-bone-ink); }
 .app[data-view="week"] .today-card__lift-meta { color: var(--tempo-bone-dim); }
 .app[data-view="week"] .today-card__lift--more { color: var(--tempo-bone-dim); }
+.app[data-view="week"] .today-card__recap { position: relative; z-index: 1; color: var(--tempo-bone-dim); border-top-color: var(--tempo-bone-line); }
 .app[data-view="week"] .today-card__cta { position: relative; z-index: 1; background: var(--tempo-clay-deep); color: var(--tempo-bone); border-radius: 999px; }
 .app[data-view="week"] .today-card__sub { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
 .app[data-view="week"] .today-card__sub:hover { color: var(--tempo-bone-ink); }
@@ -481,6 +489,10 @@ input, textarea { font: inherit; color: inherit; }
 .today-card__lift-name { min-width: 0; }
 .today-card__lift-meta { flex: none; font-size: 12px; color: var(--faint); }
 .today-card__lift--more { color: var(--faint); font-size: 12px; justify-content: flex-start; }
+/* v1.10 Human Feel Ticket 2: Home's own week-done recap reads as one ledger
+   sentence now (see .recap-stats below for the still-used History-sheet
+   stat-box treatment, untouched). */
+.today-card__recap { font-size: 13px; color: var(--ink-dim); margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
 /* Week recap: real numbers, no chart -- three at most, so it reads at a
    glance instead of turning the hero into a dashboard. */
 .recap-stats { display: flex; gap: 20px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -6277,9 +6289,12 @@ function resolveSpec(request, state) {
       // v1.8 TEMPO fresh-install treatment: no program yet, so no memory,
       // no progress, no invented personalisation -- just the two honest
       // doors (build a week, or train today instead) and a plain footnote.
+      // v1.10 Human Feel Ticket 2: record-led fresh-install copy -- "this
+      // becomes your training log" states what the app IS, not what it wants
+      // you to do (no sales-page framing). Same two doors, same footnote.
       el.innerHTML = greetHtml +
         '<div class="today-card">' +
-          '<p class="today-card__why">Build your training week.<br>Set days, time, and kit.</p>' +
+          '<p class="today-card__why">This becomes your training log.<br>Build the first week.</p>' +
           '<button type="button" class="today-card__cta" id="homeFreshCta">Build your training week</button>' +
           '<button type="button" class="today-card__sub" id="homeFreshSub">Train today instead →</button>' +
           '<p class="today-card__foot">Your first 14 days start here.</p>' +
@@ -6323,17 +6338,23 @@ function resolveSpec(request, state) {
     // Hold today's win: if a session was finished TODAY and the week isn't over,
     // lead the hero with what you just did before it asks for the next one -- so
     // the home screen reflects the achievement back at you, not only "up next".
-    var doneThisWeek = 0, wonTodayName = "";
+    var doneThisWeek = 0, wonTodayName = "", wonTodaySets = 0;
     wk.sessions.forEach(function (s, idx) {
       var pp = sessionProgress(sessionItemsFor(s));
       if (!(pp.total > 0 && pp.done === pp.total)) return;
       doneThisWeek++;
       var sl = state.log[s.id];
-      if (sl && sl.date && String(sl.date).slice(0, 10) === todayStr()) wonTodayName = dayPositionLabel(wk.sessions, idx);
+      if (sl && sl.date && String(sl.date).slice(0, 10) === todayStr()) { wonTodayName = dayPositionLabel(wk.sessions, idx); wonTodaySets = countCompletedSets(sl); }
     });
     var hi = heroInfo(wk), weekDone = hi.weekDone, weekFullyComplete = hi.weekFullyComplete, heroIdx = hi.heroIdx, todayPicked = hi.picked >= 0;
+    // v1.10 Human Feel Ticket 2: the "win" line was a single middot-joined
+    // status fragment ("Done today · Push · 2nd of 3 done this week") -- a
+    // dashboard-badge shape. Same two real facts (which session, how many
+    // real sets), spoken as a sentence instead. The week-position count is
+    // dropped -- the week list right below already shows it, so repeating it
+    // here was the redundant, mechanical part.
     var winHtml = (wonTodayName && !weekDone)
-      ? '<div class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done today · <b>' + esc(wonTodayName) + '</b> · ' + ordinal(doneThisWeek) + ' of ' + wk.sessions.length + ' done this week</span></div>'
+      ? '<p class="home-hero__win"><span class="home-hero__win-check" aria-hidden="true">' + checkIcon + '</span><span>Done for today.<br><b>' + esc(wonTodayName) + '</b> is banked. ' + esc(wonTodaySets + (wonTodaySets === 1 ? " set kept." : " sets kept.")) + '</span></p>'
       : "";
     var heroSes = wk.sessions[heroIdx];
     var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
@@ -6344,7 +6365,11 @@ function resolveSpec(request, state) {
     // v1.9 Train This Today Hero Fix: an explicit todayPick gets its own
     // honest label -- "Up next" implies the normal schedule/first-incomplete
     // order chose this session, when really the user did.
-    var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : (todayPicked ? "Chosen today" : "Up next");
+    // v1.10 Human Feel Ticket 2: the normal-day eyebrow reads "Today's work"
+    // instead of "Up next" -- Home is today's training page, not a queue; a
+    // scheduled or flexible-programme fallback session is still just today's
+    // work from the user's seat, whichever way it got picked.
+    var label2 = weekDone ? (weekFullyComplete ? "Week complete" : "Week wrapped") : (todayPicked ? "Chosen today" : "Today's work");
     var name = weekDone ? "Week's work done" : (heroSes ? dayPositionLabel(wk.sessions, heroIdx) : "");
     // Subline leads with the session's muscle focus (the coached detail), not a
     // generic "pick up where you left off". Mid-session it appends the honest
@@ -6367,8 +6392,12 @@ function resolveSpec(request, state) {
     // v1.10 Human Feel Ticket 1: Training Ledger voice, active ("you chose")
     // rather than passive ("is set") -- same two facts (what, and that
     // nothing else moved), same data (name), just spoken.
+    // v1.10 Human Feel Ticket 2: the weekDone branch used to repeat "N of M
+    // sessions done" here AND again in the recap sentence below it -- same
+    // number, said twice in two different registers. Left silent here now;
+    // the ledger recap sentence is the one place that fact is stated.
     var subLine = todayPicked ? ("You chose " + name + " for today.\nThe rest of the week stays where it is.")
-      : weekDone ? (doneThisWeek + " of " + wk.sessions.length + " sessions done")
+      : weekDone ? ""
       : started ? (leftN + (leftN === 1 ? " exercise left" : " exercises left"))
       : (metaHtml ? "" : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : "")));
     var subHtml = subLine ? '<p class="today-card__why">' + esc(subLine) + '</p>' : "";
@@ -6430,14 +6459,18 @@ function resolveSpec(request, state) {
     // Week recap: only worth the extra weight once the week is actually done,
     // and only shows what's genuinely there -- volume is omitted entirely for
     // a bodyweight/band-only week rather than printing a hollow "0kg".
+    // v1.10 Human Feel Ticket 2: the three-box stat dashboard (Sessions /
+    // Sets logged / Volume) is replaced with one ledger sentence built from
+    // the exact same computeWeekRecap() numbers -- "State becomes sentence",
+    // not a new source of truth. New bests keep their own real-PR block,
+    // unchanged.
     var recapHtml = "";
     if (weekDone) {
       var recap = computeWeekRecap(wk), runit = state.program.unit;
-      recapHtml = '<div class="recap-stats">' +
-        '<div class="recap-stat"><span class="recap-stat__num mono">' + recap.sessionsDone + '/' + recap.sessionsTotal + '</span><span class="recap-stat__label">Sessions</span></div>' +
-        '<div class="recap-stat"><span class="recap-stat__num mono">' + recap.totalSets + '</span><span class="recap-stat__label">Sets logged</span></div>' +
-        (recap.totalVolume > 0 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + recap.totalVolume.toLocaleString() + '</span><span class="recap-stat__label">Volume ' + esc(runit) + '</span></div>' : '') +
-        '</div>' +
+      var recapSentence = recap.sessionsDone + " of " + recap.sessionsTotal + (recap.sessionsTotal === 1 ? " session" : " sessions") + " closed. " +
+        recap.totalSets + (recap.totalSets === 1 ? " set" : " sets") + " kept." +
+        (recap.totalVolume > 0 ? " " + recap.totalVolume.toLocaleString() + runit + " lifted." : "");
+      recapHtml = '<p class="today-card__recap mono">' + esc(recapSentence) + '</p>' +
         (recap.prs.length ? '<div class="recap-prs"><p class="recap-prs__label">New bests this week</p>' +
           recap.prs.map(function (p) { return '<p class="recap-prs__row">' + esc(p.name) + ' <b class="mono">' + p.orm + esc(runit) + '</b></p>'; }).join('') +
           '</div>' : '');

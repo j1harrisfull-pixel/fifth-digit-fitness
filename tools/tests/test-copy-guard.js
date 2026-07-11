@@ -242,5 +242,46 @@ const annoUsesOutsideWeekList = (outsideWeekList.match(/weekrow__anno/g) || []).
 ok(annoUsesOutsideWeekList <= 3, // the 3 CSS rule definitions themselves (.weekrow__anno, .weekrow__anno--done, plus the comment mentioning the class name)
    '.weekrow__anno is not used anywhere outside week-row rendering + its own CSS rules (scoped to week rows only, per v1.10 approval) -- found ' + annoUsesOutsideWeekList + ' references outside renderWeekList');
 
+// ---------- 7. v1.10 Ticket 2 (Home / Weekly Surface) copy + honesty proofs ----------
+const heroBody = RENDERED_SURFACES['renderHomeHero (Home hero, fatigue line, streak stat, memory/reason lines)'];
+
+// Normal training day: eyebrow renamed "Up next" -> "Today's work".
+ok(/label2 = weekDone \? \(weekFullyComplete \? "Week complete" : "Week wrapped"\) : \(todayPicked \? "Chosen today" : "Today's work"\)/.test(heroBody),
+   'Home normal-day eyebrow renders "Today\'s work" (was "Up next")');
+ok(!/"Up next"/.test(heroBody), 'old "Up next" eyebrow string is gone from renderHomeHero');
+
+// Chosen-today body (re-asserted here alongside the rest of Ticket 2's proofs;
+// unchanged from Ticket 1, see section 5 above for the original assertion).
+ok(/"You chose " \+ name \+ " for today\.\\nThe rest of the week stays where it is\."/.test(heroBody),
+   'Home chosen-today body still present, unchanged by Ticket 2');
+
+// Finished/banked ("win") state: sentence-shaped, no praise/gamified copy.
+ok(/Done for today\.<br><b>/.test(heroBody), 'Home finished/banked state renders "Done for today." sentence');
+ok(/is banked\. /.test(heroBody), 'Home finished/banked state renders "<Session> is banked."');
+ok(/" set kept\."/.test(heroBody) && /" sets kept\."/.test(heroBody), 'Home finished/banked state renders unit-honest "N set(s) kept."');
+ok(!/Done today ·/.test(heroBody), 'old middot-fragment "Done today · X · Nth of M done this week" win line is gone');
+['great job', 'well done', 'crushed it', 'smashed it', 'level up', 'signed off', 'training receipt'].forEach(function (phrase) {
+  ok(heroBody.toLowerCase().indexOf(phrase) === -1, 'Home finished/banked state does not render praise phrase: "' + phrase + '"');
+});
+
+// Fresh install: record-led copy, not a sales pitch.
+ok(SRC.indexOf('This becomes your training log.') !== -1, 'fresh-install copy present: "This becomes your training log."');
+ok(SRC.indexOf('Build the first week.') !== -1, 'fresh-install copy present: "Build the first week."');
+
+// Week recap: dashboard stat boxes replaced with one real-data ledger sentence.
+ok(/recapSentence = recap\.sessionsDone \+ " of " \+ recap\.sessionsTotal/.test(heroBody), 'Home week recap built from computeWeekRecap()\'s real sessionsDone/sessionsTotal (unit-honest)');
+ok(/recap\.totalSets \+ \(recap\.totalSets === 1 \? " set" : " sets"\) \+ " kept\."/.test(heroBody), 'Home week recap renders real totalSets as "N sets kept." (unit-honest)');
+ok(!/class="recap-stats">/.test(heroBody), 'Home week recap no longer renders the boxed .recap-stats dashboard markup (still used, unchanged, by the History sheet elsewhere)');
+ok(!/Sets logged/.test(heroBody), 'old "Sets logged" stat-box label is gone from Home');
+ok(heroBody.toLowerCase().indexOf('streak') === -1, 'Home renders no "streak" language anywhere (recap or otherwise)');
+
+// No new persisted state / no new data shape: renderHomeHero and
+// renderWeekList only ever READ state.todayPick, state.log, state.archive,
+// state.program -- confirm no new state.* write was introduced by this ticket.
+ok(!/state\.\w+\s*=/.test(heroBody.replace(/state\.todayPick/g, '')) || !/state\.(?!todayPick)\w+\s*=(?!=)/.test(heroBody),
+   'renderHomeHero introduces no new state.* writes (display-layer only)');
+ok(!/state\.\w+\s*=(?!=)/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']),
+   'renderWeekList introduces no new state.* writes (display-layer only)');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

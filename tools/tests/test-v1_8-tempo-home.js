@@ -75,8 +75,11 @@ REJECTED.forEach(function (phrase) {
 });
 
 // ---------- 6. Approved-copy guard for new Home strings ----------
+// v1.10 Human Feel Ticket 2 (approved): the fresh-install why-line became the
+// record-led "This becomes your training log. Build the first week." -- the
+// CTA/sub/foot copy this test also checks is unchanged.
 const APPROVED_LITERALS = [
-  'Build your training week.', 'Set days, time, and kit.', 'Train today instead →',
+  'This becomes your training log.', 'Build the first week.', 'Build your training week', 'Train today instead →',
   'Your first 14 days start here.', 'Start the session',
 ];
 APPROVED_LITERALS.forEach(function (s) {
