@@ -286,12 +286,17 @@ profiles.forEach(p => {
 
   // Functions that MUST remain byte-identical to the c556f29 baseline --
   // everything in coach-span except the approved v1.7 prescription areas.
+  // v1.11 (Warm-Up/Cool-Down, James-approved coach-span amendment) also
+  // legitimately changed buildWarmupCooldown and recoverySession -- removed
+  // from this frozen list below and covered by test-phase-b-warmup-cooldown.js
+  // instead. pickPulseRaiser/pickMobilityByPatterns stay in this list: their
+  // function bodies are untouched (only the library data and callers changed).
   const UNCHANGED_FNS = [
     'parseIntake', 'libraryIntegrity', 'splitLabel', 'kitSupportsPPL', 'splitForDays',
     'isHeavyLowerRole', 'pickHardConditioningDay', 'equipOk', 'poolTierOf', 'skillAllowed',
     'pickStrength', 'wasSlotEmptiedBySafety', 'seededJitter', 'weakPointMuscles',
     'anchorIsAvailable', 'mostRecentByPattern', 'selectComplementary', 'pickByType',
-    'pickMobilityByPatterns', 'pickPulseRaiser', 'buildWarmupCooldown', 'pickFunctional',
+    'pickMobilityByPatterns', 'pickPulseRaiser', 'pickFunctional',
     'ririForWeek', 'ririTargetString', 'trimSetsForVolumeLandmark', 'pickConditioning',
     'conditioningAlternatives', 'curveFor', 'buildSetPlan', 'defaultWhy', 'getExPattern',
     'libEntryByName', 'pairLegal', 'exTimed', 'leadEmphasis', 'nameStrengthSessions',
@@ -304,7 +309,7 @@ profiles.forEach(p => {
     'requestToParsed', 'parsedToRequest', 'computeWeeklyDebt', 'computeFatigueState',
     'fatigueBand', 'fatigueBandForAnchorPattern', 'fatigueBandForPatterns',
     'stubBlockWeek', 'todayStr', 'getReadinessToday', 'degradation', 'pickLightPump',
-    'recoverySession', 'resolveSpec'
+    'resolveSpec'
   ];
   let unexpectedDrift = [];
   UNCHANGED_FNS.forEach(name => {

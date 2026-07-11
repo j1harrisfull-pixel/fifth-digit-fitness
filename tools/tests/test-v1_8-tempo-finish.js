@@ -32,7 +32,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 1. Coach-span untouched ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '39026b0244cb88bf92c0d0c6615f01dd', 'coach-span md5 unchanged (39026b0244cb88bf92c0d0c6615f01dd), got ' + spanMd5);
+ok(spanMd5 === '60e1ec07345fba425bcc6ecf97a6da4b', 'coach-span md5 unchanged (60e1ec07345fba425bcc6ecf97a6da4b), got ' + spanMd5);
 
 // ---------- 2. v1.10 Ticket 5: the lift-progress helper was removed WITH
 // its only caller (the receipt's interpretation line) -- the page carries

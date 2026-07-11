@@ -37,7 +37,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 0. Coach-span untouched ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '39026b0244cb88bf92c0d0c6615f01dd', 'coach-span md5 unchanged (39026b0244cb88bf92c0d0c6615f01dd), got ' + spanMd5);
+ok(spanMd5 === '60e1ec07345fba425bcc6ecf97a6da4b', 'coach-span md5 unchanged (60e1ec07345fba425bcc6ecf97a6da4b), got ' + spanMd5);
 const spanStart = SRC.indexOf('/*__COACH_START__*/'), spanEnd = SRC.indexOf('/*__COACH_END__*/');
 ['expireTodayPick', 'validTodayPick', 'armedSessionIdx', 'trainThisTodayClick', 'confirmTrainToday'].forEach(function (name) {
   const at = SRC.indexOf('function ' + name + '(');

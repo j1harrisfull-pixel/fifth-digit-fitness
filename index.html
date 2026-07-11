@@ -2802,6 +2802,16 @@ const LIBRARY = [
   { id: "jumping-jacks", name: "Jumping Jacks", type: "mobility", equipment: "bodyweight", pattern: "pulse-raiser", muscles: ["full body"], compound: false, goals: MOB, unit: "sec", movement_pattern: "pulse-raiser", primary_muscles: ["full body"], secondary_muscles: [], plane: "frontal", fatigue_cost: "low", joint_stress: ["ankle", "knee"], is_unilateral: false, stability_demand: "free", variations: ["high-knees"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, feet together, arms at your sides. Key: jump the feet out wide while raising the arms overhead, then reverse back to the start, landing soft on the balls of the feet. Fault: landing flat-footed and heavy, or letting the pace outrun your breathing." },
   { id: "high-knees", name: "High Knees", type: "mobility", equipment: "bodyweight", pattern: "pulse-raiser", muscles: ["full body"], compound: false, goals: MOB, unit: "sec", movement_pattern: "pulse-raiser", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["ankle", "knee", "hip"], is_unilateral: false, stability_demand: "free", variations: ["jumping-jacks"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, jogging on the spot. Key: drive the knees up toward hip height at a quick, light cadence, pumping the arms. Fault: leaning back to fake the height, or pounding down hard on flat feet." },
   { id: "box-breathing", name: "Box Breathing", type: "mobility", equipment: "bodyweight", pattern: "cooldown-breathing", muscles: ["full body"], compound: false, goals: MOB, unit: "sec", movement_pattern: "cooldown-breathing", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: sit or stand tall, one hand on the chest, one on the belly. Key: inhale for 4, hold for 4, exhale for 4, hold for 4, breathing into the belly not the chest. Fault: rushing the count, or breathing high into the chest instead of low into the belly." },
+  // v1.11: two more bodyweight pulse-raisers, widening the pool from 2 to 4.
+  // Standing March deliberately carries an empty joint_stress[] -- the
+  // gentlest real option, and the only one that survives an ankle or knee
+  // injury flag, so a pulse-raiser is now reachable for those athletes too.
+  { id: "butt-kicks", name: "Butt Kicks", type: "mobility", equipment: "bodyweight", pattern: "pulse-raiser", muscles: ["full body"], compound: false, goals: MOB, unit: "sec", movement_pattern: "pulse-raiser", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee"], is_unilateral: false, stability_demand: "free", variations: ["high-knees", "jumping-jacks"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, jogging on the spot. Key: kick the heels back up toward the glutes at a light, steady cadence, pumping the arms. Fault: leaning forward from the hips, or barely lifting the heels off the floor." },
+  { id: "standing-march-arm-swings", name: "Standing March with Arm Swings", type: "mobility", equipment: "bodyweight", pattern: "pulse-raiser", muscles: ["full body"], compound: false, goals: MOB, unit: "sec", movement_pattern: "pulse-raiser", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: ["high-knees", "jumping-jacks", "butt-kicks"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, feet hip-width apart. Key: march in place at an easy pace, swinging the arms forward and back through a full, loose range. Fault: keeping the arms stiff at the sides, or rushing the pace before the joints feel warm." },
+  // v1.11: two alternate quiet closers, rotated with Box Breathing (see
+  // CLOSER_IDS) instead of it closing every session unconditionally.
+  { id: "childs-pose", name: "Child's Pose", type: "mobility", equipment: "bodyweight", pattern: "cooldown-closer", muscles: ["back", "hips"], compound: false, goals: MOB, unit: "sec", movement_pattern: "cooldown-closer", primary_muscles: ["back"], secondary_muscles: ["hips"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee"], is_unilateral: false, stability_demand: "free", variations: ["standing-forward-fold", "box-breathing"], progression_policy: "pace_or_duration", cue: "Setup: kneel and sit back onto the heels, reach the arms forward and rest the chest toward the thighs. Key: let the low back and shoulders release, breathing slow and even. Fault: forcing the hips down past a comfortable range, or holding the breath instead of easing into it." },
+  { id: "standing-forward-fold", name: "Standing Forward Fold", type: "mobility", equipment: "bodyweight", pattern: "cooldown-closer", muscles: ["hamstrings", "back"], compound: false, goals: MOB, unit: "sec", movement_pattern: "cooldown-closer", primary_muscles: ["hamstrings"], secondary_muscles: ["back"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", variations: ["childs-pose", "box-breathing"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, feet hip-width, knees soft. Key: hinge from the hips and let the upper body hang, arms and neck relaxed, weight even through the feet. Fault: locking the knees straight, or rounding hard through the lower back to force extra range." },
   { id: "smith-shoulder-press", name: "Smith Shoulder Press", type: "strength", equipment: "smith", pattern: "vpush", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", setup: "Set the bar at upper-chest height, position an upright bench centred under it, safeties just below your lowest press point.", movement_pattern: "vert_push", primary_muscles: ["shoulders"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow", "spine"], is_unilateral: false, stability_demand: "machine", variations: ["machine-shoulder-press", "band-overhead-press", "dumbbell-shoulder-press", "arnold-press"], progression_policy: "linear_double_progression_load", cue: "Setup: Seated or standing under the bar at upper-chest height, elbows slightly in front of the bar, ribs stacked over the pelvis. Key: Press the bar up the fixed path to lockout, finishing with the biceps near the ears. Fault: Flaring the elbows wide or arching the lower back to heave the bar off the chest." },
   { id: "smith-rdl", name: "Smith Romanian Deadlift", type: "strength", equipment: "smith", pattern: "hinge", muscles: ["hamstrings", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", setup: "Set the bar at mid-thigh height, feet hip-width directly under it, stand close so the bar tracks your legs.", movement_pattern: "hinge", primary_muscles: ["hamstrings"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "machine", variations: ["band-good-morning", "dumbbell-rdl", "kb-romanian-deadlift", "deadlift"], progression_policy: "linear_double_progression_load", cue: "Setup: Bar at the hips, soft knees, shoulder blades set, the bar tight against the thighs. Key: Push the hips back and trail the bar down the legs until the hamstrings stretch deep, then drive the hips forward to stand tall. Fault: Rounding the back to chase depth or bending the knees so the load leaves the hamstrings." },
   { id: "smith-split-squat", name: "Smith Split Squat", type: "strength", equipment: "smith", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", setup: "Set the bar on your traps, one foot forward under the bar and one back on the ball, safeties below your bottom.", movement_pattern: "lunge", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["knee", "hip", "ankle"], is_unilateral: true, stability_demand: "machine", variations: ["bulgarian-split-squat", "walking-lunge", "reverse-lunge", "step-up"], progression_policy: "linear_double_progression_load", cue: "Setup: Bar on the traps, split stance fixed with the front shin vertical, most of the weight through the front heel. Key: Sink until the rear knee nears the floor so the front glute loads deep, then press the front foot through to stand. Fault: Bouncing off the back knee or letting the front knee cave inward, losing the stretched-position tension." },
@@ -3561,7 +3571,32 @@ var GENERAL_PREP_MAP = {
   hpull: ["shoulder-mobility", "tspine-mobility"], vpull: ["shoulder-mobility", "tspine-mobility"],
   core: ["tspine-mobility"], carry: ["hip-mobility"], calf: ["ankle-mobility"], biceps: [], triceps: []
 };
-var PREP_GROUP_LABEL = { "hip-mobility": "the hips", "ankle-mobility": "the ankles", "shoulder-mobility": "the shoulders", "tspine-mobility": "the upper back" };
+// v1.11: which broad region a prep group belongs to -- used to (a) guarantee a
+// genuine full-body day covers BOTH regions instead of silently truncating to
+// whichever two groups happened to be collected first, and (b) let a wrist or
+// conditioning need compete fairly for a slot without ever bumping the day's
+// own primary joint.
+var LOWER_PREP_REGION = { "hip-mobility": 1, "ankle-mobility": 1 };
+var UPPER_PREP_REGION = { "shoulder-mobility": 1, "tspine-mobility": 1, "wrist-mobility": 1 };
+var PREP_GROUP_LABEL = { "hip-mobility": "the hips", "ankle-mobility": "the ankles", "shoulder-mobility": "the shoulders", "tspine-mobility": "the upper back", "wrist-mobility": "the wrists" };
+// v1.11: one plain reason per prep group, warm-up and cool-down side. Replaces
+// the old single "Preps X for today's work" / "Eases X after today's work"
+// template (same sentence shape on every card, regardless of session) with a
+// specific line per region -- still one line, still no praise.
+var WARM_PREP_REASON = {
+  "hip-mobility": "Opens the hips before you load them.",
+  "ankle-mobility": "Gets the ankles ready for depth.",
+  "shoulder-mobility": "Brings the shoulders through range first.",
+  "tspine-mobility": "Brings the upper back through range first.",
+  "wrist-mobility": "Wrists first — they carry the bar today."
+};
+var COOL_PREP_REASON = {
+  "hip-mobility": "Lets the hips settle.",
+  "ankle-mobility": "Lets the ankles settle.",
+  "shoulder-mobility": "Eases what you loaded.",
+  "tspine-mobility": "Range back in, slowly.",
+  "wrist-mobility": "Eases the wrists after the work."
+};
 // Picks a mobility-library entry whose movement_pattern is one of the given
 // groups, honouring equipment and week-level dedup, preferring the requested
 // character: wantSec true = a STATIC hold (unit "sec" -- cool-down), false = a
@@ -3578,63 +3613,139 @@ function pickMobilityByPatterns(groups, wantSec, allowed, used, seed, injuries) 
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
 // The warm-up's pulse-raiser: a short, light bodyweight movement to elevate
-// heart rate before the movement-prep drills. Always bodyweight (Jumping
-// Jacks / High Knees, rotated by seed) -- no equipment dependency, so every
-// kit gets a real pulse-raiser, not just the ones with cardio machines.
-// Phase 5.5 amendment: same gate. If an injury flags every real candidate
-// (e.g. an ankle injury flags both Jumping Jacks and High Knees), returns
-// null honestly rather than prescribing one anyway.
+// heart rate before the movement-prep drills. Always bodyweight (rotated by
+// seed) -- no equipment dependency, so every kit gets a real pulse-raiser, not
+// just the ones with cardio machines.
+// Phase 5.5 amendment: same gate. If an injury flags every real candidate,
+// returns null honestly rather than prescribing one anyway.
+// v1.11: pool widened from 2 to 4 (Jumping Jacks, High Knees, Butt Kicks,
+// Standing March with Arm Swings) -- the last has an empty joint_stress[] by
+// design, so a pulse-raiser is now reachable even for an athlete whose ankle
+// or knee injury used to flag every real candidate.
 function pickPulseRaiser(used, seed, injuries) {
   var pool = LIBRARY.filter(function (e) { return e.movement_pattern === "pulse-raiser" && !used[e.id] && !isExerciseInjuryFlagged(e, injuries); });
   if (!pool.length) pool = LIBRARY.filter(function (e) { return e.movement_pattern === "pulse-raiser" && !isExerciseInjuryFlagged(e, injuries); });
   return pool.length ? pool[Math.abs(seed) % pool.length] : null;
 }
-// Builds the day's real warm-up (pulse-raiser + up to 2 dynamic movement-prep
-// drills) and cool-down (up to 2 static stretches + a fixed breathing closer),
-// matched to what the day ACTUALLY trains -- derived from the raw strength
-// picks' patterns (works identically for role-based and free-text/Just-Today
-// sessions, since neither depends on a ROLES lookup). Mutates `used` so
-// nothing collides with the rest of the session. Each returned exercise is
-// pre-tagged with its Phase-A `.block` ("warmup"/"cooldown") so attachBlocks
-// respects it instead of falling through to the generic mobility->cooldown
-// default. Deterministic per seed but intentionally not frozen -- called with
-// a week-varying seed (see generateProgram), so it rotates like conditioning.
-function buildWarmupCooldown(strengthPicks, allowed, used, seed, weightMap, minutes, weekNum, isDeload, lastLogs, injuries) {
+// v1.11: the cool-down's quiet closer -- was a single hardcoded Box Breathing
+// lookup every session; now a deterministic seeded rotation across 3 short,
+// restrained options (breathing, a kneeling settle, a standing fold). Same
+// safety gate, same "never a hollow shell" fallback shape as every other
+// picker here -- an injury targeting one closer by name simply removes it
+// from the rotation, it never forces a blank close.
+var CLOSER_IDS = ["box-breathing", "childs-pose", "standing-forward-fold"];
+var CLOSER_REASON = {
+  "box-breathing": "Heart rate down before you go.",
+  "childs-pose": "Let it settle.",
+  "standing-forward-fold": "Range back in, slowly."
+};
+function pickCloser(used, seed, injuries) {
+  var pool = CLOSER_IDS.map(function (id) { return LIBRARY.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
+  var avail = pool.filter(function (e) { return !used[e.id] && !isExerciseInjuryFlagged(e, injuries); });
+  if (!avail.length) avail = pool.filter(function (e) { return !isExerciseInjuryFlagged(e, injuries); });
+  return avail.length ? avail[Math.abs(seed) % avail.length] : null;
+}
+// Builds the day's real warm-up (pulse-raiser + movement-prep drills) and
+// cool-down (static stretches + a quiet closer), matched to what the day
+// ACTUALLY trains -- derived from the raw strength picks' patterns (works
+// identically for role-based and free-text/Just-Today sessions, since neither
+// depends on a ROLES lookup). Mutates `used` so nothing collides with the
+// rest of the session. Each returned exercise is pre-tagged with its Phase-A
+// `.block` ("warmup"/"cooldown") so attachBlocks respects it instead of
+// falling through to the generic mobility->cooldown default. Deterministic
+// per seed but intentionally not frozen -- called with a week-varying seed
+// (see generateProgram), so it rotates like conditioning.
+// v1.11 (three fixes, same "never a hollow shell, never bypass a gate"
+// shape as everything above):
+//   1. A genuinely full-body day (patterns load BOTH the lower and upper
+//      region) used to collect all its groups then silently slice to 2,
+//      which could drop the entire upper-body prep on exactly the day it's
+//      loaded. Now: when both regions are represented, the cap is 3 (pulse +
+//      3, the approved dose), and at least one lower-region and one
+//      upper-region group are guaranteed to survive -- never two of the same
+//      region alone.
+//   2. Wrist prep (a real library pattern that was structurally unreachable,
+//      since nothing ever added "wrist-mobility" to `groups`) becomes
+//      reachable, but ONLY when the real strength picks actually load the
+//      wrists: a barbell hpush/vpush anchor, or a bodyweight push-up. Never
+//      added blindly to every upper day.
+//   3. A session that also carries a conditioning finisher (`includeCon`)
+//      earns real ankle/calf temperature prep, instead of leaning on whatever
+//      the strength side happened to map -- reachable the same way wrist
+//      prep is, by competing fairly for a slot, never by increasing dose
+//      outside the full-body case above.
+function buildWarmupCooldown(strengthPicks, allowed, used, seed, weightMap, minutes, weekNum, isDeload, lastLogs, injuries, includeCon) {
   var groups = [];
   (strengthPicks || []).forEach(function (ex) {
     (GENERAL_PREP_MAP[ex.pattern] || []).forEach(function (g) { if (groups.indexOf(g) < 0) groups.push(g); });
   });
   if (!groups.length) groups = ["hip-mobility", "shoulder-mobility"]; // role-less/free-text: a sane default spread
-  groups = groups.slice(0, 2); // 1 pulse-raiser + up to 2 drills/stretches = the planned 2-3 warm-up items
+
+  var lowerGroups = groups.filter(function (g) { return LOWER_PREP_REGION[g]; });
+  var upperGroups = groups.filter(function (g) { return UPPER_PREP_REGION[g]; });
+  var isFullBody = lowerGroups.length > 0 && upperGroups.length > 0;
+
+  // Fix 2: wrist need read straight off the real strength picks -- a barbell
+  // press (front-rack load on the wrists) or a bodyweight push-up, never a
+  // blanket "every upper day" rule.
+  var wristNeeded = (strengthPicks || []).some(function (ex) {
+    return (ex.pattern === "hpush" || ex.pattern === "vpush") &&
+      (ex.equipment === "barbell" || (ex.equipment === "bodyweight" && ex.pattern === "hpush"));
+  });
+  var condNeeded = !!includeCon;
+
+  if (isFullBody) {
+    // Fix 1: guarantee one lower + one upper group survive, then fill the 3rd
+    // (approved) slot by priority -- a genuine wrist need, then a genuine
+    // conditioning need, then the day's next real candidate group.
+    var extra = null;
+    if (wristNeeded && groups.indexOf("wrist-mobility") < 0) extra = "wrist-mobility";
+    else if (condNeeded && groups.indexOf("ankle-mobility") < 0) extra = "ankle-mobility";
+    var rest = groups.filter(function (g) { return g !== lowerGroups[0] && g !== upperGroups[0]; });
+    groups = [lowerGroups[0], upperGroups[0]].concat(extra ? [extra] : rest.slice(0, 1));
+  } else {
+    // Not a dual-region day: the existing 2-item cap stands. The day's own
+    // anchor pattern always keeps its first (most relevant) group; the
+    // second slot goes to a genuine wrist or conditioning need before a
+    // secondary strength-derived group -- wrist wins the tie since it's
+    // about the load actually in the athlete's hands today.
+    var essential = groups[0];
+    var wanted = [];
+    if (wristNeeded && essential !== "wrist-mobility") wanted.push("wrist-mobility");
+    if (condNeeded && essential !== "ankle-mobility") wanted.push("ankle-mobility");
+    var second = wanted[0] || groups[1];
+    groups = essential ? [essential].concat(second ? [second] : []) : groups.slice(0, 2);
+  }
+  // Final safety net: de-dup and hard-cap at 3 regardless of branch above, so
+  // dose can never silently balloon past the approved full-body allowance.
+  var seenG = {};
+  groups = groups.filter(function (g) { return g && !seenG[g] && (seenG[g] = 1); }).slice(0, 3);
 
   var warmup = [], cooldown = [];
   var pulse = pickPulseRaiser(used, seed + 41, injuries);
   if (pulse) {
     used[pulse.id] = 1;
-    var pEx = buildEx(pulse, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Raises the pulse before the working sets");
+    var pEx = buildEx(pulse, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Raises the pulse before the work.");
     pEx.block = "warmup"; warmup.push(pEx);
   }
   groups.forEach(function (g, i) {
-    var label = PREP_GROUP_LABEL[g] || g;
     var drill = pickMobilityByPatterns([g], false, allowed, used, seed + 43 + i * 7, injuries);
     if (drill) {
       used[drill.id] = 1;
-      var dEx = buildEx(drill, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Preps " + label + " for today's work");
+      var dEx = buildEx(drill, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, WARM_PREP_REASON[g] || ("Preps " + (PREP_GROUP_LABEL[g] || g) + " for today's work."));
       dEx.block = "warmup"; warmup.push(dEx);
     }
     var stretch = pickMobilityByPatterns([g], true, allowed, used, seed + 59 + i * 11, injuries);
     if (stretch) {
       used[stretch.id] = 1;
-      var sEx = buildEx(stretch, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Eases " + label + " after today's work");
+      var sEx = buildEx(stretch, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, COOL_PREP_REASON[g] || ("Eases " + (PREP_GROUP_LABEL[g] || g) + " after today's work."));
       sEx.block = "cooldown"; cooldown.push(sEx);
     }
   });
-  // Phase 5.5 amendment: same gate applies even to this single hardcoded
-  // lookup -- no exception just because it's a fixed exercise, not a pool scan.
-  var breathing = LIBRARY.filter(function (e) { return e.id === "box-breathing"; })[0];
-  if (breathing && !used[breathing.id] && !isExerciseInjuryFlagged(breathing, injuries)) {
+  var breathing = pickCloser(used, seed + 97, injuries);
+  if (breathing) {
     used[breathing.id] = 1;
-    var bEx = buildEx(breathing, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "A steady close, heart rate down before you go");
+    var bEx = buildEx(breathing, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, CLOSER_REASON[breathing.id] || "Heart rate down before you go.");
     bEx.block = "cooldown"; cooldown.push(bEx);
   }
   return { warmup: warmup, cooldown: cooldown };
@@ -4872,7 +4983,7 @@ function generateSession(parsed, weightMap, seed, lastLogs, debt, ease, unlocked
     // per-pattern stretch pool for the rest of the week. The copy still
     // prevents THIS session's picks from colliding with what's already in it.
     var wcUsed = {}; for (var wcKey in ctx.used) wcUsed[wcKey] = ctx.used[wcKey];
-    var wc = buildWarmupCooldown(picks, allowed, wcUsed, seed + 3, weightMap, minutes, 1, false, lastLogs, athlete && athlete.injuries);
+    var wc = buildWarmupCooldown(picks, allowed, wcUsed, seed + 3, weightMap, minutes, 1, false, lastLogs, athlete && athlete.injuries, includeCon);
     extraEx = extraEx.concat(wc.warmup, wc.cooldown);
   }
   if (minutes <= 45) assignSupersets(strengthEx);
@@ -5067,7 +5178,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
         // "uses up" Box Breathing and the small per-pattern stretch pool, and
         // days 2-4 fall back to the wrong content or none at all.
         var wcUsed = {}; for (var wcKey in ctx.used) wcUsed[wcKey] = ctx.used[wcKey];
-        var wc = buildWarmupCooldown(picks, allowed, wcUsed, seed + si * 3 + wn * 7, weightMap, minutes, wn, isDeload, lastLogs, athlete && athlete.injuries);
+        var wc = buildWarmupCooldown(picks, allowed, wcUsed, seed + si * 3 + wn * 7, weightMap, minutes, wn, isDeload, lastLogs, athlete && athlete.injuries, includeCon || isEnd);
         extraEx = extraEx.concat(wc.warmup, wc.cooldown);
       }
 
@@ -5526,17 +5637,16 @@ function recoverySession(allowed, seed, injuries, unlocked) {
   // Phase 7: one light-pump movement, omitted honestly if none is safe.
   var pump = pickLightPump(allowed, used, seed + 27, unlocked, injuries);
   if (pump) { used[pump.id] = 1; extra.push(buildEx(pump, "general", false, {}, 30, 1, false, {}, false, "A light pump, easy on the joints -- not a training stressor today")); }
-  // Phase 7: deterministic breathing close, same lookup + same safety gate
-  // buildWarmupCooldown already uses for this exact exercise -- reused
-  // directly rather than duplicated with different wording. Recovery
-  // sessions don't share buildWarmupCooldown's shape (no strengthPicks to
-  // derive prep groups from, no pulse-raiser/joint-prep content wanted
-  // here), so the small lookup is reused on its own rather than routing
+  // v1.11: same deterministic closer ROTATION buildWarmupCooldown uses (was a
+  // single hardcoded Box Breathing lookup -- the same "always the same
+  // closer" defect this ticket fixes everywhere else). Recovery sessions
+  // don't share buildWarmupCooldown's shape (no strengthPicks to derive prep
+  // groups from), so pickCloser is reused directly rather than routing
   // through the whole function.
-  var breathing = LIBRARY.filter(function (e) { return e.id === "box-breathing"; })[0];
-  if (breathing && !used[breathing.id] && !isExerciseInjuryFlagged(breathing, injuries)) {
-    used[breathing.id] = 1;
-    extra.push(buildEx(breathing, "general", false, {}, 30, 1, false, {}, false, "A steady close, heart rate down before you go"));
+  var closer = pickCloser(used, seed + 97, injuries);
+  if (closer) {
+    used[closer.id] = 1;
+    extra.push(buildEx(closer, "general", false, {}, 30, 1, false, {}, false, CLOSER_REASON[closer.id] || "Heart rate down before you go."));
   }
   return guaranteeSession({ name: "Recovery", focus: "Active recovery · low load, prioritise mobility", exercises: mobs.concat(extra) }, 30, injuries);
 }

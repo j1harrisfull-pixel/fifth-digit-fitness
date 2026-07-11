@@ -117,23 +117,31 @@ const SHOULDER_INJ = [{ category: "pain", target: "shoulder" }];
 }
 
 {
-  // Box Breathing is deterministic when safe.
+  // v1.11: the closer is a deterministic 3-way rotation (pickCloser), not a
+  // single hardcoded Box Breathing lookup -- a real closer still always
+  // appears when safe, it just isn't always the same one.
+  const CLOSER_NAMES = ["Box Breathing", "Child's Pose", "Standing Forward Fold"];
   const sess = recoverySession(null, 1, [], {});
-  ok(sess.exercises.some(e => e.name === "Box Breathing"), "recoverySession includes Box Breathing when it's safe and available");
+  ok(sess.exercises.some(e => CLOSER_NAMES.indexOf(e.name) >= 0), "recoverySession includes a real closer when it's safe and available");
 }
 
 {
-  // Box Breathing is honestly omitted (not substituted) when flagged by name.
-  const BREATHING_INJ = [{ category: "pain", target: "box breathing" }];
-  const sess = recoverySession(null, 1, BREATHING_INJ, {});
-  ok(!sess.exercises.some(e => e.name === "Box Breathing"), "recoverySession omits Box Breathing (honestly, no substitute forced) when it's injury-flagged");
+  // Closer is honestly omitted (not substituted) when every option is flagged by name.
+  const ALL_CLOSERS_INJ = [
+    { category: "pain", target: "box breathing" }, { category: "pain", target: "child's pose" },
+    { category: "pain", target: "standing forward fold" }
+  ];
+  const CLOSER_NAMES = ["Box Breathing", "Child's Pose", "Standing Forward Fold"];
+  const sess = recoverySession(null, 1, ALL_CLOSERS_INJ, {});
+  ok(!sess.exercises.some(e => CLOSER_NAMES.indexOf(e.name) >= 0), "recoverySession omits every closer (honestly, no substitute forced) when all are injury-flagged");
 }
 
 {
   // Regression: existing mobility (up to 4 draws) and Zone 2 conditioning
   // content still appear, unchanged in shape.
   const sess = recoverySession(null, 2, [], {});
-  const mobilityEx = sess.exercises.filter(e => { const lib = byName(e.name); return lib && lib.type === "mobility" && lib.name !== "Box Breathing"; });
+  const CLOSER_NAMES = ["Box Breathing", "Child's Pose", "Standing Forward Fold"];
+  const mobilityEx = sess.exercises.filter(e => { const lib = byName(e.name); return lib && lib.type === "mobility" && CLOSER_NAMES.indexOf(lib.name) < 0; });
   const conEx = sess.exercises.filter(e => { const lib = byName(e.name); return lib && lib.type === "conditioning"; });
   ok(mobilityEx.length > 0, `mobility content still appears (got ${mobilityEx.length})`);
   ok(conEx.length <= 1 && (conEx.length === 0 || conEx[0].type === "conditioning" || true), "conditioning content unaffected (regression sanity)");

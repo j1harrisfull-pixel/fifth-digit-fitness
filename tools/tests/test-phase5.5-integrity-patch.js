@@ -218,7 +218,11 @@ function sweepNeverFlagged(pickFn, injuries, tries) {
 }
 
 const HIP_INJ = [{ category: "pain", target: "hip" }];
-const ANKLE_INJ = [{ category: "pain", target: "ankle" }]; // flags both pulse-raiser candidates (jumping-jacks, high-knees)
+const ANKLE_INJ = [{ category: "pain", target: "ankle" }]; // flags jumping-jacks/high-knees/butt-kicks, but not standing-march (empty joint_stress -- v1.11)
+const ALL_PULSE_RAISERS_INJ = [
+  { category: "pain", target: "jumping jacks" }, { category: "pain", target: "high knees" },
+  { category: "pain", target: "butt kicks" }, { category: "pain", target: "standing march with arm swings" }
+]; // tier-4 name match on every current pulse-raiser -- the only way to flag all of them now that one has joint_stress: []
 const CARRY_SPINE_INJ = [{ category: "pain", target: "spine" }]; // flags every carry + anti_rotation candidate (all have spine in joint_stress)
 const SLED_INJ = [{ category: "pain", target: "sled push" }]; // tier-4 name match -- conditioning entries carry no joint_stress data at all (see report)
 const EASY_RUN_INJ = [{ category: "pain", target: "easy run" }]; // tier-4 name match -- RUN_PLAN entries carry no joint_stress data either
@@ -241,19 +245,44 @@ const EASY_RUN_INJ = [{ category: "pain", target: "easy run" }]; // tier-4 name 
   // pickPulseRaiser respects injuries.
   const bad = sweepNeverFlagged(seed => pickPulseRaiser({}, seed, ANKLE_INJ), ANKLE_INJ, 20);
   ok(!bad, `pickPulseRaiser never returns an ankle-flagged pulse-raiser across 20 seeds (${bad ? bad.name : 'clean'})`);
-  const noneWhenAllFlagged = pickPulseRaiser({}, 1, ANKLE_INJ);
-  ok(noneWhenAllFlagged === null, "honest 'return nothing': an ankle injury flags BOTH real pulse-raiser candidates (Jumping Jacks, High Knees), so pickPulseRaiser returns null rather than prescribing one anyway");
+  // v1.11: the pulse-raiser pool grew from 2 to 4, and Standing March with Arm
+  // Swings carries an empty joint_stress[] by design -- an ankle injury no
+  // longer flags every real candidate, so a genuinely safe pulse-raiser is
+  // now reachable instead of an honest null. The "return nothing when truly
+  // everything is unsafe" guarantee itself still holds -- proven below with
+  // an injury that name-targets all four current candidates at once.
+  const stillSafeUnderAnkleInjury = pickPulseRaiser({}, 1, ANKLE_INJ);
+  ok(stillSafeUnderAnkleInjury && stillSafeUnderAnkleInjury.name === "Standing March with Arm Swings",
+     "an ankle injury now resolves to the zero-joint-stress Standing March option instead of returning null (v1.11 pool expansion)");
+  const noneWhenAllFlaggedByName = pickPulseRaiser({}, 1, ALL_PULSE_RAISERS_INJ);
+  ok(noneWhenAllFlaggedByName === null, "honest 'return nothing' still holds: an injury naming every current pulse-raiser candidate returns null rather than prescribing one anyway");
   ok(pickPulseRaiser({}, 1, []) != null, "regression: pickPulseRaiser with no injuries still returns a valid pulse-raiser");
 }
 
 {
-  // Box Breathing lookup (inline in buildWarmupCooldown) is safety-checked.
-  const BREATHING_INJ = [{ category: "pain", target: "box breathing" }]; // tier-4 -- Box Breathing has joint_stress: [] by design
+  // v1.11: the closer is now a 3-way deterministic rotation (pickCloser), not
+  // a single hardcoded Box Breathing lookup -- still safety-checked the same
+  // way. An injury naming ALL THREE closers is the only way to flag every
+  // candidate; naming just one still lets the rotation fall back to a safe
+  // alternative rather than leaving the cool-down close blank.
+  const ALL_CLOSERS_INJ = [
+    { category: "pain", target: "box breathing" }, { category: "pain", target: "child's pose" },
+    { category: "pain", target: "standing forward fold" }
+  ];
   const strengthPicks = [{ pattern: "hpush" }];
-  const wcSafe = buildWarmupCooldown(strengthPicks, null, {}, 1, {}, 45, 1, false, {}, []);
-  ok(wcSafe.cooldown.some(e => e.name === "Box Breathing"), "sanity: Box Breathing normally appears in the cool-down");
-  const wcFlagged = buildWarmupCooldown(strengthPicks, null, {}, 1, {}, 45, 1, false, {}, BREATHING_INJ);
-  ok(!wcFlagged.cooldown.some(e => e.name === "Box Breathing"), "an injury targeting Box Breathing by name excludes it from the cool-down -- the hardcoded lookup is gated too, not just pool-scanned pickers");
+  const CLOSER_NAMES = ["Box Breathing", "Child's Pose", "Standing Forward Fold"];
+  let closerNamesSeen = new Set(), anyFlaggedCloserSurfaced = false;
+  for (let seed = 0; seed < 6; seed++) {
+    const wc = buildWarmupCooldown(strengthPicks, null, {}, seed, {}, 45, 1, false, {}, []);
+    const closer = wc.cooldown.find(e => CLOSER_NAMES.indexOf(e.name) >= 0);
+    if (closer) closerNamesSeen.add(closer.name);
+    const wcAllFlagged = buildWarmupCooldown(strengthPicks, null, {}, seed, {}, 45, 1, false, {}, ALL_CLOSERS_INJ);
+    if (wcAllFlagged.cooldown.some(e => CLOSER_NAMES.indexOf(e.name) >= 0)) anyFlaggedCloserSurfaced = true;
+  }
+  ok(closerNamesSeen.size > 1, `sanity: the closer rotates across seeds, not always the same one (saw: ${[...closerNamesSeen].join(', ')})`);
+  ok(!anyFlaggedCloserSurfaced, "an injury naming all three closers by name excludes all of them from the cool-down across every seed -- the rotation is gated too, not just pool-scanned pickers");
+  const oneFlagged = buildWarmupCooldown(strengthPicks, null, {}, 1, {}, 45, 1, false, {}, [{ category: "pain", target: "box breathing" }]);
+  ok(!oneFlagged.cooldown.some(e => e.name === "Box Breathing"), "an injury targeting Box Breathing alone excludes only Box Breathing (the rotation still offers a safe alternative closer)");
 }
 
 {

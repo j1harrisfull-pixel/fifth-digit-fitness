@@ -41,7 +41,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // instead of execSync/exec -- avoids shell-interpolation risk even though
 // INDEX_PATH here is a fixed constant, not user input.
 const spanMd5 = execFileSync('sh', ['-c', `sed -n '/__COACH_START__/,/__COACH_END__/p' '${INDEX_PATH}' | md5`]).toString().trim();
-ok(spanMd5 === '39026b0244cb88bf92c0d0c6615f01dd', 'coach-span md5 unchanged (39026b0244cb88bf92c0d0c6615f01dd), got ' + spanMd5);
+ok(spanMd5 === '60e1ec07345fba425bcc6ecf97a6da4b', 'coach-span md5 unchanged (60e1ec07345fba425bcc6ecf97a6da4b), got ' + spanMd5);
 
 // ---------- 1. Extraction helpers (same brace-matching pattern as every
 // other test file in this directory) ----------
@@ -432,6 +432,66 @@ ok(/toast\("Nothing logged\. Left as is\."\);/.test(SRC), 'zero-logged toast cop
 // Done exit: quiet "Done." label, mechanics unchanged (closeDlg + backToWeek).
 ok(/primaryBtn\.textContent = "Done\.";/.test(showSessionCompleteBody), 'exit action is labelled exactly "Done."');
 ok(/closeDlg\(\);[\s\S]{0,60}backToWeek\(\);/.test(showSessionCompleteBody), 'Done keeps the closeDlg + backToWeek mechanics');
+
+// ---------- v1.11 (Warm-Up/Cool-Down): reason-line copy territories ----------
+// buildWarmupCooldown lives inside the coach-span (its reason lines flow
+// into e.why, rendered later via buildCard's card__why -- already swept by
+// the RENDERED_SURFACES pass above). This section additionally proves the
+// exact approved territory strings are the ones actually in source, and
+// sweeps them plus buildCard against the wider v1.11 rejected list.
+function extractObjectLiteral(varName) {
+  const at = SRC.indexOf('var ' + varName + ' = {');
+  ok(at >= 0, varName + ' object literal located');
+  if (at < 0) return '';
+  const braceStart = SRC.indexOf('{', at);
+  let depth = 0, i = braceStart;
+  for (; i < SRC.length; i++) {
+    if (SRC[i] === '{') depth++;
+    else if (SRC[i] === '}') { depth--; if (depth === 0) { i++; break; } }
+  }
+  return SRC.slice(braceStart, i);
+}
+const warmReasonBody = extractObjectLiteral('WARM_PREP_REASON');
+const coolReasonBody = extractObjectLiteral('COOL_PREP_REASON');
+const closerReasonBody = extractObjectLiteral('CLOSER_REASON');
+// "Raises the pulse before the work." is passed directly at the pulse-raiser
+// call site (not via a lookup dict, since there's only ever one pulse item),
+// so it's pulled in by its own line rather than one of the three objects.
+const pulseReasonAt = SRC.indexOf('"Raises the pulse before the work."');
+const pulseReasonLine = pulseReasonAt >= 0 ? SRC.slice(pulseReasonAt, pulseReasonAt + 40) : '';
+const v1_11ReasonCorpus = warmReasonBody + '\n' + coolReasonBody + '\n' + closerReasonBody + '\n' + pulseReasonLine;
+
+const APPROVED_V1_11_LINES = [
+  'Raises the pulse before the work.', 'Opens the hips before you load them.',
+  'Gets the ankles ready for depth.', 'Brings the shoulders through range first.',
+  'Brings the upper back through range first.', 'Wrists first — they carry the bar today.',
+  'Lets the hips settle.', 'Lets the ankles settle.', 'Eases what you loaded.',
+  'Range back in, slowly.', 'Eases the wrists after the work.',
+  'Heart rate down before you go.', 'Let it settle.'
+];
+APPROVED_V1_11_LINES.forEach(function (line) {
+  ok(v1_11ReasonCorpus.indexOf(line) >= 0, 'approved v1.11 reason-line territory present verbatim: "' + line + '"');
+});
+
+const REJECTED_V1_11 = [
+  'mobility flow', 'activate', 'activation', 'fire up', 'wake up',
+  'reset your body', 'breathe into it', 'feel the stretch', 'release',
+  'unlock', 'recovery ritual', 'cooldown journey', 'stretch it out',
+  'nice and easy', 'listen to your body', 'prime', 'priming'
+].concat(REJECTED); // union with the standing rejected-copy list
+REJECTED_V1_11.forEach(function (phrase) {
+  ok(v1_11ReasonCorpus.toLowerCase().indexOf(phrase.toLowerCase()) === -1,
+     'v1.11 reason-line copy renders no rejected phrase: "' + phrase + '"');
+  ok(buildCardBody.toLowerCase().indexOf(phrase.toLowerCase()) === -1,
+     'buildCard (where warm-up/cool-down reason lines actually render) contains no rejected phrase: "' + phrase + '"');
+});
+
+// Skip copy unchanged (locked, no nagging added).
+ok(/Skip warm-up|Skip cool-down|Skip this exercise today/.test(buildCardBody) || /card__skip-optional[\s\S]{0,40}Skip /.test(SRC),
+   'existing skip copy pattern ("Skip warm-up" / "Skip cool-down" / "Skip this exercise today") is still present, unmodified');
+ok(SRC.indexOf('Undo') >= 0, '"Undo" skip-undo copy still present');
+// No new Home copy mentioning skipped warm-ups/cool-downs was introduced.
+ok(!/skipped warm-?up|skipped cool-?down/i.test(renderHomeHeroBody), 'Home never mentions skipped warm-ups/cool-downs (no surveillance copy)');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }
