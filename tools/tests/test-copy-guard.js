@@ -90,6 +90,13 @@ const renderWeekListBody = stripComments(extractFn('renderWeekList'));
 const renderDayBarBody = stripComments(extractFn('renderDayBar'));
 const showSessionCompleteBody = stripComments(extractFn('showSessionComplete'));
 const trainThisTodayClickBody = stripComments(extractFn('trainThisTodayClick'));
+// v1.10 Ticket 4: the live workout screen's per-exercise card builder --
+// covers the DONE/CURRENT/NEXT zone grammar ("N sets kept", "Set N of M")
+// and every other exercise-name/prescription string this function renders.
+// buildDensityCard is its own function (density blocks render separately)
+// and is extracted too, though it renders no new Ticket 4 copy itself.
+const buildCardBody = stripComments(extractFn('buildCard'));
+const buildDensityCardBody = stripComments(extractFn('buildDensityCard'));
 
 // Static markup blocks (not JS functions) -- extracted by fixed anchors,
 // same "slice between two known markers" style already used elsewhere in
@@ -118,6 +125,8 @@ const RENDERED_SURFACES = {
   'renderWeekList (week-row annotations)': renderWeekListBody,
   'renderDayBar (day bar, live bar, Train this today button)': renderDayBarBody,
   'showSessionComplete (finish result)': showSessionCompleteBody,
+  'buildCard (live workout exercise card: DONE/CURRENT/NEXT zone grammar)': buildCardBody,
+  'buildDensityCard (EMOM/AMRAP block card)': buildDensityCardBody,
   'preview banner static markup': previewBannerMarkup,
   'confirm sheet static markup': confirmSheetMarkup,
   'trainThisTodayClick (Train this today confirmation body)': trainThisTodayClickBody,
@@ -327,6 +336,58 @@ ok(/white-space:\s*pre-line/.test(SRC.match(/\.confirm__msg \{[^}]*\}/)[0]),
 // no PREVIEW watermark, no icon, no alert colour class introduced.
 ok(SRC.indexOf('Planned for later. Nothing logs from here.') !== -1, 'preview banner copy unchanged: "Planned for later. Nothing logs from here."');
 ok(!/daypreview-banner[^{]*\{[^}]*(amber|warning|--danger)/i.test(SRC), 'preview banner CSS introduces no alert/warning colour');
+
+// ---------- 9. v1.10 Ticket 4 (live workout DONE/CURRENT/NEXT zone grammar) ----------
+// "Set N of M" -- built from the exact same doneCount/total buildCard
+// already computes for setshead/collapsedMeta, never a separate/fake count.
+// Strength-only, suppressed once complete.
+ok(/setPosHtml = \(e\.type === "strength" && total > 0 && !complete\)/.test(buildCardBody),
+   '"Set N of M" is strength-only and suppressed once the exercise is complete (never rendered for density/mobility)');
+ok(/'<p class="card__setpos">Set <b>' \+ \(doneCount \+ 1\) \+ '<\/b> of <b>' \+ total \+ '<\/b><\/p>'/.test(buildCardBody),
+   '"Set N of M" is built from the real doneCount/total, not a separate counter');
+
+// DONE grammar: "N sets kept" -- same real doneCount, approved wording.
+ok(/collapsedMeta = complete \? \(doneCount \+ \(doneCount === 1 \? " set kept" : " sets kept"\)\) : planHint/.test(buildCardBody),
+   'DONE-state collapsed row renders "N sets kept" (or "1 set kept"), built from the real completed-set count');
+ok(!/doneCount \+ "\/" \+ total \+ " sets"/.test(buildCardBody), 'old "N/total sets" collapsed-row grammar is gone from buildCard');
+ok(/refreshSetPos\(card, e, doneCount\)/.test(SRC), 'the live (non-full-render) set-toggle path keeps "Set N of M" in sync via refreshSetPos, never leaving it stale');
+
+// NEXT: exactly one exercise ever gets the up-next treatment, computed from
+// the same real sessionItems() doneCount/sets every other progress read uses.
+ok(/function computeNextUpcomingId\(cid\)/.test(SRC), 'computeNextUpcomingId helper exists');
+ok(/it\.sets > 0 && \(it\.doneCount \|\| 0\) < it\.sets && it\.id !== cid/.test(SRC),
+   'NEXT is the first real incomplete item (real sets/doneCount), excluding CURRENT -- never a fake/separate list');
+ok(/isUpNext \? " is-up-next" : ""/.test(buildCardBody), 'exactly the one computed NEXT id gets the is-up-next class on its card');
+
+// Rejected-copy sweep already covers buildCard/buildDensityCard via
+// RENDERED_SURFACES above; explicitly confirm the DONE/NEXT grammar itself
+// contains none of the rejected words.
+['ready to go', 'great job', 'crushed it', 'smashed it', 'well done', 'level up', 'streak', 'missed', 'behind', 'workout due'].forEach(function (phrase) {
+  ok(buildCardBody.toLowerCase().indexOf(phrase) === -1, 'buildCard renders no rejected phrase: "' + phrase + '"');
+});
+
+// Protected: clay stays reserved for the LOG action -- buildCard/
+// buildDensityCard (the DONE/CURRENT/NEXT card chrome) must never introduce
+// a clay reference; the moss token must appear in exactly the two approved
+// declarations (CURRENT label colour + CURRENT left rule), never a third.
+ok(!/tempo-clay/.test(buildCardBody) && !/tempo-clay/.test(buildDensityCardBody), 'buildCard/buildDensityCard reference no clay token (clay stays LOG-button-only)');
+const mossDeclarations = (SRC.match(/var\(--tempo-moss\)/g) || []).length;
+ok(mossDeclarations === 2, '--tempo-moss is used in exactly 2 CSS declarations (CURRENT overline colour + CURRENT left rule), got ' + mossDeclarations);
+
+// v1.10 Ticket 4 audit fix (approved): literal DONE/CURRENT/NEXT/THEN zone
+// words, not colour alone -- required after the platinum-gate rejection of
+// the first pass. Computed per-card from the exact same complete/isUpNext
+// flags already asserted above; no separate/fake list, no cross-card state.
+ok(/var zoneWord = complete \? "Done" : isUpNext \? "Next" : "Then"/.test(buildCardBody),
+   'buildCard computes the literal zone word (Done/Next/Then) from the exact same complete/isUpNext flags used elsewhere');
+ok(/'<p class="card__zonelabel card__zonelabel--current">Current<\/p>'/.test(buildCardBody),
+   'the expanded CURRENT card renders the literal word "Current"');
+ok(/var zoneWordD = done \? "Done" : isUpNextD \? "Next" : "Then"/.test(buildDensityCardBody),
+   'buildDensityCard computes the same literal zone word from its own done/isUpNextD flags (density blocks get the same zone system as strength exercises)');
+ok(/'<p class="card__zonelabel card__zonelabel--current">Current<\/p>'/.test(buildDensityCardBody),
+   'the expanded CURRENT density card renders the literal word "Current"');
+ok(/\.card__zonelabel--current \{ color: var\(--tempo-moss/.test(SRC), '.card__zonelabel--current is moss-coloured');
+ok(/\.card__zonelabel--next \{ color: var\(--tempo-brass/.test(SRC), '.card__zonelabel--next is brass-coloured');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

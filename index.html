@@ -280,6 +280,12 @@ input, textarea { font: inherit; color: inherit; }
   --tempo-bone: #EDE8DF; --tempo-bone-ink: #17181A; --tempo-bone-line: #D5CEC1; --tempo-bone-dim: #66614F;
   --tempo-clay: #C25436; --tempo-clay-deep: #A84A2F;
   --tempo-brass: #C79A43; --tempo-brass-ink: #7A6228;
+  /* v1.10 Ticket 4 (approved): the live workout screen's CURRENT-zone
+     accent. Used in exactly two declarations -- the CURRENT card's
+     overline colour and its left rule -- never a fill, never a third
+     use. Clay stays reserved for the LOG action; brass stays reserved
+     for the NEXT zone + existing identity/coach-note roles. */
+  --tempo-moss: #93B287;
 }
 .app[data-view="week"] main { background: var(--tempo-bg); }
 .app[data-view="week"] .home-hero__greeting { color: var(--tempo-ink); }
@@ -392,8 +398,12 @@ input, textarea { font: inherit; color: inherit; }
    per the approved motion scope (tick <=120ms, progress-bar transition
    <=150ms) and are already neutralised by this file's existing blanket
    `@media (prefers-reduced-motion: reduce)` rule. */
-.app[data-view="day"] .card.is-current { background: var(--tempo-surface); }
-.app[data-view="day"] .card.is-current .card__overline { color: var(--tempo-brass); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: 1; }
+/* v1.10 Ticket 4 (approved): CURRENT is carried by size/position/title/
+   set table already -- the moss left rule + overline colour REINFORCE,
+   they are not load-bearing alone. border-color kept neutral so the rule
+   is the one accent, not a clay/accent-tinted ring. */
+.app[data-view="day"] .card.is-current { background: var(--tempo-surface); border-color: var(--tempo-line); border-left: 3px solid var(--tempo-moss); padding-left: 12px; }
+.app[data-view="day"] .card.is-current .card__overline { color: var(--tempo-moss); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: 1; }
 .app[data-view="day"] .card.is-current .card__name { color: var(--tempo-ink); }
 .app[data-view="day"] .card.is-current .card__rx { color: var(--tempo-dim); }
 .app[data-view="day"] .card.is-current .card__rx-v { color: var(--tempo-ink); }
@@ -679,6 +689,13 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__collapsed-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.is-complete:not(.is-current) .card__collapsed-name { color: var(--faint); }
 .card__collapsed-meta { flex: none; font-size: 12px; color: var(--faint); }
+/* v1.10 Ticket 4 (approved): the single upcoming exercise after CURRENT
+   (computeNextUpcomingId) reads brighter than the THEN queue behind it --
+   bone/near-ink name, brass meta -- while DONE (is-complete, above) stays
+   faint. THEN exercises get no extra rule: the existing faint
+   .card__collapsed-name colour above already recedes them correctly. */
+.card.is-up-next:not(.is-current) .card__collapsed-name { color: var(--tempo-bone, var(--ink)); font-weight: 700; }
+.card.is-up-next:not(.is-current) .card__collapsed-meta { color: var(--tempo-brass, var(--faint)); }
 /* Skip: a quiet full-width action at the bottom of the edit block, and the
    compact "skipped" strip the card collapses to once used. */
 .card__skipbtn { margin-top: 14px; width: 100%; min-height: 40px; background: none; border: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; font-weight: 600; letter-spacing: .01em; cursor: pointer; transition: border-color .15s ease, color .15s ease; }
@@ -743,6 +760,22 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 .card__rx { margin: 10px 0 2px; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--ink-dim); }
 .card__rx-v { font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
 .card__rx-sep { color: var(--faint); margin: 0 2px; }
+/* v1.10 Ticket 4 (approved): "Set N of M" -- built from the exact same
+   doneCount/total this card already computes for setshead/collapsedMeta,
+   never a separate/fake count. Strength-only, only when total > 0. */
+.card__setpos { margin: 2px 0 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-dim); }
+.card__setpos b { color: var(--ink); font-weight: 700; }
+/* v1.10 Ticket 4 audit fix (approved): the literal DONE/CURRENT/NEXT/THEN
+   zone word -- the ticket's own hierarchy test ("obvious before reading all
+   the text") requires the WORD, not colour alone. Same 10.5px mono
+   uppercase letterspaced grammar approved for the live-screen mockups.
+   On collapsed rows it sits flex-none, before the name; on the expanded
+   CURRENT card it's its own line above the (unchanged, still informative)
+   overline. */
+.card__zonelabel { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+p.card__zonelabel { margin: 0 0 4px; }
+.card__zonelabel--current { color: var(--tempo-moss, #93B287); }
+.card__zonelabel--next { color: var(--tempo-brass, #C79A43); }
 .card__cue { margin: 0 0 14px; }
 .setshead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
 .setshead .setcount { margin-left: auto; }
@@ -5868,6 +5901,19 @@ function resolveSpec(request, state) {
     if (sel && curSession().exercises.some(function (e) { return e.id === sel; })) return sel;
     return firstIncompleteId(sessionItems());
   }
+  // v1.10 Ticket 4 (approved): the one NEXT exercise -- the first real
+  // incomplete item (sessionItems() already unifies strength exercises AND
+  // density blocks under one id/doneCount/sets shape) that is not the
+  // CURRENT one. Read-only, display-layer only; does not change
+  // currentId()/firstIncompleteId or any selection state.
+  function computeNextUpcomingId(cid) {
+    var items = sessionItems();
+    for (var k = 0; k < items.length; k++) {
+      var it = items[k];
+      if (it && !it.skipped && it.sets > 0 && (it.doneCount || 0) < it.sets && it.id !== cid) return it.id;
+    }
+    return null;
+  }
   function selectExercise(id) {
     if (!id || state.activeExerciseId === id) return;
     state.activeExerciseId = id; save();
@@ -7172,9 +7218,30 @@ function resolveSpec(request, state) {
     var total = e.sets, complete = total > 0 && doneCount === total;
     var planHint = (total > 1 ? total + " × " : "") + String(e.reps || "");
     var metaEl = card.querySelector(".card__collapsed-meta");
-    if (metaEl) metaEl.textContent = complete ? (doneCount + "/" + total + " sets") : planHint;
+    // v1.10 Ticket 4 (approved): mirrors buildCard()'s "N sets kept" grammar exactly.
+    if (metaEl) metaEl.textContent = complete ? (doneCount + (doneCount === 1 ? " set kept" : " sets kept")) : planHint;
+    refreshSetPos(card, e, doneCount);
     var markEl = card.querySelector(".card__collapsed-mark");
     if (markEl) { markEl.classList.toggle("is-done", complete); markEl.innerHTML = complete ? checkIcon : ""; }
+  }
+  // v1.10 Ticket 4 (approved): live-updates the expanded card's "Set N of M"
+  // line on a set toggle, mirroring buildCard()'s exact setPosHtml logic
+  // (same doneCount/total, strength-only, suppressed once complete) so it
+  // never goes stale between full renders. Read-only DOM patch, no data change.
+  function refreshSetPos(card, e, doneCount) {
+    if (!card || e.type !== "strength") return;
+    var total = e.sets, complete = total > 0 && doneCount === total;
+    var posEl = card.querySelector(".card__setpos");
+    if (total > 0 && !complete) {
+      var txt = 'Set <b>' + (doneCount + 1) + '</b> of <b>' + total + '</b>';
+      if (posEl) posEl.innerHTML = txt;
+      else {
+        var head = card.querySelector(".card__head");
+        if (head) head.insertAdjacentHTML("afterend", '<p class="card__setpos">' + txt + '</p>');
+      }
+    } else if (posEl) {
+      posEl.remove();
+    }
   }
   function formatCue(text) {
     text = String(text || "").trim();
@@ -7447,7 +7514,7 @@ function resolveSpec(request, state) {
     var subLine = (showTag || showWhy)
       ? '<div class="card__subline">' + (showTag ? '<span class="tag">' + esc(e.type) + '</span>' : '') + (showWhy ? '<div class="card__coachnote"><span class="card__coachnote-label">Coach note</span><p class="card__why">' + esc(whyDisplay) + '</p></div>' : '') + '</div>'
       : '';
-    // Step 4 (Active screen): the coaching cue collapses behind its own toggle
+    // Step 4 (Active screen): the coaching cue sits under its own toggle
     // again, default collapsed -- the always-visible face from Task 2 competed
     // with the set-logging controls for space on the one screen where logging
     // speed matters most. Label unchanged ("Form notes") per instruction; only
@@ -7469,13 +7536,29 @@ function resolveSpec(request, state) {
     // more useful while scanning a finished list than a bare "Done" label,
     // same doneCount/total already computed above, no new data.
     var planHint = (total > 1 ? total + " × " : "") + String(e.reps || "");
-    var collapsedMeta = complete ? (doneCount + "/" + total + " sets") : planHint;
+    // v1.10 Ticket 4 (approved): the DONE-zone grammar is "N sets kept" --
+    // same real doneCount this line always used, just the approved words
+    // instead of "N/total sets". Upcoming (not complete) is unchanged.
+    var collapsedMeta = complete ? (doneCount + (doneCount === 1 ? " set kept" : " sets kept")) : planHint;
+    // v1.10 Ticket 4 (approved): the single upcoming exercise (computed once
+    // per render in renderList, threaded through ctx.nextId) gets the
+    // brighter NEXT treatment; every other non-current, non-complete row is
+    // THEN and stays at its existing faint styling -- no markup change for
+    // THEN, only a CSS hook (.is-up-next) added for the one NEXT row.
+    var isUpNext = !!(ctx.nextId && e.id === ctx.nextId);
+    // v1.10 Ticket 4 audit fix (approved): literal zone-label word, on every
+    // collapsed row -- not colour alone. Computed per-card from the exact
+    // same complete/isUpNext flags already in scope; no new state, no
+    // cross-card/superset/block coordination required.
+    var zoneWord = complete ? "Done" : isUpNext ? "Next" : "Then";
+    var zoneLabelHtml = '<span class="card__zonelabel card__zonelabel--' + zoneWord.toLowerCase() + '">' + zoneWord + '</span>';
     // Screen redesign (Q3): the square checkbox -- the strongest to-do-list cue
     // -- becomes a quiet session-step mark (a hollow dot when upcoming, a tick
     // when done). Same collapsed row, same tap-to-open wiring, no checkbox.
     var collapsedHtml = '<div class="card__collapsed">' +
       '<span class="card__collapsed-mark' + (complete ? " is-done" : "") + '" aria-hidden="true">' + (complete ? checkIcon : "") + '</span>' +
       (badge ? '<span class="card__collapsed-badge">' + esc(badge) + '</span>' : '') +
+      zoneLabelHtml +
       '<span class="card__collapsed-name">' + esc(e.name) + '</span>' +
       '<span class="card__collapsed-meta">' + esc(collapsedMeta) + '</span>' +
       '</div>';
@@ -7508,12 +7591,27 @@ function resolveSpec(request, state) {
     var exProgressHtml = total > 0
       ? '<div class="card__exprogress" role="presentation"><div class="card__exprogress-fill" style="--ex-fill:' + Math.round((doneCount / total) * 100) + '%"></div></div>'
       : '';
-    return '<article class="card' + (complete ? " is-complete" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
+    // v1.10 Ticket 4 (approved): "Set N of M" -- built from the exact same
+    // doneCount/total already computed above for setsHead/collapsedMeta,
+    // never a separate count. Strength-only (the unit density/mobility
+    // measure isn't "sets"), and only while there's a real next set to name
+    // (suppressed once complete -- the DONE grammar already covers that).
+    var setPosHtml = (e.type === "strength" && total > 0 && !complete)
+      ? '<p class="card__setpos">Set <b>' + (doneCount + 1) + '</b> of <b>' + total + '</b></p>'
+      : '';
+    // v1.10 Ticket 4 audit fix (approved): literal "Current" zone label on
+    // the expanded card too, above the existing (still informative,
+    // unchanged) overline -- so CURRENT is carried by the word, not only
+    // the moss colour/rule.
+    var curZoneLabelHtml = '<p class="card__zonelabel card__zonelabel--current">Current</p>';
+    return '<article class="card' + (complete ? " is-complete" : "") + (isUpNext ? " is-up-next" : "") + '" data-ex="' + e.id + '" style="--i:' + i + '">' +
       collapsedHtml +
       '<div class="card__full">' +
+      curZoneLabelHtml +
       exOverline +
       exProgressHtml +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
+      setPosHtml +
       subLine +
       statRow +
       previewRx +
@@ -7567,9 +7665,13 @@ function resolveSpec(request, state) {
   // collapsed/expanded shell as buildCard (`.card:not(.is-current)` hides
   // `.card__full` and shows `.card__collapsed` via shared CSS) so it sits in
   // the same one-exercise-at-a-time flow as every other card.
-  function buildDensityCard(items, ses, block, i, preview) {
+  function buildDensityCard(items, ses, block, i, preview, nextId) {
     var kind = block.kind, mode = block.mode, bid = blockPseudoId(kind), unit = state.program.unit;
     var bl = readBlockLog(ses, kind);
+    // v1.10 Ticket 4 (approved): sessionItems() already unifies density
+    // blocks under this same bid, so the one NEXT computation in renderList
+    // already covers density -- just read the flag here, no new logic.
+    var isUpNextD = !!(nextId && bid === nextId);
     var moves = items.map(function (e) {
       var lg = readLog(ses, e);
       var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
@@ -7583,13 +7685,21 @@ function resolveSpec(request, state) {
       : "As many rounds as possible in " + block.minutes + " min";
     var done = !!bl.completed;
     var collapsedMeta = mode === "emom" ? bl.rounds + "/" + targetRounds + " rounds" : bl.rounds + " round" + (bl.rounds === 1 ? "" : "s");
-    return '<article class="card card--density' + (done ? " is-complete" : "") + '" data-ex="' + bid + '" style="--i:' + i + '">' +
+    // v1.10 Ticket 4 audit fix (approved): same literal zone-label word as
+    // buildCard, computed from the exact same done/isUpNextD flags already
+    // in scope -- no new logic, no cross-card coordination.
+    var zoneWordD = done ? "Done" : isUpNextD ? "Next" : "Then";
+    var zoneLabelHtmlD = '<span class="card__zonelabel card__zonelabel--' + zoneWordD.toLowerCase() + '">' + zoneWordD + '</span>';
+    var curZoneLabelHtmlD = '<p class="card__zonelabel card__zonelabel--current">Current</p>';
+    return '<article class="card card--density' + (done ? " is-complete" : "") + (isUpNextD ? " is-up-next" : "") + '" data-ex="' + bid + '" style="--i:' + i + '">' +
       '<div class="card__collapsed">' +
       '<span class="card__collapsed-check' + (done ? " is-done" : "") + '" aria-hidden="true">' + (done ? checkIcon : "") + '</span>' +
+      zoneLabelHtmlD +
       '<span class="card__collapsed-name">' + esc(BLOCK_MODE_LABEL[mode] || mode) + '</span>' +
       '<span class="card__collapsed-meta mono">' + esc(collapsedMeta) + '</span>' +
       '</div>' +
       '<div class="card__full">' +
+      curZoneLabelHtmlD +
       '<header class="card__head"><h3 class="card__name">' + esc(BLOCK_MODE_LABEL[mode] || mode) + '</h3></header>' +
       '<p class="dc__format">' + esc(formatLine) + '</p>' +
       '<ul class="dc__list">' + moves + '</ul>' +
@@ -7622,6 +7732,13 @@ function resolveSpec(request, state) {
     // for the write-guard and banner -- threaded into buildCard via the
     // existing ctx object, zero new logic.
     var isPreview = isPreviewSession(state.activeSession, curWeek());
+    // v1.10 Ticket 4 (approved): computed once per render, read-only. cid is
+    // the exact same currentId() the rest of the app already uses for
+    // .is-current; nextId is the single upcoming item (see
+    // computeNextUpcomingId above). Threaded through ctx so buildCard/
+    // buildDensityCard can mark exactly one row "up next" -- no change to
+    // selection state, applyGlance, or any data-act handler.
+    var cid = currentId(), nextId = computeNextUpcomingId(cid);
     // Gold-standard Phase A: a session built with the new engine carries
     // ses.blocks (four time-budgeted phases). Older stored/imported programs
     // don't -- feature-detect and fall back to the exact legacy flat render, so
@@ -7633,14 +7750,14 @@ function resolveSpec(request, state) {
         var items = byBlock[b.kind] || [];
         if (!items.length) return; // blocks[] only lists non-empty kinds, but stay defensive
         html += phaseHeaderHtml(b.kind, b.minutes, b.mode);
-        if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i, isPreview); i++; }
+        if (b.mode === "emom" || b.mode === "amrap") { html += buildDensityCard(items, ses, b, i, isPreview, nextId); i++; }
         else {
-          var ctx = { anchorId: anchorId, blockItems: items, blockLabel: PHASE_LABEL[b.kind] || "Exercise", preview: isPreview };
+          var ctx = { anchorId: anchorId, blockItems: items, blockLabel: PHASE_LABEL[b.kind] || "Exercise", preview: isPreview, nextId: nextId };
           var r = renderCardRun(items, ses, i, ctx); html += r.html; i = r.i;
         }
       });
     } else {
-      var r2 = renderCardRun(ses.exercises, ses, i, { anchorId: anchorId, preview: isPreview }); html = r2.html; i = r2.i;
+      var r2 = renderCardRun(ses.exercises, ses, i, { anchorId: anchorId, preview: isPreview, nextId: nextId }); html = r2.html; i = r2.i;
     }
     // Quiet, out-of-the-way home for the rare "delete this day" action, at the
     // very end of the day so it's off the hot path (undo-backed, like before).
