@@ -502,28 +502,26 @@ input, textarea { font: inherit; color: inherit; }
 .weekrow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .weekrow__name { font-size: 16px; font-weight: 700; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; }
 /* Visual Reset Phase 2: status tags move from outlined micro-boxes (which read
-   spec-sheet) to calm tinted-fill pills. Each state keeps its exact semantic
-   colour -- the tint carries the hue softly, the text keeps the meaning -- so
-   the week list stops reading like an admin grid while all six states stay
-   distinct. "skipped" retains a dashed rim (its long-standing distinguishing
-   cue) so it can never be mistaken for "pending"; every other tag is
-   borderless. Colours unchanged: alt=brass, done/today=green, prog/pending=
-   neutral (differentiated by tint strength), skipped=amber. */
+   spec-sheet) to calm tinted-fill pills. "Alt" (a swapped-in alternate
+   session) and "Today" (a scheduled-day marker) are the two remaining
+   axis markers that sit inline by the session name, distinct from the
+   completion state on the right (see .weekrow__anno below, v1.10 Human
+   Feel) -- alt=brass, today=green. */
 /* Phase 3: sentence-case, body font, no tracking -- the old mono/uppercase/
    tracked chrome was the clearest "status dashboard" cue on this screen.
-   Same colour-coding per state, same tag chrome (pill, quiet fill), just
-   speaking the app's normal type voice instead of a console readout. */
+   Same tag chrome (pill, quiet fill), just speaking the app's normal type
+   voice instead of a console readout. */
 .weekrow__tag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0; padding: 3px 8px; border: 0; border-radius: var(--radius); background: color-mix(in srgb, var(--ink-dim) 13%, transparent); color: var(--ink-dim); }
 .weekrow__tag--alt { color: var(--accent-ink); background: color-mix(in srgb, var(--accent-ink) 16%, transparent); }
-.weekrow__tag--done { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
-.weekrow__tag--prog { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 15%, transparent); font-variant-numeric: tabular-nums; }
-.weekrow__tag--skipped { color: var(--manage); background: color-mix(in srgb, var(--manage) 15%, transparent); border: 1px dashed color-mix(in srgb, var(--manage) 50%, transparent); padding: 2px 7px; }
-.weekrow__tag--pending { color: var(--faint); background: color-mix(in srgb, var(--faint) 12%, transparent); }
-/* v136A: finished-early -- a calm, resolved neutral (NOT the ready green of
-   Done), hairline-bordered to read as a closed-out state without claiming
-   completion. Tabular numerals keep the "X of Y" fraction aligned. */
-.weekrow__tag--finished { color: var(--ink-dim); background: color-mix(in srgb, var(--ink-dim) 11%, transparent); border: 1px solid color-mix(in srgb, var(--ink-dim) 30%, transparent); padding: 2px 7px; font-variant-numeric: tabular-nums; }
 .weekrow__tag--today { color: var(--ready); background: color-mix(in srgb, var(--ready) 16%, transparent); }
+/* v1.10 Human Feel -- Training Ledger annotation: replaces the coloured-fill
+   completion tag (CLOSED/BANKED · N SETS/READY/SKIPPED) with a quiet ledger
+   mark -- lower case, mono, dim ink, graphite-on-graphite. No bright fill,
+   no badge feel, no clay, no brass: this is an instrument reading, not a
+   status light. Scoped to week rows and the preview banner only (per v1.10
+   Ticket 1) -- not introduced anywhere else in the app. */
+.weekrow__anno { flex: none; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .01em; color: var(--ink-dim); padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: none; font-variant-numeric: tabular-nums; }
+.weekrow__anno--done { display: inline-flex; align-items: center; gap: 4px; }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
 .weekrow__focus { font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; }
@@ -1494,8 +1492,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          wrapped badly and duplicated the "preview" signal). Hidden/shown as
          one unit by renderDayBar; trainTodayBtn keeps its existing id/click
          binding, only its markup position and styling changed. -->
+    <!-- v1.10 Human Feel Ticket 1: Training Ledger voice replaces the
+         "PREVIEW ·" telegram-style prefix -- a sentence, not an enum. Kept
+         on one line (rather than the two-line approved copy) to preserve
+         the v1.9 Preview Clarity fix this banner already carries: the
+         single compact row that never wraps. -->
     <div class="daypreview-banner view-day" id="dayPreviewBanner" hidden>
-      <span class="daypreview-banner__label">PREVIEW · Planned for later.</span>
+      <span class="daypreview-banner__label">Planned for later. Nothing logs from here.</span>
       <button type="button" class="daypreview-banner__btn" id="trainTodayBtn">Train this today</button>
     </div>
   </div>
@@ -6303,9 +6306,14 @@ function resolveSpec(request, state) {
     var hasData = !!(fs && fs.hasData);
     var band = hasData ? fs.band : null;
     var readingClass = band === "red" ? "is-rough" : band === "amber" ? "is-manage" : "is-ready";
-    var readingTxt = band === "red" ? "High fatigue · consider an easier session today"
-      : band === "amber" ? "Managing fatigue · take it a bit easier today"
-      : "Recovered · ready to train";
+    // v1.10 Human Feel (Ticket 1 pre-commit fix): three real bands now get
+    // three distinct Training Ledger sentences, not two collapsed into one.
+    // Same band logic, same dot/visual state -- no score, no body judgement,
+    // no clinical/illness-adjacent framing, just what it means for today's
+    // work.
+    var readingTxt = band === "red" ? "Recent sessions ran hard. Keep today clean."
+      : band === "amber" ? "Move well. Log clean work."
+      : "Nothing in the way today.";
     var readingHtml = hasData
       ? '<p class="home-hero__reading ' + readingClass + '"><span class="home-hero__reading-dot" aria-hidden="true"></span>' + esc(readingTxt) + '</p>'
       : "";
@@ -6356,7 +6364,10 @@ function resolveSpec(request, state) {
     // copy in place of the normal subline -- reuses the existing
     // .today-card__why paragraph (same element, same styling, just this
     // one line's content), not a new element.
-    var subLine = todayPicked ? (name + " is set for today.\nNothing else moved.")
+    // v1.10 Human Feel Ticket 1: Training Ledger voice, active ("you chose")
+    // rather than passive ("is set") -- same two facts (what, and that
+    // nothing else moved), same data (name), just spoken.
+    var subLine = todayPicked ? ("You chose " + name + " for today.\nThe rest of the week stays where it is.")
       : weekDone ? (doneThisWeek + " of " + wk.sessions.length + " sessions done")
       : started ? (leftN + (leftN === 1 ? " exercise left" : " exercises left"))
       : (metaHtml ? "" : (heroFocus || (heroSes ? heroSes.exercises.length + " exercises" : "")));
@@ -6587,7 +6598,7 @@ function resolveSpec(request, state) {
         '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSessions + '</span><span class="recap-stat__label">Sessions</span></div>' +
         '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSets + '</span><span class="recap-stat__label">Sets</span></div>' +
         (life.totalVolume > 0 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalVolume.toLocaleString() + '</span><span class="recap-stat__label">Volume ' + esc(unit) + '</span></div>' : '') +
-        (life.longestStreak > 1 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.longestStreak + '</span><span class="recap-stat__label">Best week streak</span></div>' : '') +
+        (life.longestStreak > 1 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.longestStreak + '</span><span class="recap-stat__label">Longest run of full weeks</span></div>' : '') +
         '</div></div>'
       : "";
     // Phase 5: order is the hierarchy signal now, not eyebrow loudness (all
@@ -6699,32 +6710,33 @@ function resolveSpec(request, state) {
       // ALT marks a swapped-in alternate session -- a content-origin marker on
       // its own axis, so it also sits inline by the name.
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' Alt</span>';
-      // Completion status: ONE consistent tag per row on the right, same chrome,
-      // colour-coded -- Done / a live N/M count / Skipped (moved past) / Not yet
-      // (upcoming). Replaces the old mix of a check tag, a lowercase "done"
-      // word, and a bare fraction that each spoke a different visual language.
+      // Completion status: ONE consistent ledger annotation per row on the
+      // right -- quiet, lower case, mono, dim ink. Replaces the v1.8 TEMPO
+      // coloured-fill tags (CLOSED/BANKED · N SETS/READY/SKIPPED) with
+      // Training Ledger wording (v1.10 Human Feel, Ticket 1): the same 5
+      // states, the same real data, just spoken as a kept log instead of a
+      // status board. Unit honesty unchanged -- "banked · N sets" still
+      // counts true completed sets (or true density rounds), never a
+      // different unit.
       var statHtml;
-      // v1.8 TEMPO status wording: same 5 states, same data -- only the
-      // on-screen words change (CLOSED/BANKED · N SETS/READY/SKIPPED).
-      // "progress" (live N/M) is unchanged -- not in the approved word list.
-      if (st.key === "done") statHtml = '<span class="weekrow__tag weekrow__tag--done">' + checkIcon + ' CLOSED</span>';
-      // v136A: finished-early is its own honest tag -- no check icon (the
-      // check is reserved for genuine completion), so it can never be
+      if (st.key === "done") statHtml = '<span class="weekrow__anno weekrow__anno--done">' + checkIcon + ' closed</span>';
+      // v136A: finished-early is its own honest annotation -- no check icon
+      // (the check is reserved for genuine completion), so it can never be
       // mistaken for a full close. v1.8 TEMPO Ticket 2 fix-up: the unit in
       // the label must match the unit in the data -- true completed SETS
       // when any exist, true density ROUNDS when the session is density-only,
-      // and a bare "BANKED" (never "BANKED · 0 SETS") when the only real
+      // and a bare "banked" (never "banked · 0 sets") when the only real
       // work was a conditioning block marked done at zero rounds.
       else if (st.key === "finished") {
         var bk = st.banked || { setsDone: 0, density: { roundsTotal: 0, blockDoneZeroRounds: false } };
-        var bankedLabel = bk.setsDone > 0 ? ("BANKED · " + bk.setsDone + " SET" + (bk.setsDone === 1 ? "" : "S"))
-          : bk.density.roundsTotal > 0 ? ("BANKED · " + bk.density.roundsTotal + " ROUND" + (bk.density.roundsTotal === 1 ? "" : "S"))
-          : "BANKED";
-        statHtml = '<span class="weekrow__tag weekrow__tag--finished">' + bankedLabel + '</span>';
+        var bankedLabel = bk.setsDone > 0 ? ("banked · " + bk.setsDone + " set" + (bk.setsDone === 1 ? "" : "s"))
+          : bk.density.roundsTotal > 0 ? ("banked · " + bk.density.roundsTotal + " round" + (bk.density.roundsTotal === 1 ? "" : "s"))
+          : "banked";
+        statHtml = '<span class="weekrow__anno">' + bankedLabel + '</span>';
       }
-      else if (st.key === "progress") statHtml = '<span class="weekrow__tag weekrow__tag--prog">' + pr.done + ' / ' + pr.total + '</span>';
-      else if (st.key === "skipped") statHtml = '<span class="weekrow__tag weekrow__tag--skipped">SKIPPED</span>';
-      else statHtml = '<span class="weekrow__tag weekrow__tag--pending">READY</span>';
+      else if (st.key === "progress") statHtml = '<span class="weekrow__anno">' + pr.done + ' / ' + pr.total + '</span>';
+      else if (st.key === "skipped") statHtml = '<span class="weekrow__anno">set aside</span>';
+      else statHtml = '<span class="weekrow__anno">planned</span>';
       // No per-row delete: a destructive control shown on every row of the
       // most-visited screen, for an action taken maybe once a program. It now
       // lives quietly inside the day itself (see the "Remove this day" control
@@ -6764,7 +6776,7 @@ function resolveSpec(request, state) {
     toastUndo(removed.name + " deleted", function () {
       sessions.splice(i, 0, removed);
       if (removedLog) state.log[removed.id] = removedLog;
-      save(); renderAll(false); toast("Restored");
+      save(); renderAll(false); toast("Session restored.");
     });
   }
   function renderDayBar() {
@@ -9115,7 +9127,7 @@ function resolveSpec(request, state) {
         week.sessions[idx] = removedSession;
         if (removedLog) state.log[removedSession.id] = removedLog;
         delete state.log[sid];
-        save(); renderAll(false); toast("Restored");
+        save(); renderAll(false); toast("Session restored.");
       });
       return;
     }
@@ -9160,7 +9172,7 @@ function resolveSpec(request, state) {
     hideRest();
     if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
     state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
-    pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast("Loaded " + state.program.title);
+    pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast(state.program.title + " loaded.");
   }
   $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
@@ -9407,7 +9419,7 @@ function resolveSpec(request, state) {
           localStorage.removeItem(STORE_V1);
           localStorage.removeItem(STORE + ":quarantine");
         } catch (e) {}
-        save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); refreshWelcome(); toast("Erased");
+        save(); applyTheme(); renderAll(true); syncSegs(); closeSheet(); refreshWelcome(); toast("Plan erased.");
       }
     });
   });

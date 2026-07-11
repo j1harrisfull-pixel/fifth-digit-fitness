@@ -82,14 +82,19 @@ const APPROVED_LITERALS = [
 APPROVED_LITERALS.forEach(function (s) {
   ok(SRC.indexOf(s) !== -1, 'approved copy present: "' + s + '"');
 });
-ok(SRC.indexOf('CLOSED</span>') !== -1, 'week-row "CLOSED" status label present');
-// v1.8 TEMPO Ticket 2 fix-up (approved): the BANKED label now reads a true
+// v1.10 Human Feel Ticket 1 (approved): the coloured-fill uppercase enum tags
+// (CLOSED/BANKED · N SETS/READY/SKIPPED) became quiet lower-case Training
+// Ledger annotations -- same data, same unit-honesty guarantee, just spoken
+// instead of shouted. See test-v1_9-t1-preview.js and test-v1_8-tempo-
+// ticket2-fixup.js for the full v1.10 wording assertions.
+ok(SRC.indexOf('weekrow__anno weekrow__anno--done">') !== -1 && / closed</.test(SRC), 'week-row "closed" annotation present');
+// v1.8 TEMPO Ticket 2 fix-up (approved): the banked label now reads a true
 // completed-set count (bk.setsDone) instead of pr.done (which counts
 // completed EXERCISES, a different unit) -- see test-v1_8-tempo-finish.js
 // for the full unit-honesty test coverage of this fix.
-ok(/BANKED · " \+ bk\.setsDone \+ " SET/.test(SRC), 'week-row "BANKED · N SETS" status label present, uses true completed-set count (v1.8 fix-up)');
-ok(SRC.indexOf('READY</span>') !== -1, 'week-row "READY" status label present');
-ok(SRC.indexOf('SKIPPED</span>') !== -1, 'week-row "SKIPPED" status label present');
+ok(/banked · " \+ bk\.setsDone \+ " set/.test(SRC), 'week-row "banked · N sets" annotation present, uses true completed-set count (v1.8 fix-up, v1.10 wording)');
+ok(/weekrow__anno">planned</.test(SRC), 'week-row "planned" annotation present');
+ok(/weekrow__anno">set aside</.test(SRC), 'week-row "set aside" annotation present');
 ok(SRC.indexOf('’s session is banked.') !== -1, 'memory line 1 template present');
 ok(SRC.indexOf(' moved up this block.') !== -1, 'memory line 2 template present');
 ok(SRC.indexOf(' in this week.') !== -1, 'memory line 3 template present');

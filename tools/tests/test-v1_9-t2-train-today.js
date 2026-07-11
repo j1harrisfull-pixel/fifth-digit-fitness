@@ -465,12 +465,14 @@ function fixtureState(activeSession) {
 // ==================================================================
 const renderHomeHeroMatch = SRC.match(/function renderHomeHero\(\) \{[\s\S]*?\n  \}\n  \/\/ ---- History view/);
 const renderHomeHeroSrc = renderHomeHeroMatch ? renderHomeHeroMatch[0] : '';
-const chosenBodyIdx = renderHomeHeroSrc.indexOf('todayPicked ? (name');
-const chosenBodySnippet = renderHomeHeroSrc.slice(chosenBodyIdx, chosenBodyIdx + 120);
+const chosenBodyIdx = renderHomeHeroSrc.indexOf('todayPicked ? ("You chose');
+const chosenBodySnippet = renderHomeHeroSrc.slice(chosenBodyIdx, chosenBodyIdx + 150);
 {
   ok(renderHomeHeroSrc.length > 0, 'renderHomeHero() body located for structural checks');
-  ok(/todayPicked \? \(name \+ " is set for today\.\\nNothing else moved\."\)/.test(renderHomeHeroSrc),
-     'Home hero body is exactly "<Session name> is set for today.\\nNothing else moved." when a pick is active (test 9/10)');
+  // v1.10 Human Feel Ticket 1: Training Ledger voice -- active ("you chose")
+  // rather than passive ("is set"), same two facts, same data.
+  ok(/todayPicked \? \("You chose " \+ name \+ " for today\.\\nThe rest of the week stays where it is\."\)/.test(renderHomeHeroSrc),
+     'Home hero body is exactly "You chose <Session name> for today.\\nThe rest of the week stays where it is." when a pick is active (test 9/10, v1.10 wording)');
   ok(/todayPicked \? "Chosen today"/.test(renderHomeHeroSrc), 'Home hero label reads "Chosen today" when a pick is active (test 9, from the Hero Fix)');
   ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(renderHomeHeroSrc),
      'Home hero primary CTA reads "Start the session" for a not-yet-started session, chosen or not (test 11) -- no new start button was added');

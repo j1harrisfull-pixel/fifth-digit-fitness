@@ -497,7 +497,11 @@ GUARDED_FNS.forEach(function (name) {
 // v1.9 Preview Clarity Fix (approved): the old two-signal preview UI (a
 // standalone banner paragraph PLUS a long .livebar message) is replaced by
 // ONE compact banner. Old copy must be GONE, not just superseded.
-ok(SRC.indexOf('PREVIEW · Planned for later.') !== -1, 'preview header copy present exactly: "PREVIEW · Planned for later."');
+// v1.10 Human Feel Ticket 1 (approved): the "PREVIEW ·" telegram-style
+// prefix became a plain sentence -- "Planned for later. Nothing logs from
+// here." (one line, per the v1.9 Preview Clarity no-wrap constraint).
+ok(SRC.indexOf('Planned for later. Nothing logs from here.') !== -1, 'preview header copy present exactly: "Planned for later. Nothing logs from here." (v1.10 wording)');
+ok(SRC.indexOf('PREVIEW · Planned for later.') === -1, 'old "PREVIEW ·" enum-prefixed copy is gone (v1.10 wording)');
 ok(SRC.indexOf('Preview · not today\'s session') === -1, 'old preview header copy "Preview · not today\'s session" is gone (test 1/2)');
 ok(SRC.indexOf('This session is planned for later. Training something else today is your call.') === -1,
    'old long preview message copy is gone -- no second preview signal (test 3)');

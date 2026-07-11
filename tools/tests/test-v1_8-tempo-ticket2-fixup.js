@@ -156,12 +156,15 @@ function densityEx(id, block, mode) { return { id: id, name: id, type: 'strength
 // ---------- Source-level: the render label construction matches the approved rules ----------
 const rwIdx = SRC.indexOf('function renderWeekList() {');
 const rwBody = extractFn('renderWeekList');
-ok(/bk\.setsDone > 0 \? \("BANKED · " \+ bk\.setsDone \+ " SET" \+ \(bk\.setsDone === 1 \? "" : "S"\)\)/.test(rwBody),
-   'renderWeekList: BANKED · N SETS uses bk.setsDone (true completed-set count)');
-ok(/bk\.density\.roundsTotal > 0 \? \("BANKED · " \+ bk\.density\.roundsTotal \+ " ROUND"/.test(rwBody),
-   'renderWeekList: BANKED · N ROUNDS uses bk.density.roundsTotal (true density round count)');
-ok(/: "BANKED";/.test(rwBody), 'renderWeekList: falls back to a bare "BANKED" (never "BANKED · 0 SETS") when neither sets nor rounds are present');
-// (the fallback-to-bare-"BANKED" assertion above already proves this
+// v1.10 Human Feel Ticket 1 (approved): the label became lower case Training
+// Ledger wording ("banked · N sets") -- same bk.setsDone/bk.density source,
+// same unit-honesty guarantee this fix-up ticket established, just de-shouted.
+ok(/bk\.setsDone > 0 \? \("banked · " \+ bk\.setsDone \+ " set" \+ \(bk\.setsDone === 1 \? "" : "s"\)\)/.test(rwBody),
+   'renderWeekList: "banked · N sets" uses bk.setsDone (true completed-set count)');
+ok(/bk\.density\.roundsTotal > 0 \? \("banked · " \+ bk\.density\.roundsTotal \+ " round"/.test(rwBody),
+   'renderWeekList: "banked · N rounds" uses bk.density.roundsTotal (true density round count)');
+ok(/: "banked";/.test(rwBody), 'renderWeekList: falls back to a bare "banked" (never "banked · 0 sets") when neither sets nor rounds are present');
+// (the fallback-to-bare-"banked" assertion above already proves this
 // structurally; a substring scan here would also false-positive on this
 // file's own explanatory comments describing the bug being fixed)
 
