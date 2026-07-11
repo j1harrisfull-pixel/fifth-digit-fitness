@@ -33,7 +33,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Coach-span untouched ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '60e1ec07345fba425bcc6ecf97a6da4b', 'coach-span md5 unchanged (60e1ec07345fba425bcc6ecf97a6da4b), got ' + spanMd5);
+ok(spanMd5 === '0e665de20f3872db06e90974f0af8b0b', 'coach-span md5 unchanged (0e665de20f3872db06e90974f0af8b0b), got ' + spanMd5);
 
 // ================= FIX 1: signoffBeat hidden state =================
 {

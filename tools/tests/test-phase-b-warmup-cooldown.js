@@ -343,6 +343,97 @@ console.log(`checked ${mandChecked} no-mobility-requested sessions for mandatory
   wc.cooldown.forEach(e => { const l = libOf(e.name); ok(l && (CLOSER_NAMES.indexOf(l.name) >= 0 || l.unit === 'sec'), `cool-down item "${e.name}" is still a closer or a static (sec) stretch`); });
 }
 
+// ==================================================================
+// v1.11 Library Variety Patch: 10-seed real-output rotation audit.
+// Proves the picker actually rotates across a genuinely varied pool for
+// each session type -- not just that new entries exist (that's what
+// libraryIntegrity/pool-size-floor tests already cover), but that no
+// single high-frequency slot dominates 10/10 real generated outputs.
+// ==================================================================
+const CLOSER_SET = new Set(CLOSER_NAMES);
+function auditRotation(label, sessionBuilder) {
+  const sessions = [];
+  for (let seed = 1; seed <= 10; seed++) sessions.push(sessionBuilder(seed));
+  const pulses = new Set(), drills = new Set(), closers = new Set();
+  const counts = {};
+  let mismatches = 0;
+  sessions.forEach(s => {
+    const warmup = s.exercises.filter(e => e.block === 'warmup');
+    const cooldown = s.exercises.filter(e => e.block === 'cooldown');
+    warmup.forEach(e => {
+      const l = libOf(e.name);
+      counts[e.name] = (counts[e.name] || 0) + 1;
+      if (l && l.movement_pattern === 'pulse-raiser') pulses.add(e.name); else if (l) drills.add(e.name);
+    });
+    cooldown.forEach(e => { counts[e.name] = (counts[e.name] || 0) + 1; if (CLOSER_SET.has(e.name)) closers.add(e.name); });
+    const strengthLib = strengthOf(s).map(e => libOf(e.name)).filter(Boolean);
+    const hasLowerPattern = strengthLib.some(l => ['squat', 'hinge', 'lunge', 'calf'].indexOf(l.pattern) >= 0);
+    const hasUpperPattern = strengthLib.some(l => ['hpush', 'vpush', 'hpull', 'vpull'].indexOf(l.pattern) >= 0);
+    const drillGroups = warmup.map(e => libOf(e.name)).filter(l => l && l.movement_pattern !== 'pulse-raiser').map(l => l.movement_pattern);
+    const gotLower = drillGroups.some(g => LOWER_REGION[g]), gotUpper = drillGroups.some(g => UPPER_REGION[g]);
+    if (hasLowerPattern && !gotLower) mismatches++;
+    if (hasUpperPattern && !gotUpper) mismatches++;
+  });
+  const n = sessions.length;
+  const overused = Object.entries(counts).filter(([, v]) => v === n).map(([k]) => k);
+  return { pulses, drills, closers, overused, mismatches, n };
+}
+
+// Determinism: same seed -> identical output; different seeds -> can differ.
+{
+  const build = seed => buildWarmupCooldown([{ pattern: 'hpush', equipment: 'barbell' }], null, {}, seed, {}, 45, 1, false, {}, []);
+  const a = build(4), b = build(4);
+  ok(JSON.stringify(a.warmup.map(e => e.name)) === JSON.stringify(b.warmup.map(e => e.name)),
+     'same seed (4) produces byte-identical warm-up output across two independent calls');
+  const seedOutputs = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(seed => build(seed).warmup.map(e => e.name).join('|')));
+  ok(seedOutputs.size > 1, `different seeds produce different valid warm-up outputs (saw ${seedOutputs.size} distinct combos across 10 seeds)`);
+}
+
+const pushAudit = auditRotation('Upper Push', seed => generateSession({ role: 'push', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+const pullAudit = auditRotation('Upper Pull', seed => generateSession({ role: 'pull', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+const lowerAudit = auditRotation('Lower', seed => generateSession({ role: 'lower', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+const fullAudit = auditRotation('Full Body', seed => generateSession({ role: 'full', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+const conAudit = auditRotation('Conditioning', seed => generateSession({ role: 'upper', minutes: 45, goal: 'hybrid', includes: ['mobility', 'conditioning'], equipment: null }, {}, seed, {}, null, false, null));
+
+[
+  ['Upper Push', pushAudit], ['Upper Pull', pullAudit], ['Lower', lowerAudit],
+  ['Full Body', fullAudit], ['Conditioning', conAudit]
+].forEach(([label, a]) => {
+  ok(a.mismatches === 0, `${label}: specificity holds across all 10 seeds (0 region mismatches)`);
+  ok(a.overused.length === 0, `${label}: no single warm-up/cool-down item appears in all 10/10 real outputs (overused: ${a.overused.join(', ') || 'none'})`);
+});
+
+// Named regressions from the audit that triggered this patch.
+ok(pushAudit.overused.indexOf('Wrist Prep Rocks') < 0, 'Upper Push no longer always uses Wrist Prep Rocks (Wrist Circles now shares the slot)');
+ok(pushAudit.overused.indexOf('Sleeper Stretch') < 0, 'Upper Push no longer always uses Sleeper Stretch (Cross-Body/Standing Chest Stretch now share the slot)');
+ok(pullAudit.overused.indexOf('Sleeper Stretch') < 0, 'Upper Pull no longer always uses Sleeper Stretch');
+ok(pullAudit.overused.indexOf('Thoracic Extension (foam roller)') < 0, 'Upper Pull no longer always uses Thoracic Extension (Thread the Needle Hold now shares the slot)');
+ok(lowerAudit.overused.indexOf('Soleus Wall Stretch') < 0, 'Lower no longer always uses Soleus Wall Stretch (Standing Calf Stretch now shares the slot)');
+ok(fullAudit.overused.indexOf('Soleus Wall Stretch') < 0, 'Full Body no longer always uses Soleus Wall Stretch');
+
+// The pool genuinely grew: each previously-monoculture group now resolves to
+// more than one real name across the 10-seed sweep somewhere in the audit.
+ok(new Set([...pushAudit.drills, ...conAudit.drills].filter(n => libOf(n) && libOf(n).movement_pattern === 'wrist-mobility')).size > 1,
+   'wrist-mobility warm-up pool resolves to more than one real drill across the sweep');
+{
+  const shoulderStaticNames = new Set();
+  const sessions = [1,2,3,4,5,6,7,8,9,10].map(seed => generateSession({ role: 'push', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+  sessions.forEach(s => s.exercises.filter(e => e.block === 'cooldown').forEach(e => { const l = libOf(e.name); if (l && l.movement_pattern === 'shoulder-mobility') shoulderStaticNames.add(e.name); }));
+  ok(shoulderStaticNames.size > 1, `shoulder-mobility cool-down pool resolves to more than one real stretch across the sweep (saw: ${[...shoulderStaticNames].join(', ')})`);
+}
+{
+  const ankleStaticNames = new Set();
+  const sessions = [1,2,3,4,5,6,7,8,9,10].map(seed => generateSession({ role: 'lower', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+  sessions.forEach(s => s.exercises.filter(e => e.block === 'cooldown').forEach(e => { const l = libOf(e.name); if (l && l.movement_pattern === 'ankle-mobility') ankleStaticNames.add(e.name); }));
+  ok(ankleStaticNames.size > 1, `ankle-mobility cool-down pool resolves to more than one real stretch across the sweep (saw: ${[...ankleStaticNames].join(', ')})`);
+}
+{
+  const tspineStaticNames = new Set();
+  const sessions = [1,2,3,4,5,6,7,8,9,10].map(seed => generateSession({ role: 'pull', minutes: 45, goal: 'general', includes: ['mobility'], equipment: null }, {}, seed, {}, null, false, null));
+  sessions.forEach(s => s.exercises.filter(e => e.block === 'cooldown').forEach(e => { const l = libOf(e.name); if (l && l.movement_pattern === 'tspine-mobility') tspineStaticNames.add(e.name); }));
+  ok(tspineStaticNames.size > 1, `tspine-mobility cool-down pool resolves to more than one real stretch across the sweep (saw: ${[...tspineStaticNames].join(', ')})`);
+}
+
 console.log(pass + ' passed, ' + fail + ' failed');
 if (fail) fails.slice(0, 30).forEach(f => console.log('  - ' + f));
 process.exit(fail ? 1 : 0);
