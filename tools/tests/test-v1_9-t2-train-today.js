@@ -625,5 +625,32 @@ ok(!/\bpreview\b/i.test(chosenBodySnippet), 'the Home hero\'s chosen-today body 
 ok(!/state\.todayPickWeek\b|state\.armedOverride\b|state\.pickedSession\b/.test(SRC),
    'no second/alternate stored field was introduced alongside todayPick');
 
+// ==================================================================
+// v1.10 Ticket 6 hero fix: a todayPick pointing at a TERMINAL session
+// (finished early, or fully complete) no longer counts -- Home's memory
+// line ("banked") and the hero must never disagree about the same session.
+// ==================================================================
+{
+  // (a) partial finish: finishedAt set, sets incomplete -> pick ignored
+  var sessionsT = [ses('A', [3]), ses('B', [3])];
+  var logT = { B: { date: null, finishedAt: '2026-01-01T00:00:00.000Z', ex: { e0: { sets: [{ completed: true }] } } } };
+  var stateT = { program: { weeks: [{ sessions: sessionsT }] }, activeWeek: 0, log: logT, todayPick: { week: 0, session: 1, date: TODAY } };
+  M.setState(stateT);
+  ok(M.validTodayPick(stateT.program.weeks[0]) === -1, 'terminal pick (partial finish): validTodayPick returns -1');
+  ok(M.heroInfo(stateT.program.weeks[0]).picked === -1, 'terminal pick (partial finish): heroInfo no longer reports a chosen-today session');
+  ok(M.armedSessionIdx() === 0, 'terminal pick (partial finish): resolver falls back to the first incomplete session');
+
+  // (b) fully-complete pick (all sets done, no finishedAt) is terminal too
+  var logT2 = { B: { date: null, ex: { e0: { sets: [{ completed: true }, { completed: true }, { completed: true }] } } } };
+  var stateT2 = { program: { weeks: [{ sessions: [ses('A', [3]), ses('B', [3])] }] }, activeWeek: 0, log: logT2, todayPick: { week: 0, session: 1, date: TODAY } };
+  M.setState(stateT2);
+  ok(M.validTodayPick(stateT2.program.weeks[0]) === -1, 'terminal pick (fully complete): validTodayPick returns -1');
+
+  // (c) an unfinished pick still outranks everything (unchanged behaviour)
+  var stateT3 = { program: { weeks: [{ sessions: [ses('A', [3]), ses('B', [3])] }] }, activeWeek: 0, log: {}, todayPick: { week: 0, session: 1, date: TODAY } };
+  M.setState(stateT3);
+  ok(M.validTodayPick(stateT3.program.weeks[0]) === 1 && M.armedSessionIdx() === 1, 'unfinished pick: still valid and still armed (behaviour preserved)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }

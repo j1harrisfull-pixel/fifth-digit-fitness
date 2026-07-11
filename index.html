@@ -6101,6 +6101,17 @@ function resolveSpec(request, state) {
     if (!tp || tp.date !== todayStr() || tp.week !== state.activeWeek) return -1;
     var sessions = wk.sessions || [];
     if (typeof tp.session !== "number" || tp.session < 0 || tp.session >= sessions.length) return -1;
+    // v1.10 Ticket 6 hero fix: a pick that points at a TERMINAL session
+    // (fully complete, or finished early) no longer counts -- the same
+    // fullyDone || isSessionFinished definition heroInfo applies to every
+    // non-picked session. Without this, partially finishing a chosen-today
+    // session left Home saying "banked" in the memory line while the hero
+    // still offered "CHOSEN TODAY / Start the session" for the same session.
+    // Both heroInfo and armedSessionIdx read the pick through here, so Home
+    // and the workout screen stay in agreement.
+    var ses = sessions[tp.session];
+    var p = sessionProgress(sessionItemsFor(ses));
+    if ((p.total > 0 && p.done === p.total) || isSessionFinished(ses)) return -1;
     return tp.session;
   }
   // v1.9-T1/T2: exactly one session is "armed" (startable/loggable) at a
