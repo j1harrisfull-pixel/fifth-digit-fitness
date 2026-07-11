@@ -326,7 +326,11 @@ function fixtureState(activeSession) {
   A.resetCounts();
   A.trainThisTodayClick();
   ok(A.getConfirmTitle() === 'Train this today?', 'clicking Train this today opens the confirmation sheet with the exact title (test 10)');
-  ok(A.getConfirmMsg().indexOf("This becomes today's session. Sets you log count for today. Your planned session stays in the week, untouched, and nothing already completed moves or changes.") === 0,
+  // v1.10 Human Feel Ticket 3 (approved): the confirmation body became the
+  // locked Training Ledger copy -- "<Session> becomes today's work. / The
+  // rest of the week stays where it is." -- built from the real session
+  // name, not the old, longer explainer sentence.
+  ok(A.getConfirmMsg().indexOf("B\nbecomes today's work.\n\nThe rest of the week stays where it is.") === 0,
      'confirmation body is the exact approved copy (test 10b)');
   ok(A.getConfirmYesLabel() === 'Train this today', 'primary button reads exactly "Train this today" (test 10c)');
   ok(A.getConfirmNoLabel() === 'Keep it as preview', 'secondary button reads exactly "Keep it as preview" (test 10d)');
@@ -369,7 +373,14 @@ function fixtureState(activeSession) {
   ok(M2.isPreviewSession(0), 'session A (the ORIGINAL armed/first-incomplete session) becomes preview now that it is no longer armed (test 18/T2\'s "original today session becomes preview if no longer armed")');
 }
 
-// ---------- Test 9: today-already-has-work variant copy ----------
+// ---------- Test 9: today-already-has-work case no longer adds a variant line ----------
+// v1.10 Human Feel Ticket 3 (approved): the "Today already has work banked
+// on <name>. That stays as it is." disclosure was removed. Log data is keyed
+// per-session-id and is never touched by which session is armed, so the
+// disclosure described a risk that never existed -- keeping it read as
+// permissions-dialog hedging. The confirmation body is now identical
+// (the locked two-line copy) whether or not the currently-armed session has
+// real logged work.
 {
   const A = actionHarness();
   var sessions9 = [ses('A', [3]), ses('B', [3])];
@@ -378,16 +389,16 @@ function fixtureState(activeSession) {
   A.setState(st9);
   A.trainThisTodayClick();
   const msg = A.getConfirmMsg();
-  ok(msg.indexOf('Today already has work banked on') !== -1, 'the "today already has work" line appears when the currently-armed session (A) has real logged work (test 9/today-already-has-work)');
-  ok(/Today already has work banked on .+\. That stays as it is\.$/.test(msg), 'the extra line is appended exactly as approved: "Today already has work banked on <name>. That stays as it is." (test 9b)');
+  ok(msg.indexOf('Today already has work banked on') === -1, 'no "today already has work" line appears even when the currently-armed session (A) has real logged work (test 9)');
+  ok(msg === "B\nbecomes today's work.\n\nThe rest of the week stays where it is.", 'confirmation body is the exact locked copy regardless of armed-session logged work (test 9b)');
 }
-// ---------- Test 9b: no variant copy when the armed session has no work ----------
+// ---------- Test 9b: same locked copy when the armed session has no work ----------
 {
   const A = actionHarness();
   const st = fixtureState(1); // A armed, no log at all
   A.setState(st);
   A.trainThisTodayClick();
-  ok(A.getConfirmMsg().indexOf('Today already has work banked on') === -1, 'the "today already has work" line is absent when the armed session has no real logged work (test 9c)');
+  ok(A.getConfirmMsg().indexOf('Today already has work banked on') === -1, 'no "today already has work" line when the armed session has no real logged work either (test 9c)');
 }
 
 // ==================================================================

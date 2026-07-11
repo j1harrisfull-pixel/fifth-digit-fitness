@@ -1298,8 +1298,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .toast.has-action { pointer-events: auto; display: inline-flex; align-items: center; gap: 16px; }
 .toast__action { background: none; border: 0; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 2px; cursor: pointer; min-height: 32px; }
 .confirm__title { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--danger); }
+/* v1.10 Human Feel Ticket 3: the title colour was hardcoded to --danger for
+   EVERY confirm dialog, including calls that already pass danger:false (the
+   icon and button already went non-destructive there, but the heading still
+   read as a red warning). Reversible, non-destructive confirms (Train this
+   today, unit relabel) now get plain ink instead. */
+.confirm__title.is-calm { color: var(--ink); }
 .confirm__icon { flex: none; }
-.confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; }
+.confirm__msg { font-size: 14px; line-height: 1.5; color: var(--ink-dim); margin: 0 0 22px; white-space: pre-line; }
 /* The receipt: an actual cream card floating on the dark sheet -- shadow
    allowed here (the one exception; see --shadow doctrine note at :root),
    because this is the single moment the brand spends its bold move. */
@@ -6112,15 +6118,16 @@ function resolveSpec(request, state) {
     var wk = curWeek(), pickIdx = state.activeSession;
     var ses = wk.sessions && wk.sessions[pickIdx];
     if (!ses) return;
-    var armedIdx = armedSessionIdx(wk);
-    var armedSes = armedIdx >= 0 ? wk.sessions[armedIdx] : null;
-    var body = "This becomes today's session. Sets you log count for today. Your planned session stays in the week, untouched, and nothing already completed moves or changes.";
-    // v1.9-T2: if today's currently armed session already has real logged
-    // work, name it honestly -- this is allowed (two same-day banked
-    // sessions are honest, never overwritten), just disclosed up front.
-    if (armedSes && hasRealWork(armedSes)) {
-      body += " Today already has work banked on " + dayPositionLabel(wk.sessions, armedIdx) + ". That stays as it is.";
-    }
+    // v1.10 Human Feel Ticket 3: the confirmation body is the exact locked
+    // Training Ledger copy -- "<Session> becomes today's work. / The rest
+    // of the week stays where it is." A third disclosure line about an
+    // already-armed session's banked work was considered and dropped: log
+    // data is keyed per-session-id and is never touched by which session is
+    // armed, so that reassurance described a risk that never existed. The
+    // locked line already covers the one true fact ("the rest of the week
+    // stays where it is") -- an extra caveat for a non-risk reads as
+    // permissions-dialog hedging, against the calm-declarative principle.
+    var body = ses.name + "\nbecomes today's work.\n\nThe rest of the week stays where it is.";
     askConfirm({
       title: "Train this today?",
       message: body,
@@ -10158,7 +10165,9 @@ function resolveSpec(request, state) {
     var danger = opts.danger !== false;
     yes.classList.toggle("btn--danger", danger);
     yes.classList.toggle("btn--primary", !danger);
-    var icon = $("confirmTitle") && $("confirmTitle").querySelector(".confirm__icon");
+    var titleEl = $("confirmTitle");
+    if (titleEl) titleEl.classList.toggle("is-calm", !danger);
+    var icon = titleEl && titleEl.querySelector(".confirm__icon");
     if (icon) icon.style.display = danger ? "" : "none";
     function cleanup() { yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); dlg.removeEventListener("close", onClose); }
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); cleanup(); }

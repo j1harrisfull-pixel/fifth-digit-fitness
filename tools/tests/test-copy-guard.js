@@ -89,6 +89,7 @@ const renderHomeHeroBody = stripComments(extractFn('renderHomeHero'));
 const renderWeekListBody = stripComments(extractFn('renderWeekList'));
 const renderDayBarBody = stripComments(extractFn('renderDayBar'));
 const showSessionCompleteBody = stripComments(extractFn('showSessionComplete'));
+const trainThisTodayClickBody = stripComments(extractFn('trainThisTodayClick'));
 
 // Static markup blocks (not JS functions) -- extracted by fixed anchors,
 // same "slice between two known markers" style already used elsewhere in
@@ -119,6 +120,7 @@ const RENDERED_SURFACES = {
   'showSessionComplete (finish result)': showSessionCompleteBody,
   'preview banner static markup': previewBannerMarkup,
   'confirm sheet static markup': confirmSheetMarkup,
+  'trainThisTodayClick (Train this today confirmation body)': trainThisTodayClickBody,
   'toast()/toastUndo() literal strings (all call sites)': toastCorpus
 };
 
@@ -282,6 +284,49 @@ ok(!/state\.\w+\s*=/.test(heroBody.replace(/state\.todayPick/g, '')) || !/state\
    'renderHomeHero introduces no new state.* writes (display-layer only)');
 ok(!/state\.\w+\s*=(?!=)/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']),
    'renderWeekList introduces no new state.* writes (display-layer only)');
+
+// ---------- 8. v1.10 Ticket 3 (Preview + Train This Today polish) proofs ----------
+const trainBody = RENDERED_SURFACES['trainThisTodayClick (Train this today confirmation body)'];
+
+// Locked confirmation body: "<Session>\nbecomes today's work.\n\nThe rest
+// of the week stays where it is." -- built from ses.name, not a hardcoded
+// session name, so it is honest for every session.
+ok(/var body = ses\.name \+ "\\nbecomes today's work\.\\n\\nThe rest of the week stays where it is\."/.test(trainBody),
+   'Train this today confirmation body is the exact locked copy, built from the real session name');
+ok(!/This becomes today's session\. Sets you log count for today\./.test(trainBody),
+   'old, longer confirmation body wording is gone');
+// The "already-banked armed session" disclosure was removed on review: log
+// data is keyed per-session-id and is never touched by which session is
+// armed, so the disclosure described a risk that never existed -- an extra
+// caveat for a non-risk reads as permissions-dialog hedging. Confirm it is
+// gone and no longer references armedSessionIdx/hasRealWork.
+ok(!/Today already has work banked on/.test(trainBody),
+   'the already-banked-session disclosure line has been removed (described a non-existent risk)');
+ok(!/armedSessionIdx\(wk\)/.test(trainBody) && !/hasRealWork\(armedSes\)/.test(trainBody),
+   'trainThisTodayClick no longer computes an armed-session disclosure at all (dead code removed, not just hidden)');
+
+// Confirm sheet title/labels: exact locked strings (title question form,
+// primary/secondary labels), unchanged from Ticket 2's askConfirm call.
+ok(/title: "Train this today\?"/.test(trainBody), 'confirm sheet title is exactly "Train this today?"');
+ok(/confirmLabel: "Train this today"/.test(trainBody), 'confirm sheet primary label is exactly "Train this today"');
+ok(/cancelLabel: "Keep it as preview"/.test(trainBody), 'confirm sheet secondary label is exactly "Keep it as preview"');
+ok(/danger: false/.test(trainBody), 'Train this today confirmation stays non-destructive (danger: false) -- no icon, no danger-red button');
+
+// Title colour must now respect the danger flag instead of being hardcoded
+// red for every confirm dialog (the core "warning dialog" defect this
+// ticket fixes) -- verify both the CSS modifier and the JS toggle exist.
+ok(/\.confirm__title\.is-calm\s*\{\s*color:\s*var\(--ink\);\s*\}/.test(SRC),
+   '.confirm__title.is-calm CSS rule exists (calm ink colour for non-destructive confirms)');
+ok(/titleEl\.classList\.toggle\("is-calm", !danger\)/.test(SRC),
+   'askConfirm toggles the is-calm class from the same danger flag that already drives the icon/button');
+ok(/white-space:\s*pre-line/.test(SRC.match(/\.confirm__msg \{[^}]*\}/)[0]),
+   '.confirm__msg supports pre-line so the locked multi-line body actually renders as separate lines');
+
+// Preview banner unchanged (Ticket 1 lock, re-asserted here since this
+// ticket explicitly reviewed it): still the calm one-line hairline banner,
+// no PREVIEW watermark, no icon, no alert colour class introduced.
+ok(SRC.indexOf('Planned for later. Nothing logs from here.') !== -1, 'preview banner copy unchanged: "Planned for later. Nothing logs from here."');
+ok(!/daypreview-banner[^{]*\{[^}]*(amber|warning|--danger)/i.test(SRC), 'preview banner CSS introduces no alert/warning colour');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) { fails.forEach(f => console.log('  FAIL:', f)); process.exit(1); }
