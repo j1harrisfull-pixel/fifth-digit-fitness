@@ -112,7 +112,11 @@ ok(!/https?:\/\//.test(tempoCss), 'no network reference in the TEMPO CSS block')
 ok(!/fetch\(|XMLHttpRequest/.test(memBody), 'no network call in the memory helper');
 
 // ---------- 8. FD watermark opacity ceiling ----------
-const wmMatch = tempoCss.match(/\.today-card::after \{[^}]*opacity:\s*([0-9.]+)/);
+// Swapped from a CSS-generated "FD" text glyph (::after { content: "FD" })
+// to the real monogram SVG (.today-card__mark, same brand-handoff path as
+// the header's .brand__mark) -- same position/opacity ceiling, just a real
+// mark instead of a font recreation.
+const wmMatch = tempoCss.match(/\.today-card__mark \{[^}]*opacity:\s*([0-9.]+)/);
 ok(!!wmMatch, 'FD watermark rule found');
 ok(!!wmMatch && parseFloat(wmMatch[1]) <= 0.05, 'FD watermark opacity <= 0.05, got ' + (wmMatch && wmMatch[1]));
 

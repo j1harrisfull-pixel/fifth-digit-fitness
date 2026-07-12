@@ -312,7 +312,10 @@ input, textarea { font: inherit; color: inherit; }
    A large, low-opacity FD watermark (<=5% ink, enforced by test) is the
    only decorative mark; everything else on this card is real session data. */
 .app[data-view="week"] .today-card { background: var(--tempo-bone); color: var(--tempo-bone-ink); border: 0; position: relative; overflow: hidden; }
-.app[data-view="week"] .today-card::after { content: "FD"; position: absolute; right: -16px; bottom: -40px; font-family: var(--font-display); font-weight: 700; font-size: 190px; line-height: 1; color: var(--tempo-bone-ink); opacity: .045; pointer-events: none; }
+/* The real FD monogram (same brand-handoff SVG as the header's
+   .brand__mark), not a CSS-generated "FD" text glyph -- swapped in because
+   the display-font recreation drifted from the true monogram proportions. */
+.app[data-view="week"] .today-card__mark { position: absolute; right: -16px; bottom: -40px; width: 270px; height: auto; color: var(--tempo-bone-ink); opacity: .045; pointer-events: none; }
 .app[data-view="week"] .today-card__label { position: relative; z-index: 1; color: var(--tempo-brass-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .app[data-view="week"] .today-card__name { position: relative; z-index: 1; color: var(--tempo-bone-ink); }
 .app[data-view="week"] .today-card__meta { position: relative; z-index: 1; display: block; font-family: "Spline Sans Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 21px; letter-spacing: .01em; color: var(--tempo-bone-ink); margin: 8px 0 0; }
@@ -6812,6 +6815,12 @@ function resolveSpec(request, state) {
       winHtml +
       readingHtml +
       '<div class="today-card">' +
+        // The real FD monogram (same brand-handoff SVG/path as the header's
+        // .brand__mark), not a CSS-generated "FD" text glyph -- a recreation
+        // in the display font drifted from the true 1725:1210 monogram
+        // proportions. Purely decorative (aria-hidden), same watermark
+        // placement/opacity as before.
+        '<svg class="today-card__mark" viewBox="0 0 1725 1210" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>' +
         '<div class="today-card__label">' + esc(label2) + '</div>' +
         '<h2 class="today-card__name">' + esc(name) + '</h2>' +
         metaHtml +
