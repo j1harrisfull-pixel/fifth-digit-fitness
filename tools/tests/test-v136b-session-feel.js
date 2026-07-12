@@ -29,11 +29,14 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
      'the untouched-session hero CTA label is "Start the session" (v1.8 TEMPO rename, approved) (test: Home hero copy)');
   ok(!/"Start training"/.test(SRC), 'the old "Start training" copy is gone entirely');
-  // The hero CTA's click handler resolves through maybeOpenDayWithReadiness,
-  // which (below) is proven to only ever call plain openDay -- so the hero
-  // itself contains no direct ensureSessionLive/openDayToTrain call.
-  ok(/cta\.addEventListener\("click", weekDone \? openPlan : function \(\) \{ maybeOpenDayWithReadiness\(heroIdx\); \}\);/.test(SRC),
-     'the hero CTA routes through maybeOpenDayWithReadiness only -- no direct timer start (test: Home hero does not start timer)');
+  // The hero CTA's click handler resolves through maybeOpenDayWithReadiness
+  // (resumed/already-started sessions only) or openPreview (v1.12 Preview
+  // Mode Separation -- everything not yet started) -- which (below, and in
+  // test-v1_12-preview-mode.js) are both proven to never call
+  // ensureSessionLive directly, so the hero itself contains no direct
+  // ensureSessionLive/openDayToTrain call either way.
+  ok(/if \(cta\) cta\.addEventListener\("click", weekDone \? openPlan : function \(\) \{\s*\n\s*if \(started\) maybeOpenDayWithReadiness\(heroIdx\);\s*\n\s*else openPreview\(heroIdx\);\s*\n\s*\}\);/.test(SRC),
+     'the hero CTA routes through maybeOpenDayWithReadiness (resumed) or openPreview (not yet started) only -- no direct timer start (test: Home hero does not start timer)');
 }
 
 // ---------- Test 2: every entry route opens the workout WITHOUT starting the timer ----------
@@ -54,8 +57,13 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 3: a plain week-row preview of any day does NOT start the timer ----------
 {
-  const m = SRC.match(/if \(day === todaySessionIdx\(curWeek\(\)\.sessions\)\) maybeOpenDayWithReadiness\(day\);\s*\n\s*else openDay\(day\);/);
-  ok(!!m, 'week-row click: any day (today via the readiness-gated route above, or any other day via plain openDay) never calls ensureSessionLive directly (test: week-row preview does not start timer)');
+  // v1.12 Preview Mode Separation: a not-yet-started, not-finished row now
+  // opens openPreview(day) (see test-v1_12-preview-mode.js) instead of
+  // going straight to openDay; the started/finished branch keeps calling
+  // exactly the same maybeOpenDayWithReadiness/openDay pair as before,
+  // unchanged. Neither branch calls ensureSessionLive directly.
+  const m = SRC.match(/if \(alreadyStarted \|\| finished\) \{\s*\n\s*if \(day === todaySessionIdx\(wk\.sessions\)\) maybeOpenDayWithReadiness\(day\);\s*\n\s*else openDay\(day\);\s*\n\s*\} else \{\s*\n\s*openPreview\(day\);\s*\n\s*\}/);
+  ok(!!m, 'week-row click: a started/finished day routes through maybeOpenDayWithReadiness/openDay (unchanged), everything else opens openPreview -- neither calls ensureSessionLive directly (test: week-row preview does not start timer)');
 }
 
 // ---------- Test: the workout screen's own Start action starts the timer ----------

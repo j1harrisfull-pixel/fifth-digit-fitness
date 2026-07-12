@@ -1223,6 +1223,35 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .phasehead:first-child { padding-top: 4px; }
 .phasehead__label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 600; opacity: .85; }
 .phasehead__min { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; opacity: .8; }
+
+/* v1.12 Preview Mode Separation -- a read-only structure screen shown
+   before either the hero or a week-row tap enters live workout mode.
+   Deliberately its own quiet, static block of type -- no card border, no
+   CURRENT/NEXT/THEN/DONE colour language, no interactive controls -- so it
+   reads as "what is this workout" rather than "what am I doing now". Uses
+   the same base --ink/--surface/--line tokens as the live day view (not
+   Home's warm --tempo-bone card), since this sits conceptually next to the
+   workout screen, just before it -- but with zero of its active styling. */
+.preview { display: none; padding: 4px 4px 40px; }
+.app[data-mode="preview"] .view-week,
+.app[data-mode="preview"] .view-day { display: none !important; }
+.app[data-mode="preview"] .preview { display: block; }
+.preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
+.preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
+.preview__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: -.01em; color: var(--ink); margin: 0 0 10px; }
+.preview__note { font-family: var(--font-body); font-size: 13.5px; color: var(--ink-dim); margin: 0 0 18px; }
+.preview__cta { display: block; width: 100%; padding: 14px 18px; background: var(--ink); color: var(--bg); border: 0; border-radius: var(--radius); font-family: var(--font-body); font-weight: 700; font-size: 15px; cursor: pointer; margin: 0 0 8px; }
+.preview__blocks { margin-top: 8px; }
+.preview__exlist { list-style: none; margin: 0; padding: 0; }
+.preview__ex { border-top: 1px solid var(--line); padding: 12px 2px; }
+.preview__ex:first-child { border-top: 0; }
+.preview__ex-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.preview__ex-name { font-family: var(--font-body); font-weight: 600; font-size: 15px; color: var(--ink); }
+.preview__ex-meta { font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.preview__ex-note { font-family: var(--font-body); font-size: 12.5px; color: var(--faint); font-style: italic; margin: 4px 0 0; }
+.preview__ex-formnotes { margin: 6px 0 0; }
+.preview__ex-formnotes summary { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); cursor: pointer; }
+.preview__ex-formnotes p { font-size: 12.5px; color: var(--ink-dim); margin: 6px 0 0; line-height: 1.5; }
 /* Phase C: EMOM/AMRAP density block card -- a movement list + one rounds
    count, logged once for the whole block instead of per exercise/per set. */
 .dc__format { margin: 2px 0 14px; font-size: 13px; color: var(--ink-dim); }
@@ -1555,6 +1584,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <button type="button" class="coachhint__dismiss" id="coachHintDismiss">Got it</button>
     </div>
     <div class="list reveal view-day" id="list" role="region" aria-label="Exercises for the selected day"></div>
+    <!-- v1.12 Preview Mode Separation: a read-only structure screen shown
+         BEFORE either the hero or a week-row tap enters live workout mode
+         (see openPreview/renderPreview/closePreview). Never carries
+         CURRENT/NEXT/THEN/DONE, log/skip/finish controls, or timers --
+         those stay exclusively in .view-day (the live workout screen).
+         Visibility is controlled by data-mode="preview" on #app, entirely
+         independent of state.view (which never changes while previewing),
+         so no existing state.view === "day" check anywhere else in the
+         app is affected. -->
+    <div class="preview" id="previewView" hidden>
+      <button type="button" class="preview__back" id="previewBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
+      <div class="preview__content" id="previewContent"></div>
+    </div>
   </main>
   <div class="logbar view-day" id="logBar" hidden>
     <button type="button" class="logbar__btn" id="logBarBtn"></button>
@@ -6751,7 +6793,19 @@ function resolveSpec(request, state) {
         subLinkHtml +
       '</div>';
     var cta = $("homeHeroCta");
-    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () { maybeOpenDayWithReadiness(heroIdx); });
+    // v1.12 Preview Mode Separation: the hero no longer starts training
+    // directly -- it opens the read-only Today Preview, whose own "Start
+    // the session" button is the one explicit tap that triggers readiness
+    // then live workout. The one exception is a session already resumed
+    // (started === true, i.e. real sets already logged today): re-showing
+    // preview there would just add a redundant extra tap to get back into
+    // a workout that's already under way, so that case goes straight back
+    // into the existing, unchanged maybeOpenDayWithReadiness/openDay chain
+    // (which itself never re-prompts readiness once sets exist).
+    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () {
+      if (started) maybeOpenDayWithReadiness(heroIdx);
+      else openPreview(heroIdx);
+    });
     var subBtn = $("homeHeroSub");
     if (subBtn) subBtn.addEventListener("click", function () { openPlanForSubstitute(subTargetIdx); });
   }
@@ -8448,6 +8502,84 @@ function resolveSpec(request, state) {
     if (ses && shouldPromptReadiness(ses)) { readinessPromptDayIdx = i; openSheetNoKb($("readinessPromptSheet")); }
     else openDay(i);
   }
+  // v1.12 Preview Mode Separation: a genuinely read-only "what is this
+  // workout" screen shown in front of both entry points (hero, week-row)
+  // for any not-yet-started session. Deliberately does NOT introduce a
+  // third state.view value -- previewIdx is a plain in-memory variable
+  // (never persisted, never part of the saved schema) and visibility is
+  // toggled purely via a separate data-mode="preview" attribute on #app,
+  // so state.view stays exactly "week" or "day" throughout, and every
+  // existing state.view === "day" check elsewhere in the app (timers,
+  // wake lock, density persistence) is completely unaffected. Reuses
+  // ses.exercises/ses.blocks/phaseHeaderHtml exactly as renderList already
+  // does -- zero new data shape, zero coach-span touch. Live workout's
+  // buildCard/buildDensityCard/renderList/applyGlance/computeNextUpcomingId
+  // are not read here and are not modified.
+  var previewIdx = null;
+  function openPreview(i) {
+    previewIdx = i;
+    appEl.setAttribute("data-mode", "preview");
+    renderPreview();
+    window.scrollTo(0, 0);
+  }
+  function closePreview() {
+    previewIdx = null;
+    appEl.removeAttribute("data-mode");
+    window.scrollTo(0, 0);
+  }
+  // The one explicit transition out of preview and into the existing,
+  // unchanged live-workout chain -- for today's own armed session this is
+  // maybeOpenDayWithReadiness (readiness prompt, then openDay); for any
+  // other session it's the existing trainThisTodayClick/confirmTrainToday
+  // confirm-sheet flow. Neither function is modified by this ticket.
+  function previewPrimaryAction(i, isToday) {
+    closePreview();
+    if (isToday) { maybeOpenDayWithReadiness(i); }
+    else { state.activeSession = i; trainThisTodayClick(); }
+  }
+  // Read-only exercise row: name, sets x reps/time, and the short existing
+  // "why" coach line if one exists -- never a set/log/skip control. Density
+  // (EMOM/AMRAP) items suppress the "N x" prefix since a density block
+  // isn't logged in sets (Unit Honesty Rule: don't label a number with a
+  // unit it doesn't measure).
+  function previewExRow(e, isDensity) {
+    var meta = e.reps ? (isDensity ? e.reps : (e.sets + " × " + e.reps)) : "";
+    var noteHtml = e.why ? '<p class="preview__ex-note">' + esc(e.why) + '</p>' : "";
+    var formHtml = e.notes ? '<details class="preview__ex-formnotes"><summary>Form notes</summary><p>' + esc(e.notes) + '</p></details>' : "";
+    return '<li class="preview__ex"><div class="preview__ex-head"><span class="preview__ex-name">' + esc(e.name) + '</span>' +
+      (meta ? '<span class="preview__ex-meta mono">' + esc(meta) + '</span>' : "") + '</div>' + noteHtml + formHtml + '</li>';
+  }
+  function renderPreview() {
+    var wk = curWeek(), i = previewIdx, ses = wk && wk.sessions[i];
+    if (!ses) { closePreview(); renderAll(false); return; }
+    var isToday = i === armedSessionIdx(wk);
+    var eyebrow = isToday ? "Today's work" : "Planned";
+    var noteTxt = isToday ? "Nothing logs from this view." : "Planned for later. Nothing logs from this view.";
+    var ctaLabel = isToday ? "Start the session" : "Train this today";
+    var title = dayPositionLabel(wk.sessions, i);
+    var blocksHtml = "";
+    if (Array.isArray(ses.blocks) && ses.blocks.length) {
+      var byBlock = {};
+      ses.exercises.forEach(function (e) { var k = e.block || "strength"; (byBlock[k] = byBlock[k] || []).push(e); });
+      ses.blocks.forEach(function (b) {
+        var items = byBlock[b.kind] || [];
+        if (!items.length) return;
+        var isDensity = b.mode === "emom" || b.mode === "amrap";
+        blocksHtml += phaseHeaderHtml(b.kind, b.minutes, b.mode) +
+          '<ul class="preview__exlist">' + items.map(function (e) { return previewExRow(e, isDensity); }).join("") + '</ul>';
+      });
+    } else if (ses.exercises && ses.exercises.length) {
+      blocksHtml = '<ul class="preview__exlist">' + ses.exercises.map(function (e) { return previewExRow(e, false); }).join("") + '</ul>';
+    }
+    $("previewContent").innerHTML =
+      '<p class="preview__eyebrow">' + esc(eyebrow) + '</p>' +
+      '<h2 class="preview__title">' + esc(title) + '</h2>' +
+      '<p class="preview__note">' + esc(noteTxt) + '</p>' +
+      '<button type="button" class="preview__cta" id="previewCta">' + esc(ctaLabel) + '</button>' +
+      '<div class="preview__blocks">' + blocksHtml + '</div>';
+    var cta = $("previewCta");
+    if (cta) cta.addEventListener("click", function () { previewPrimaryAction(i, isToday); });
+  }
   // Rough only: same-day swap to a freshly-built recoverySession(), reusing
   // the EXACT existing substitution mechanism (pendingToday +
   // pendingSubstituteIdx + addTodaySession()) that already powers "Fancy a
@@ -8498,10 +8630,28 @@ function resolveSpec(request, state) {
     var open = ev.target.closest(".weekrow__open");
     if (!open) return;
     var day = parseInt(open.getAttribute("data-day"), 10);
-    if (day === todaySessionIdx(curWeek().sessions)) maybeOpenDayWithReadiness(day);
-    else openDay(day);
+    var wk = curWeek(), ses = wk.sessions[day];
+    if (!ses) return;
+    // v1.12 Preview Mode Separation: any not-yet-started, not-already-
+    // finished session opens the read-only preview first (see openPreview),
+    // regardless of whether it's today's own scheduled row or a genuinely
+    // future one -- both get "what is this workout" before "what am I doing
+    // now". A session with real logged work already (resume) or one marked
+    // finished (re-entry to add more logged work, out of scope for this
+    // ticket) keeps its EXISTING routing unchanged, so neither case
+    // regresses.
+    var alreadyStarted = sessionProgress(sessionItemsFor(ses)).done > 0;
+    var finished = isSessionFinished(ses);
+    if (alreadyStarted || finished) {
+      if (day === todaySessionIdx(wk.sessions)) maybeOpenDayWithReadiness(day);
+      else openDay(day);
+    } else {
+      openPreview(day);
+    }
   });
   $("backWeek").addEventListener("click", backToWeek);
+  var previewBackBtn = $("previewBack");
+  if (previewBackBtn) previewBackBtn.addEventListener("click", closePreview);
   // v136B correction: the one explicit "begin training" tap -- reuses the
   // EXISTING ensureSessionLive() (same promotion the first logged set already
   // used), no new timer state. renderDayBar() (called inside ensureSessionLive)
