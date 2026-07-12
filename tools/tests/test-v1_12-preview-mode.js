@@ -125,7 +125,9 @@ ok(/if \(started\) maybeOpenDayWithReadiness\(heroIdx\);/.test(heroClickWiringMa
 ok(!/localStorage\.setItem\([^)]*previewIdx/.test(SRC), 'previewIdx is never written to localStorage');
 
 // ---------- 25. 320px layout safety (structural CSS guard; full visual check is the browser QA pass) ----------
-ok(/#previewView \{ display: none; padding: 4px 4px 40px; \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
+// v1.15: bottom padding grew to clear the new fixed bottom-nav bar (still
+// fluid/safe-area-based, not a fixed width) -- same rule, updated value.
+ok(/#previewView \{ display: none; padding: 4px 4px calc\(env\(safe-area-inset-bottom\) \+ 96px\); \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
 ok(!/#previewView[^{]*\{[^}]*width:\s*\d+px/.test(SRC), 'no preview rule hardcodes a pixel width that could overflow a 320px viewport');
 
 // ---------- Structural: preview never reuses the live .card markup ----------
@@ -202,9 +204,12 @@ ok(!/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Sta
    'the old "Start the session" hero-CTA assignment is gone -- no longer a false promise of a live session');
 ok(/var ctaLabel = isToday \? "Start the session" : "Train this today";/.test(extractFn('renderPreview')),
    'Preview\'s own bottom CTA is unchanged: "Start the session" (today) / "Train this today" (future)');
-ok(/\.app\[data-mode="preview"\] #planBtn,\s*\n\.app\[data-view="day"\] #planBtn \{ display: none; \}/.test(SRC),
-   'Build (#planBtn) is hidden via CSS whenever data-mode="preview" or data-view="day" -- present and working everywhere else (Home)');
-ok(!/id="planBtn"[^>]*hidden/.test(SRC), 'Build is hidden by scoped CSS, not by removing/hiding the element from markup itself');
+// v1.15 superseded this: #planBtn no longer exists in the header at all --
+// Build moved onto Home as page content (.build-row) and is reached via the
+// bottom nav's Home tab, so there is no longer a #planBtn to hide in
+// Preview/day view. Assert the old header button is genuinely gone rather
+// than re-asserting CSS that no longer applies.
+ok(SRC.indexOf('id="planBtn"') === -1, 'the old #planBtn header button no longer exists (v1.15: Build lives on Home as page content)');
 
 console.log('v1.12 Preview Mode Separation: ' + pass + ' passed, ' + fail + ' failed');
 if (fail) { fails.forEach(f => console.log('  FAIL: ' + f)); process.exit(1); }

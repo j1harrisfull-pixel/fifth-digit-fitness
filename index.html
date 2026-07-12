@@ -141,14 +141,42 @@ input, textarea { font: inherit; color: inherit; }
 .icon-btn--build { width: auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 700; }
 .icon-btn--build:hover { color: var(--ink); border-color: var(--ink); }
 .icon-btn--build svg { width: 16px; height: 16px; }
-/* v1.12.2: Build belongs to Home/plan setup only -- Preview ("look at one
-   workout") and Live Workout ("train one workout") both break the mental
-   model if Build is reachable from inside them. Hidden here (not removed
-   from markup) so #planBtn keeps working exactly as before on Home; it's
-   simply not present in the topbar while previewing or training. */
-.app[data-mode="preview"] #planBtn,
-.app[data-view="day"] #planBtn { display: none; }
-.icon-btn.is-accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* v1.15: planBtn/historyBtn/settingsBtn no longer exist in the header --
+   Build now lives on Home as page content (.build-row below), History
+   folds into the Train tab as a segment, Settings is a bottom-nav tab.
+   The old v1.12.2 hide-in-preview/day rule for #planBtn is removed along
+   with the button itself; nothing references it anymore. */
+
+/* Build-on-Home row: the quiet, permanent way to reach Build now that it's
+   no longer a header button. Same visual language as .weekrow (a peer row
+   in the same list), so it reads as "one more row", not a bolted-on card. */
+.build-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 0; margin-top: 4px; background: none; border: 0; border-top: 1px solid var(--line); color: var(--ink); text-align: left; cursor: pointer; }
+.build-row__icon { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-dim); }
+.build-row__icon svg { width: 17px; height: 17px; }
+.build-row__text { flex: 1; }
+.build-row__title { font-weight: 700; font-size: 15px; }
+.build-row__sub { font-size: 12.5px; color: var(--ink-dim); margin-top: 1px; }
+.build-row__chev { color: var(--faint); }
+
+/* Bottom navigation bar: persistent Home/Train/Settings, hidden only during
+   a live workout (state.view === "day") via body class toggling below --
+   same pattern as #logBar's existing hidden-attribute toggle. */
+.bottomnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: stretch; border-top: 1px solid var(--line); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); max-width: 620px; margin: 0 auto; }
+.bottomnav__item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 4px 8px; min-height: var(--tap); background: none; border: 0; cursor: pointer; color: var(--ink-dim); }
+.bottomnav__item svg { width: 22px; height: 22px; }
+.bottomnav__item.active { color: var(--accent); }
+.bottomnav__item.is-dim { opacity: .4; }
+.bottomnav__label { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+body.has-bottomnav { padding-bottom: 0; }
+.bottomnav[hidden] { display: none; }
+
+/* Today/History segment toggle inside the Train screen (reuses Preview) --
+   same pill surface/radius/mono-type language as .weeknav, not a new style. */
+.segtoggle { display: flex; align-items: center; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; width: max-content; margin: 0 0 18px; }
+.segtoggle[hidden] { display: none; }
+.segtoggle__btn { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .02em; padding: 7px 16px; border: 0; border-radius: 999px; background: none; color: var(--ink-dim); cursor: pointer; }
+.segtoggle__btn.active { background: var(--surface-3); color: var(--ink); }
+.history-inline .history__section { margin-bottom: 18px; }
 
 /* week bar */
 .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 18px 12px; }
@@ -515,7 +543,7 @@ input, textarea { font: inherit; color: inherit; }
 .recap-prs__row { font-size: 14px; color: var(--ink); margin: 0 0 3px; }
 .recap-prs__row b { color: var(--accent-ink); font-weight: 700; }
 .today-card__cta { display: block; width: 100%; margin-top: 20px; background: color-mix(in srgb, var(--accent) 84%, var(--surface)); color: var(--on-accent); border: 0; border-radius: 999px; padding: 15px; font-size: 15px; font-weight: 700; text-align: center; cursor: pointer; }
-.weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 30px); display: flex; flex-direction: column; }
+.weeklist { padding: 4px 14px calc(env(safe-area-inset-bottom) + 86px); display: flex; flex-direction: column; }
 .weekrow { display: flex; align-items: center; width: 100%; border-top: 1px solid var(--line); }
 .weeklist .weekrow:last-child { border-bottom: 1px solid var(--line); }
 .weekrow__open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: left; background: none; border: 0; padding: 16px 6px; cursor: pointer; color: var(--ink); transition: background .12s ease; }
@@ -1253,7 +1281,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    fixed by id-scoping instead of renaming, since the HTML/JS still emit
    the same class names and #buildPreview's own untouched rules keep
    working exactly as before. */
-#previewView { display: none; padding: 4px 4px 40px; }
+#previewView { display: none; padding: 4px 4px calc(env(safe-area-inset-bottom) + 96px); }
 .app[data-mode="preview"] .view-week,
 .app[data-mode="preview"] .view-day { display: none !important; }
 .app[data-mode="preview"] #previewView { display: block; }
@@ -1558,17 +1586,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         </svg>
         <span class="brand__name">Coach</span>
       </div>
-      <div class="topbar__actions">
-        <button class="icon-btn icon-btn--build" id="planBtn" title="Build or load a program" aria-label="Build or load a program" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Build</span>
-        </button>
-        <button class="icon-btn" id="historyBtn" title="Progress history" aria-label="Progress history" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
-        </button>
-        <button class="icon-btn" id="settingsBtn" aria-label="Settings and backup" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-      </div>
     </header>
     <div class="weekbar view-week">
       <div class="weekbar__prog">
@@ -1635,7 +1652,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          app is affected. -->
     <div id="previewView" hidden>
       <button type="button" class="preview__back" id="previewBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
+      <!-- v1.15: only shown when Preview was opened via the Train tab (trainMode
+           true) -- a week-row-triggered preview of a future/other day is left
+           completely unchanged, no toggle, exactly as before. -->
+      <div class="segtoggle" id="trainSegToggle" hidden>
+        <button type="button" class="segtoggle__btn active" id="trainSegToday">Today</button>
+        <button type="button" class="segtoggle__btn" id="trainSegHistory">History</button>
+      </div>
       <div class="preview__content" id="previewContent"></div>
+      <div id="trainHistoryBody" class="history-inline" hidden></div>
     </div>
   </main>
   <div class="logbar view-day" id="logBar" hidden>
@@ -1921,6 +1946,25 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </p>
   </div>
 </dialog>
+
+<!-- v1.15 Bottom Navigation: persistent 3-tab bar (Home/Train/Settings).
+     Body-level, position:fixed, same tier as .resttimer/.toast below --
+     hidden only during a live workout (state.view === "day"), visible on
+     Home, on the Train screen (Preview mode), and while Settings is open. -->
+<nav class="bottomnav" id="bottomNav" aria-label="Primary">
+  <button type="button" class="bottomnav__item" id="navHome" aria-label="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    <span class="bottomnav__label">Home</span>
+  </button>
+  <button type="button" class="bottomnav__item" id="navTrain" aria-label="Train">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M4 9v6M17.5 7v10M20 9v6M8.5 12h7"/></svg>
+    <span class="bottomnav__label">Train</span>
+  </button>
+  <button type="button" class="bottomnav__item" id="navSettings" aria-label="Settings and backup">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span class="bottomnav__label">Settings</span>
+  </button>
+</nav>
 
 <div id="restAnnounce" class="sr-only" role="status" aria-live="polite"></div>
 <div class="resttimer" id="restTimer" role="status" aria-live="off" hidden>
@@ -7008,8 +7052,12 @@ function resolveSpec(request, state) {
     var d = new Date(iso); if (isNaN(d.getTime())) return "";
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  function openHistory() {
-    $("historyTitle").textContent = "Progress";
+  // v1.15: pure content-building extracted from openHistory() so the Train
+  // tab's inline History segment can reuse the exact same overview instead
+  // of a hand-duplicated copy. Behavior-preserving refactor -- computes and
+  // returns the identical html openHistory() always assigned to
+  // historyBody.innerHTML; openHistory() below simply targets that element.
+  function renderHistoryOverview(targetEl) {
     var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
     // Ranked by most-recent activity, not lifetime frequency -- a once-a-week
     // deadlift must never be pushed off this list by a thrice-a-week accessory.
@@ -7045,9 +7093,13 @@ function resolveSpec(request, state) {
     // order differs.
     var trendSection = '<div class="history__section"><p class="history__section-title">Strength trend</p>' + liftsHtml + '</div>';
     var sessSection = '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
-    $("historyBody").innerHTML = liftNames.length
+    targetEl.innerHTML = liftNames.length
       ? (trendSection + sessSection + lifeHtml)
       : (sessSection + trendSection + lifeHtml);
+  }
+  function openHistory() {
+    $("historyTitle").textContent = "Progress";
+    renderHistoryOverview($("historyBody"));
     var dlg = $("historySheet");
     openSheetNoKb(dlg);
   }
@@ -7124,7 +7176,12 @@ function resolveSpec(request, state) {
   }
   function renderWeekList() {
     var sessions = curWeek().sessions;
-    if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No sessions yet</p><p class="empty__hint">Tap Build up top to build your week.</p></div>'; return; }
+    // v1.15: the true fresh-install/no-plan state (renderHomeHero's own big
+    // "Build your training week" CTA) already offers Build -- don't double it
+    // up with a second Build row here. Only append the row when a program
+    // exists but this particular week happens to be empty (an edge case the
+    // big fresh-install CTA never covers).
+    if (!sessions.length) { weekListEl.innerHTML = '<div class="empty"><p class="empty__title">No sessions yet</p><p class="empty__hint">Tap Build below to build your week.</p></div>' + (hasProgram() ? buildRowHtml() : ''); return; }
     var todayIdx = todaySessionIdx(sessions);
     var hi = heroInfo(curWeek());
     weekListEl.innerHTML = sessions.map(function (s, i) {
@@ -7186,7 +7243,18 @@ function resolveSpec(request, state) {
         '<span class="weekrow__chev">' + chevRight + '</span>' +
         '</button>' +
         '</div>';
-    }).join("");
+    }).join("") + buildRowHtml();
+  }
+  // v1.15: Build moved off the header onto Home as page content -- a quiet,
+  // permanent row after the week list (same peer-row visual language as
+  // .weekrow, not a bolted-on card). Wired via the existing weekListEl
+  // delegation below; calls the same unchanged openPlan().
+  function buildRowHtml() {
+    return '<button type="button" class="build-row" id="homeBuildRow">' +
+      '<span class="build-row__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>' +
+      '<span class="build-row__text"><span class="build-row__title">Build</span><span class="build-row__sub">New block or one session</span></span>' +
+      '<span class="build-row__chev">' + chevRight + '</span>' +
+      '</button>';
   }
   // Delete the day you're currently viewing, then drop back to the week list.
   // Undo-backed via deleteSession, same as the old per-row trash.
@@ -8123,12 +8191,16 @@ function resolveSpec(request, state) {
     expireTodayPick(); // v1.9-T2: date/validity check runs before anything else renders
     clampActive();
     appEl.setAttribute("data-view", state.view === "day" ? "day" : "week");
-    // One Accent Rule: the program button is only "the next action" before a
-    // program exists; once one does, the hero CTA carries the accent instead.
-    var pb = $("planBtn"); if (pb) pb.classList.toggle("is-accent", !hasProgram());
     renderWeekBar();
     if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); maybeShowCoachHint(); resumeDensityTimer(); if (animate) scrollToCurrent(); }
     else { renderHomeHero(); renderWeekList(); }
+    // v1.15 Bottom Navigation: hidden only during a live workout -- the LOG
+    // bar/rest timer already own that bottom edge, a third stacked element
+    // there was the one place a persistent bar actively harms the layout.
+    // Visible on Home, on the Train screen (Preview mode), and while Settings
+    // is open -- unaffected by any of those.
+    var bn = $("bottomNav"); if (bn) bn.hidden = (state.view === "day");
+    syncNavBar();
   }
   // The RPE/1RM explainer shows once (until dismissed), and only on a day that
   // actually has a strength exercise for those terms to be relevant.
@@ -8624,6 +8696,12 @@ function resolveSpec(request, state) {
   // buildCard/buildDensityCard/renderList/applyGlance/computeNextUpcomingId
   // are not read here and are not modified.
   var previewIdx = null;
+  // v1.15: true only when Preview was opened via the bottom nav's Train tab
+  // (openTrain, below) -- a week-row-triggered preview of a future/other day
+  // leaves trainMode false and behaves exactly as before this ticket (no
+  // toggle, no history segment). Plain in-memory var, never persisted, same
+  // pattern previewIdx already established.
+  var trainMode = false;
   function openPreview(i) {
     previewIdx = i;
     appEl.setAttribute("data-mode", "preview");
@@ -8635,6 +8713,49 @@ function resolveSpec(request, state) {
     appEl.removeAttribute("data-mode");
     window.scrollTo(0, 0);
     applySwReload(); // v1.14: release a deferred SW reload held while previewing
+    if (trainMode) { trainMode = false; showTrainToday(); var tst = $("trainSegToggle"); if (tst) tst.hidden = true; }
+    syncNavBar();
+  }
+  // Train tab entry point: mirrors the Home hero CTA's own branching exactly
+  // (renderHomeHero's homeHeroCta wiring) -- same heroInfo()/curWeek() read,
+  // same started/weekDone logic, same three destinations (openPreview /
+  // maybeOpenDayWithReadiness / openPlan). No new rendering, no new coaching
+  // logic -- only a second call site reaching the same existing functions.
+  function openTrain() {
+    if (!hasProgram()) { openPlan(); return; }
+    var wk = curWeek(), hi = heroInfo(wk);
+    if (hi.weekDone) { openPlan(); return; }
+    var heroSes = wk.sessions[hi.heroIdx];
+    var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
+    var started = !hi.weekDone && heroPr.done > 0;
+    if (started) { maybeOpenDayWithReadiness(hi.heroIdx); return; }
+    trainMode = true;
+    openPreview(hi.heroIdx);
+    var tst = $("trainSegToggle"); if (tst) tst.hidden = false;
+    showTrainToday();
+    syncNavBar();
+  }
+  // Today/History segment switch inside the Train screen -- toggles which of
+  // the two sibling containers is visible; renderPreview()'s own markup
+  // (#previewContent) is completely untouched, and the History segment
+  // reuses the exact same overview-building function the History sheet uses
+  // (renderHistoryOverview, see openHistory below), just targeting a
+  // different container.
+  function showTrainToday() {
+    var pc = $("previewContent"), hb = $("trainHistoryBody");
+    if (pc) pc.hidden = false;
+    if (hb) hb.hidden = true;
+    var todayBtn = $("trainSegToday"), histBtn = $("trainSegHistory");
+    if (todayBtn) todayBtn.classList.add("active");
+    if (histBtn) histBtn.classList.remove("active");
+  }
+  function showTrainHistory() {
+    var pc = $("previewContent"), hb = $("trainHistoryBody");
+    if (hb) { renderHistoryOverview(hb); hb.hidden = false; }
+    if (pc) pc.hidden = true;
+    var todayBtn = $("trainSegToday"), histBtn = $("trainSegHistory");
+    if (todayBtn) todayBtn.classList.remove("active");
+    if (histBtn) histBtn.classList.add("active");
   }
   // The one explicit transition out of preview and into the existing,
   // unchanged live-workout chain -- for today's own armed session this is
@@ -8763,6 +8884,7 @@ function resolveSpec(request, state) {
   // shouldPromptReadiness, openDay, ensureSessionLive, the recovery swap --
   // is unchanged; this is routing only.
   weekListEl.addEventListener("click", function (ev) {
+    if (ev.target.closest("#homeBuildRow")) { openPlan(); return; }
     var open = ev.target.closest(".weekrow__open");
     if (!open) return;
     var day = parseInt(open.getAttribute("data-day"), 10);
@@ -9803,7 +9925,6 @@ function resolveSpec(request, state) {
     state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
     pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast(state.program.title + " loaded.");
   }
-  $("planBtn").addEventListener("click", openPlan);
   $("closePlan").addEventListener("click", closePlan);
   planSheet.addEventListener("click", function (ev) { if (ev.target === planSheet) closePlan(); });
   // Escape bypasses closePlan(), so mirror its full cleanup here: kill BOTH
@@ -9821,7 +9942,6 @@ function resolveSpec(request, state) {
     cs.addEventListener("click", function (ev) { if (ev.target === cs) leaveToWeek(); });
     cs.addEventListener("cancel", function (ev) { ev.preventDefault(); leaveToWeek(); }); // Escape
   })();
-  $("historyBtn").addEventListener("click", openHistory);
   $("historyBody").addEventListener("click", function (ev) {
     if (ev.target.closest('[data-act="histback"]')) { openHistory(); return; }
     var row = ev.target.closest("[data-lift]"); if (!row) return;
@@ -9829,6 +9949,41 @@ function resolveSpec(request, state) {
   });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
   $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
+  // v1.15 Bottom Navigation: Home returns from Preview/Train (closePreview is
+  // a no-op if not previewing) and closes Settings if it happens to be open;
+  // Train reuses the existing preview/readiness/build chain via openTrain();
+  // Settings reuses the existing openSheet() unchanged.
+  $("navHome").addEventListener("click", function () {
+    if (appEl.getAttribute("data-mode") === "preview") closePreview();
+    if (sheet.open) closeSheet();
+    syncNavBar();
+  });
+  $("navTrain").addEventListener("click", openTrain);
+  $("navSettings").addEventListener("click", openSheet);
+  $("trainSegToday").addEventListener("click", showTrainToday);
+  $("trainSegHistory").addEventListener("click", showTrainHistory);
+  $("trainHistoryBody").addEventListener("click", function (ev) {
+    var row = ev.target.closest("[data-lift]"); if (!row) return;
+    // Drill-down into a specific lift reuses the existing per-lift history
+    // view -- it opens the existing historySheet modal (openExerciseHistory
+    // is tightly coupled to that dialog/title element already, unchanged
+    // here), not a second inline drill-down implementation.
+    openExerciseHistory(row.getAttribute("data-lift"), true);
+  });
+  // v1.15: which of Home/Train/Settings reads as the active tab. Train is
+  // active only when Preview is open AND it was opened via the Train tab
+  // (trainMode) -- a week-row-triggered preview of a future/other day still
+  // leaves Home as the active tab, unchanged from today's mental model.
+  function syncNavBar() {
+    var navHome = $("navHome"), navTrain = $("navTrain"), navSettings = $("navSettings");
+    if (!navHome || !navTrain || !navSettings) return;
+    var previewOpen = appEl.getAttribute("data-mode") === "preview";
+    var settingsOpen = sheet.open;
+    navTrain.classList.toggle("active", previewOpen && trainMode);
+    navSettings.classList.toggle("active", settingsOpen);
+    navHome.classList.toggle("active", !(previewOpen && trainMode) && !settingsOpen);
+    navTrain.classList.toggle("is-dim", !hasProgram());
+  }
   // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
   function setReadiness(v) { state.readiness = { value: v, date: todayStr() }; save(); syncReadinessChips(); }
   function syncReadinessChips() {
@@ -9886,8 +10041,13 @@ function resolveSpec(request, state) {
 
   /* ===================== Settings sheet ===================== */
   var sheet = $("sheet");
-  function openSheet() { syncSegs(); refreshStorage(); openSheetNoKb(sheet); }
-  function closeSheet() { if (typeof sheet.close === "function") sheet.close(); else sheet.removeAttribute("open"); }
+  function openSheet() { syncSegs(); refreshStorage(); openSheetNoKb(sheet); syncNavBar(); }
+  sheet.addEventListener("close", syncNavBar);
+  // v1.15: also call syncNavBar() directly here rather than relying solely on
+  // the dialog's native "close" event -- covers the explicit-close-button
+  // path with certainty; the "close" listener above still covers Escape and
+  // backdrop-click, which don't go through this function.
+  function closeSheet() { if (typeof sheet.close === "function") sheet.close(); else sheet.removeAttribute("open"); syncNavBar(); }
   function syncSegs() {
     var nameInput = $("settingsName"); if (nameInput && document.activeElement !== nameInput) nameInput.value = state.userName || "";
     document.querySelectorAll("#unitSeg button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-unit-val") === state.program.unit); });
@@ -9917,7 +10077,6 @@ function resolveSpec(request, state) {
     });
   }
   $("settingsName").addEventListener("input", function (ev) { state.userName = ev.target.value.trim().slice(0, 40); saveSoon(); });
-  $("settingsBtn").addEventListener("click", openSheet);
   $("closeSheet").addEventListener("click", closeSheet);
   sheet.addEventListener("click", function (ev) { if (ev.target === sheet) closeSheet(); });
   $("sDaysOfWeek").addEventListener("click", function (ev) {
