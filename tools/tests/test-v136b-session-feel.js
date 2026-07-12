@@ -26,8 +26,11 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 1: Home hero reads "Enter workout" and does not start the timer ----------
 {
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
-     'the untouched-session hero CTA label is "Start the session" (v1.8 TEMPO rename, approved) (test: Home hero copy)');
+  // v1.12.2: the hero opens Today Preview, not a live session -- "Start the
+  // session" moved to Preview's own bottom CTA (see test-v1_12-preview-mode.js);
+  // the hero's untouched-session label is now the honest "View the workout".
+  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+     'the untouched-session hero CTA label is "View the workout" (v1.12.2, approved) (test: Home hero copy)');
   ok(!/"Start training"/.test(SRC), 'the old "Start training" copy is gone entirely');
   // The hero CTA's click handler resolves through maybeOpenDayWithReadiness
   // (resumed/already-started sessions only) or openPreview (v1.12 Preview

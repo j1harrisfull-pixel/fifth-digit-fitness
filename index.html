@@ -141,6 +141,13 @@ input, textarea { font: inherit; color: inherit; }
 .icon-btn--build { width: auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 700; }
 .icon-btn--build:hover { color: var(--ink); border-color: var(--ink); }
 .icon-btn--build svg { width: 16px; height: 16px; }
+/* v1.12.2: Build belongs to Home/plan setup only -- Preview ("look at one
+   workout") and Live Workout ("train one workout") both break the mental
+   model if Build is reachable from inside them. Hidden here (not removed
+   from markup) so #planBtn keeps working exactly as before on Home; it's
+   simply not present in the topbar while previewing or training. */
+.app[data-mode="preview"] #planBtn,
+.app[data-view="day"] #planBtn { display: none; }
 .icon-btn.is-accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* week bar */
@@ -6789,10 +6796,15 @@ function resolveSpec(request, state) {
           recap.prs.map(function (p) { return '<p class="recap-prs__row">' + esc(p.name) + ' <b class="mono">' + p.orm + esc(runit) + '</b></p>'; }).join('') +
           '</div>' : '');
     }
-    // v1.8 TEMPO CTA copy: "Start the session" replaces "Enter workout" for
-    // the not-yet-started case only -- "Continue" and "Build next week"
-    // keep their existing, already-honest meanings.
-    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "Start the session";
+    // v1.12.2: the hero no longer starts training directly (v1.12 sent it
+    // to Today Preview instead) -- "Start the session" on the hero itself
+    // was therefore a false promise (tapping it opens a read-only screen,
+    // not a live session). "View the workout" honestly describes what the
+    // tap actually does; "Start the session" is now reserved for Preview's
+    // own bottom CTA, the one tap that genuinely triggers readiness/live.
+    // "Continue" (already resumed) and "Build next week" keep their
+    // existing, already-honest meanings -- untouched.
+    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "View the workout";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.

@@ -488,8 +488,11 @@ const chosenBodySnippet = renderHomeHeroSrc.slice(chosenBodyIdx, chosenBodyIdx +
   ok(/todayPicked \? \("You chose " \+ name \+ " for today\.\\nThe rest of the week stays where it is\."\)/.test(renderHomeHeroSrc),
      'Home hero body is exactly "You chose <Session name> for today.\\nThe rest of the week stays where it is." when a pick is active (test 9/10, v1.10 wording)');
   ok(/todayPicked \? "Chosen today"/.test(renderHomeHeroSrc), 'Home hero label reads "Chosen today" when a pick is active (test 9, from the Hero Fix)');
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(renderHomeHeroSrc),
-     'Home hero primary CTA reads "Start the session" for a not-yet-started session, chosen or not (test 11) -- no new start button was added');
+  // v1.12.2: the hero opens Today Preview, not a live session -- "View the
+  // workout" replaces "Start the session" here (which now lives on
+  // Preview's own bottom CTA).
+  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(renderHomeHeroSrc),
+     'Home hero primary CTA reads "View the workout" for a not-yet-started session, chosen or not (test 11, v1.12.2) -- no new start button was added');
   ok(/maybeOpenDayWithReadiness\(heroIdx\)/.test(renderHomeHeroSrc),
      'the CTA click handler still opens the session at heroIdx via the existing maybeOpenDayWithReadiness/openDay path -- no new start function (test 13)');
   ok(/if \(!weekDone && !todayPicked && typeof computeWeeklyDebt/.test(renderHomeHeroSrc),

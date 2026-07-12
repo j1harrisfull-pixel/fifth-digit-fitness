@@ -165,8 +165,11 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(/function isSessionFinished\(ses\)/.test(SRC), 'isSessionFinished still present (v136A)');
   ok(/card__skip-optional/.test(SRC), 'visible optional warm-up/cool-down Skip still present (v136A)');
   ok(/id="liveBarStart">Start<\/button>/.test(SRC), 'the workout-screen Start control still present (v136B)');
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
-     'hero CTA reads "Start the session" (v1.8 TEMPO rename, approved)');
+  // v1.12.2: hero opens Today Preview, not a live session -- "View the
+  // workout" replaces "Start the session" on the hero (which now lives on
+  // Preview's own bottom CTA instead).
+  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+     'hero CTA reads "View the workout" (v1.12.2, approved)');
   ok(/Signing off session…/.test(SRC), 'the signing-off beat copy is untouched');
   ok(/\.cuebox \{ display: flex; flex-direction: column; gap: 8px; background: none;/.test(SRC),
      'form-note left-rule styling is untouched');

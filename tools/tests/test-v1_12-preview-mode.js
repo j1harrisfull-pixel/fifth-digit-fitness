@@ -190,5 +190,21 @@ ok(SRC.indexOf("b.minutes + ' min</span>") >= 0, 'the block header shows that bl
 ok(/<details class="preview__ex-formnotes"><summary>Form notes<\/summary>/.test(extractFn('previewExRow')),
    'Form notes remain an unopened <details>/<summary> disclosure, unchanged');
 
+// ---------- v1.12.2 Home Hero CTA Copy + In-Workout Build Removal ----------
+// The hero's own label is now "View the workout" (it opens Preview, not a
+// live session) -- "Start the session" moved entirely to Preview's own
+// bottom CTA. Build is hidden (not removed) from #app whenever
+// data-mode="preview" or data-view="day", so Home/plan-setup keeps it
+// working exactly as before.
+ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+   'Home hero CTA reads "View the workout" for a not-yet-started session (Preview\'s own CTA keeps "Start the session")');
+ok(!/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
+   'the old "Start the session" hero-CTA assignment is gone -- no longer a false promise of a live session');
+ok(/var ctaLabel = isToday \? "Start the session" : "Train this today";/.test(extractFn('renderPreview')),
+   'Preview\'s own bottom CTA is unchanged: "Start the session" (today) / "Train this today" (future)');
+ok(/\.app\[data-mode="preview"\] #planBtn,\s*\n\.app\[data-view="day"\] #planBtn \{ display: none; \}/.test(SRC),
+   'Build (#planBtn) is hidden via CSS whenever data-mode="preview" or data-view="day" -- present and working everywhere else (Home)');
+ok(!/id="planBtn"[^>]*hidden/.test(SRC), 'Build is hidden by scoped CSS, not by removing/hiding the element from markup itself');
+
 console.log('v1.12 Preview Mode Separation: ' + pass + ' passed, ' + fail + ' failed');
 if (fail) { fails.forEach(f => console.log('  FAIL: ' + f)); process.exit(1); }
