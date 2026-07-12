@@ -228,7 +228,12 @@ function fixtureState(completedSets) {
   tightChest.chest = { remainingToMrv: 1 };
   const capped = generateSession(parsed, {}, 1, {}, null, false, null, null, null, tightChest);
   const chestEx = capped.exercises.find(e => { const lib = byName(e.name); return lib && lib.primary_muscles && lib.primary_muscles[0] === "chest"; });
-  ok(chestEx && chestEx.sets === 1, `a chest exercise in a session built with chest already at MRV shows a visibly reduced (floor) set count (got ${chestEx && chestEx.sets})`);
+  // v1.13 Engine Volume Fix: this chest exercise is the session's anchor
+  // (first strength pick) -- the new anchor floor (buildEx, see
+  // test-v1_13-volume-reset.js) means it is never trimmed below 3 sets
+  // outside a deload, even at MRV. Trimming pressure still lands, just no
+  // longer on the anchor itself.
+  ok(chestEx && chestEx.sets === 3, `a chest ANCHOR exercise in a session built with chest already at MRV is floored at 3 sets, not trimmed further (got ${chestEx && chestEx.sets})`);
 }
 
 console.log(`${pass} passed, ${fail} failed`);

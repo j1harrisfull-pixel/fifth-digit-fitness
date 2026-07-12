@@ -4217,7 +4217,22 @@ function buildEx(ex, goal, isAnchor, weightMap, minutes, weekNum, isDeload, last
   // optional and trailing -- absent (existing call sites not yet updated)
   // means no trimming, identical to pre-Phase-5 behaviour.
   if (weeklyVolume) {
+    var preTrimSets = p.sets;
     var trimmedSets = trimSetsForVolumeLandmark(p.sets, ex, weeklyVolume);
+    // v1.13 Engine Volume Fix: the day's ANCHOR (isAnchor, the first/main
+    // lift) must never be cut below 3 sets by MRV trimming alone -- a
+    // landmark-driven trim was capable of reducing Back Squat to 1 set while
+    // a same-session accessory (e.g. Lying Leg Curl) kept 4, which no coach
+    // would ever prescribe. Deload weeks are exempt: a deload's reduced
+    // prescription IS the intended lighter dose, not a trim, so isDeload
+    // sessions never have this floor applied. The floor also never INFLATES
+    // a prescription -- min(3, preTrimSets) means an anchor legitimately
+    // prescribed fewer than 3 sets (eased/RPE-reduced) still gets exactly
+    // that many, never padded up to 3. Trimming pressure is pushed onto
+    // later accessories instead, which is the intended effect.
+    if (isAnchor && !isDeload) {
+      trimmedSets = Math.max(trimmedSets, Math.min(3, preTrimSets));
+    }
     p = Object.assign({}, p, { sets: trimmedSets });
     // Phase 5.5 Task 3 (Coaching Integrity Patch): the trim above only checked
     // weeklyVolume's headroom as of THIS exercise -- decrement it by what this
@@ -5234,10 +5249,43 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
   var frozenIds = {};
   blueprint.forEach(function (bp) { bp.picks.forEach(function (ex) { frozenIds[ex.id] = 1; }); });
 
+  // v1.13 Engine Volume Fix: weeklyVolume holds each muscle's WEEKLY MRV
+  // landmark budget (see computeWeeklyDebt), but a multi-week block used to
+  // thread the SAME object by reference through every week -- so week 1's
+  // spend permanently ate into week 2/3/4's headroom, regardless of what
+  // those later weeks actually trained. A weekly landmark must reset weekly.
+  // Snapshot the incoming per-muscle numbers once here (before any week
+  // spends against them); each week below rebuilds its OWN fresh working
+  // copy from this snapshot, so within a week exercises still see each
+  // other's spend exactly as before (Phase 5.5 Task 3's decrement-by-
+  // reference behaviour is unchanged), but nothing carries over week to
+  // week. weakPointMuscles(weeklyVolume) above (blueprint construction)
+  // already runs before this snapshot and reads the real, original object --
+  // untouched by this change, exactly as intended (bias comes from real
+  // logged history, not a per-week copy).
+  var weeklyVolumeSnapshot = null;
+  if (weeklyVolume) {
+    weeklyVolumeSnapshot = {};
+    Object.keys(weeklyVolume).forEach(function (m) {
+      weeklyVolumeSnapshot[m] = Object.assign({}, weeklyVolume[m]);
+    });
+  }
+
   var weeks = [];
 
   for (var wn = 1; wn <= totalWeeks; wn++) {
     var isDeload = (totalWeeks >= 4 && wn === totalWeeks);
+    // Fresh per-week copy of the volume budget -- see weeklyVolumeSnapshot
+    // comment above. Passed to buildEx below in place of the raw
+    // weeklyVolume so this week's trimming/decrement never leaks into the
+    // next week's budget.
+    var weekVolume = null;
+    if (weeklyVolumeSnapshot) {
+      weekVolume = {};
+      Object.keys(weeklyVolumeSnapshot).forEach(function (m) {
+        weekVolume[m] = Object.assign({}, weeklyVolumeSnapshot[m]);
+      });
+    }
     // Per-week context for the ROTATING extras only (strength is frozen above).
     // Pre-seed with the frozen ids so an accessory can't duplicate a main lift.
     var ctx = { used: {}, pat: {}, dl: 0 };
@@ -5258,7 +5306,7 @@ function generateProgram(intake, weightMap, seed, lastLogs, unlocked, athlete, f
       // existing deload prescription math for that one exercise; a sibling
       // exercise in the same session that isn't itself a frozen anchor is
       // only ever affected by the calendar deload, exactly as before.
-      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weeklyVolume, blockBudgets)); });
+      picks.forEach(function (ex, k) { strengthEx.push(buildEx(ex, goal, k === 0, weightMap, minutes, wn, isDeload || !!(picks.anchorDeload && picks.anchorDeload[k]), lastLogs, false, picks.why && picks.why[k], weekVolume, blockBudgets)); });
       var floorGaps = topUpThinDay(strengthEx, role, athlete && athlete.injuries);
 
       if (includeCon) {

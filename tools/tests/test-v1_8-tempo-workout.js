@@ -13,7 +13,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 1. Coach-span untouched ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '0e665de20f3872db06e90974f0af8b0b', 'coach-span md5 unchanged (0e665de20f3872db06e90974f0af8b0b), got ' + spanMd5);
+ok(spanMd5 === '8dfbd4f07360fc76d5218c38eea8f0ae', 'coach-span md5 unchanged (8dfbd4f07360fc76d5218c38eea8f0ae), got ' + spanMd5);
 
 // ---------- 2. Sentence prescription: Effort appended from existing e.target only ----------
 ok(/var effortText = \(e\.type === "strength" && e\.target\) \? effortifyTarget\(e\.target\) : "";/.test(SRC),
