@@ -5932,9 +5932,18 @@ function resolveSpec(request, state) {
     try {
       var theirs = storedStamp();
       if (theirs != null && lastSavedStamp != null && theirs > lastSavedStamp) {
-        toast("Updated in another tab · reloading");
-        setTimeout(function () { location.reload(); }, 700);
-        return;
+        // v1.14: a tab mid-live-workout must never have its own edit
+        // silently discarded and get reloaded out from under the session --
+        // that IS the "app forgot my workout" report. An idle tab (any other
+        // view) still defers to the newer stamp exactly as before; only the
+        // active-session case writes through instead.
+        if (state && state.view === "day" && sessionLive()) {
+          toast("Synced over another tab");
+        } else {
+          toast("Updated in another tab · reloading");
+          setTimeout(function () { location.reload(); }, 700);
+          return;
+        }
       }
       state.savedAt = Date.now();
       lastSavedStamp = state.savedAt;
@@ -8625,6 +8634,7 @@ function resolveSpec(request, state) {
     previewIdx = null;
     appEl.removeAttribute("data-mode");
     window.scrollTo(0, 0);
+    applySwReload(); // v1.14: release a deferred SW reload held while previewing
   }
   // The one explicit transition out of preview and into the existing,
   // unchanged live-workout chain -- for today's own armed session this is
@@ -10848,19 +10858,37 @@ function resolveSpec(request, state) {
   // controllerchange that lands while you're in the day view is DEFERRED and
   // applied the moment you leave the session (backToWeek). Off the day view, it
   // applies right away, same as before.
+  // v1.14: the same interruption risk exists for any open sheet (Build, Just
+  // Today, Settings, onboarding, history, etc.) or an open preview -- in-memory
+  // sheet state (pendingBuild, half-picked options) is just as destroyable by a
+  // surprise reload as a live set is. The hold is widened to cover those too;
+  // release still funnels through this one existing applySwReload -- backToWeek
+  // (unchanged), closePreview (new), and every dialog.sheet's native "close"
+  // event (new, added once below) all call it the same way.
+  function swReloadShouldHold() {
+    if (state && state.view === "day") return true;
+    if (appEl && appEl.getAttribute("data-mode") === "preview") return true;
+    var sheets = document.querySelectorAll("dialog.sheet");
+    for (var i = 0; i < sheets.length; i++) { if (sheets[i].open) return true; }
+    return false;
+  }
   var swReloadPending = false, swReloadDone = false;
   function applySwReload() {
     if (!swReloadPending || swReloadDone) return;
+    if (swReloadShouldHold()) return;
     swReloadDone = true;
     toast("Updating to the latest version…");
     setTimeout(function () { window.location.reload(); }, 500);
   }
+  document.querySelectorAll("dialog.sheet").forEach(function (dlg) {
+    dlg.addEventListener("close", applySwReload);
+  });
   if ("serviceWorker" in navigator) {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.addEventListener("controllerchange", function () {
         if (swReloadDone) return;
         swReloadPending = true;
-        if (state && state.view === "day") return; // hold until the workout ends
+        if (swReloadShouldHold()) return; // hold until the workout/sheet/preview ends
         applySwReload();
       });
     }
