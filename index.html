@@ -1231,27 +1231,57 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    reads as "what is this workout" rather than "what am I doing now". Uses
    the same base --ink/--surface/--line tokens as the live day view (not
    Home's warm --tempo-bone card), since this sits conceptually next to the
-   workout screen, just before it -- but with zero of its active styling. */
-.preview { display: none; padding: 4px 4px 40px; }
+   workout screen, just before it -- but with zero of its active styling.
+   v1.12.1 (Preview Visual Hierarchy): every rule below is scoped to the
+   #previewView id, NOT the bare .preview/.preview__title class family --
+   those already belong to the pre-existing, unrelated #buildPreview /
+   Just-Today build dialog (see ~line 1081), which reuses the same class
+   names for its own generated-week preview. The original v1.12 CSS
+   collided with that dialog (a bare ".preview { display:none }" rule was
+   silently hiding #buildPreview outside data-mode="preview", and bumping
+   .preview__title here would have bumped that dialog's title too) --
+   fixed by id-scoping instead of renaming, since the HTML/JS still emit
+   the same class names and #buildPreview's own untouched rules keep
+   working exactly as before. */
+#previewView { display: none; padding: 4px 4px 40px; }
 .app[data-mode="preview"] .view-week,
 .app[data-mode="preview"] .view-day { display: none !important; }
-.app[data-mode="preview"] .preview { display: block; }
-.preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
-.preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
-.preview__title { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: -.01em; color: var(--ink); margin: 0 0 10px; }
-.preview__note { font-family: var(--font-body); font-size: 13.5px; color: var(--ink-dim); margin: 0 0 18px; }
-.preview__cta { display: block; width: 100%; padding: 14px 18px; background: var(--ink); color: var(--bg); border: 0; border-radius: var(--radius); font-family: var(--font-body); font-weight: 700; font-size: 15px; cursor: pointer; margin: 0 0 8px; }
-.preview__blocks { margin-top: 8px; }
-.preview__exlist { list-style: none; margin: 0; padding: 0; }
-.preview__ex { border-top: 1px solid var(--line); padding: 12px 2px; }
-.preview__ex:first-child { border-top: 0; }
-.preview__ex-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.preview__ex-name { font-family: var(--font-body); font-weight: 600; font-size: 15px; color: var(--ink); }
-.preview__ex-meta { font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.preview__ex-note { font-family: var(--font-body); font-size: 12.5px; color: var(--faint); font-style: italic; margin: 4px 0 0; }
-.preview__ex-formnotes { margin: 6px 0 0; }
-.preview__ex-formnotes summary { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); cursor: pointer; }
-.preview__ex-formnotes p { font-size: 12.5px; color: var(--ink-dim); margin: 6px 0 0; line-height: 1.5; }
+.app[data-mode="preview"] #previewView { display: block; }
+#previewView .preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
+#previewView .preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
+/* v1.12.1: the title is the screen's one big element -- "what is this
+   workout" gets the most visual weight on the page, more than it had
+   before (was var(--fs-h2), 18px) and more than the CTA beneath it. */
+#previewView .preview__title { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); margin: 0 0 10px; }
+#previewView .preview__note { font-family: var(--font-body); font-size: 12.5px; color: var(--faint); margin: 0 0 14px; }
+/* v1.12.1: one quiet mono summary line (total + per-block minutes, built
+   only from ses.blocks[].minutes -- Unit Honesty) between the note and
+   the first block card. Same tonal register as .today-card__meta. */
+#previewView .preview__summary { font-family: "Spline Sans Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-dim); margin: 0 0 20px; }
+/* v1.12.1: CTA moves after all block content (content first, action
+   after) and is no longer the loudest thing on the screen by default --
+   today's own session keeps the filled, clear-to-start treatment; a
+   future/other session gets the quieter ghost treatment so re-planning
+   the week never reads as loud as starting today's work. */
+#previewView .preview__cta { display: block; width: 100%; padding: 14px 18px; background: var(--ink); color: var(--bg); border: 0; border-radius: var(--radius); font-family: var(--font-body); font-weight: 700; font-size: 15px; cursor: pointer; margin: 24px 0 0; }
+#previewView .preview__cta--ghost { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
+#previewView .preview__blocks { display: flex; flex-direction: column; gap: 18px; }
+/* v1.12.1: each block is now its own quiet card -- background/border/
+   radius give the section separation the reused (too-faint-here)
+   .phasehead label alone couldn't provide, which was the main reason the
+   screen read as one flat list top to bottom. */
+#previewView .preview__block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 14px 6px; }
+#previewView .preview__block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 4px; }
+#previewView .preview__block-head span:last-child { font-size: 12px; font-weight: 600; color: var(--ink-dim); }
+#previewView .preview__exlist { list-style: none; margin: 0; padding: 0; }
+#previewView .preview__ex { border-top: 1px solid var(--line); padding: 10px 2px; }
+#previewView .preview__ex:first-child { border-top: 0; }
+#previewView .preview__ex-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+#previewView .preview__ex-name { font-family: var(--font-body); font-weight: 600; font-size: 15px; color: var(--ink); }
+#previewView .preview__ex-meta { font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#previewView .preview__ex-formnotes { margin: 6px 0 0; }
+#previewView .preview__ex-formnotes summary { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); cursor: pointer; }
+#previewView .preview__ex-formnotes p { font-size: 12.5px; color: var(--ink-dim); margin: 6px 0 0; line-height: 1.5; }
 /* Phase C: EMOM/AMRAP density block card -- a movement list + one rounds
    count, logged once for the whole block instead of per exercise/per set. */
 .dc__format { margin: 2px 0 14px; font-size: 13px; color: var(--ink-dim); }
@@ -1593,7 +1623,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          independent of state.view (which never changes while previewing),
          so no existing state.view === "day" check anywhere else in the
          app is affected. -->
-    <div class="preview" id="previewView" hidden>
+    <div id="previewView" hidden>
       <button type="button" class="preview__back" id="previewBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
       <div class="preview__content" id="previewContent"></div>
     </div>
@@ -8537,17 +8567,19 @@ function resolveSpec(request, state) {
     if (isToday) { maybeOpenDayWithReadiness(i); }
     else { state.activeSession = i; trainThisTodayClick(); }
   }
-  // Read-only exercise row: name, sets x reps/time, and the short existing
-  // "why" coach line if one exists -- never a set/log/skip control. Density
-  // (EMOM/AMRAP) items suppress the "N x" prefix since a density block
-  // isn't logged in sets (Unit Honesty Rule: don't label a number with a
-  // unit it doesn't measure).
+  // Read-only exercise row: name, sets x reps/time -- never a set/log/skip
+  // control, and (v1.12.1 Preview Visual Hierarchy) never the coach-note
+  // "why" line either. That line is valuable mid-session (live mode keeps
+  // it, unchanged); in a structure preview it was the single biggest
+  // source of text density and the main reason every block read the same
+  // weight top to bottom. Density (EMOM/AMRAP) items suppress the "N x"
+  // prefix since a density block isn't logged in sets (Unit Honesty Rule:
+  // don't label a number with a unit it doesn't measure).
   function previewExRow(e, isDensity) {
     var meta = e.reps ? (isDensity ? e.reps : (e.sets + " × " + e.reps)) : "";
-    var noteHtml = e.why ? '<p class="preview__ex-note">' + esc(e.why) + '</p>' : "";
     var formHtml = e.notes ? '<details class="preview__ex-formnotes"><summary>Form notes</summary><p>' + esc(e.notes) + '</p></details>' : "";
     return '<li class="preview__ex"><div class="preview__ex-head"><span class="preview__ex-name">' + esc(e.name) + '</span>' +
-      (meta ? '<span class="preview__ex-meta mono">' + esc(meta) + '</span>' : "") + '</div>' + noteHtml + formHtml + '</li>';
+      (meta ? '<span class="preview__ex-meta mono">' + esc(meta) + '</span>' : "") + '</div>' + formHtml + '</li>';
   }
   function renderPreview() {
     var wk = curWeek(), i = previewIdx, ses = wk && wk.sessions[i];
@@ -8557,6 +8589,20 @@ function resolveSpec(request, state) {
     var noteTxt = isToday ? "Nothing logs from this view." : "Planned for later. Nothing logs from this view.";
     var ctaLabel = isToday ? "Start the session" : "Train this today";
     var title = dayPositionLabel(wk.sessions, i);
+    // v1.12.1: a quiet one-line summary (total + per-block minutes) sits
+    // between the note and the first block card -- summary before detail,
+    // the single most WHOOP-correct move available here. Built ONLY from
+    // ses.blocks[].minutes, the exact same stored numbers phaseHeaderHtml
+    // already displays per block elsewhere -- never derived from exercise
+    // count (Unit Honesty Rule). Omitted entirely when ses.blocks is
+    // absent/empty (legacy sessions with no block budget).
+    var summaryHtml = "";
+    if (Array.isArray(ses.blocks) && ses.blocks.length) {
+      var totalMin = 0;
+      ses.blocks.forEach(function (b) { if (typeof b.minutes === "number") totalMin += b.minutes; });
+      var partsTxt = ses.blocks.map(function (b) { return (PHASE_LABEL[b.kind] || b.kind).toUpperCase() + " " + b.minutes; }).join(" · ");
+      summaryHtml = '<p class="preview__summary mono">' + esc(totalMin + " MIN · " + partsTxt) + '</p>';
+    }
     var blocksHtml = "";
     if (Array.isArray(ses.blocks) && ses.blocks.length) {
       var byBlock = {};
@@ -8565,18 +8611,29 @@ function resolveSpec(request, state) {
         var items = byBlock[b.kind] || [];
         if (!items.length) return;
         var isDensity = b.mode === "emom" || b.mode === "amrap";
-        blocksHtml += phaseHeaderHtml(b.kind, b.minutes, b.mode) +
-          '<ul class="preview__exlist">' + items.map(function (e) { return previewExRow(e, isDensity); }).join("") + '</ul>';
+        var label = BLOCK_MODE_LABEL[b.mode] ? (PHASE_LABEL[b.kind] || b.kind) + " · " + BLOCK_MODE_LABEL[b.mode] : (PHASE_LABEL[b.kind] || b.kind);
+        blocksHtml += '<section class="preview__block">' +
+          '<div class="preview__block-head"><span>' + esc(label) + '</span><span class="mono">' + b.minutes + ' min</span></div>' +
+          '<ul class="preview__exlist">' + items.map(function (e) { return previewExRow(e, isDensity); }).join("") + '</ul>' +
+          '</section>';
       });
     } else if (ses.exercises && ses.exercises.length) {
-      blocksHtml = '<ul class="preview__exlist">' + ses.exercises.map(function (e) { return previewExRow(e, false); }).join("") + '</ul>';
+      blocksHtml = '<section class="preview__block"><ul class="preview__exlist">' + ses.exercises.map(function (e) { return previewExRow(e, false); }).join("") + '</ul></section>';
     }
+    // v1.12.1: the CTA moves after all preview content -- content first,
+    // action after, the platinum preview rule. Today's session keeps the
+    // filled treatment (clear enough to start); a future/other session
+    // gets the quieter ghost treatment (preview__cta--ghost) so choosing
+    // to re-plan the week never reads as loud as starting today's work.
+    // previewPrimaryAction (unchanged) is still the only thing either
+    // button calls.
     $("previewContent").innerHTML =
       '<p class="preview__eyebrow">' + esc(eyebrow) + '</p>' +
       '<h2 class="preview__title">' + esc(title) + '</h2>' +
       '<p class="preview__note">' + esc(noteTxt) + '</p>' +
-      '<button type="button" class="preview__cta" id="previewCta">' + esc(ctaLabel) + '</button>' +
-      '<div class="preview__blocks">' + blocksHtml + '</div>';
+      summaryHtml +
+      '<div class="preview__blocks">' + blocksHtml + '</div>' +
+      '<button type="button" class="preview__cta' + (isToday ? "" : " preview__cta--ghost") + '" id="previewCta">' + esc(ctaLabel) + '</button>';
     var cta = $("previewCta");
     if (cta) cta.addEventListener("click", function () { previewPrimaryAction(i, isToday); });
   }

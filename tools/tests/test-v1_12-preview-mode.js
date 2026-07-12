@@ -125,12 +125,70 @@ ok(/if \(started\) maybeOpenDayWithReadiness\(heroIdx\);/.test(heroClickWiringMa
 ok(!/localStorage\.setItem\([^)]*previewIdx/.test(SRC), 'previewIdx is never written to localStorage');
 
 // ---------- 25. 320px layout safety (structural CSS guard; full visual check is the browser QA pass) ----------
-ok(/\.preview \{ display: none; padding: 4px 4px 40px; \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
-ok(!/\.preview[^{]*\{[^}]*width:\s*\d+px/.test(SRC), 'no preview rule hardcodes a pixel width that could overflow a 320px viewport');
+ok(/#previewView \{ display: none; padding: 4px 4px 40px; \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
+ok(!/#previewView[^{]*\{[^}]*width:\s*\d+px/.test(SRC), 'no preview rule hardcodes a pixel width that could overflow a 320px viewport');
 
 // ---------- Structural: preview never reuses the live .card markup ----------
 ok(!/class="preview[^"]*"[^>]*class="card/.test(SRC), 'preview rows never nest the live .card class');
-ok(/\.preview__ex \{/.test(SRC), 'preview exercise rows use their own dedicated class, not .card');
+ok(/#previewView \.preview__ex \{/.test(SRC), 'preview exercise rows use their own dedicated class, not .card');
+
+// ---------- v1.12.1 Preview Visual Hierarchy ----------
+// Design note: every v1.12.1 CSS rule below is scoped to #previewView, not
+// the bare .preview/.preview__title class family -- those pre-existing
+// names are also used, independently, by the unrelated #buildPreview /
+// Just-Today build-preview dialog (see index.html ~line 1081). The
+// original v1.12 CSS collided with that dialog (a bare ".preview {
+// display:none }" rule silently hid #buildPreview outside
+// data-mode="preview"); fixed by id-scoping every new/changed rule here,
+// confirmed by the two guards below.
+ok(!/\.preview \{ display: none; padding: 4px 4px 40px; \}/.test(SRC),
+   'the original v1.12 unscoped ".preview { display:none }" collision rule is gone (replaced by the #previewView-scoped version)');
+ok(!/^\.preview__title \{ font-family: var\(--font-display\)/m.test(SRC),
+   'no bare, unscoped .preview__title rule with the new 26px hierarchy survives (would have collided with #buildPreview\'s own title divs)');
+ok(/#buildPreview/.test(SRC) && /\.preview \{ margin-top: 12px; padding: 16px;/.test(SRC) && /\.preview__title \{ font-weight: 700; font-size: 15px; \}/.test(SRC),
+   'the pre-existing #buildPreview dialog\'s own bare .preview/.preview__title styling survives completely untouched');
+
+// 1. CTA renders after .preview__blocks in renderPreview's output string order.
+{
+  const contentAssignIdx = renderPreviewSrc.indexOf('$("previewContent").innerHTML =');
+  const blocksIdx = renderPreviewSrc.indexOf("'<div class=\"preview__blocks\">", contentAssignIdx);
+  const ctaIdx = renderPreviewSrc.indexOf('preview__cta', blocksIdx);
+  ok(contentAssignIdx >= 0 && blocksIdx > contentAssignIdx && ctaIdx > blocksIdx,
+     'the CTA button string appears AFTER .preview__blocks in renderPreview\'s innerHTML assembly -- content first, action after');
+}
+
+// 2/3. Today CTA has no ghost class; future CTA does.
+ok(/'<button type="button" class="preview__cta' \+ \(isToday \? "" : " preview__cta--ghost"\) \+ '" id="previewCta">'/.test(renderPreviewSrc),
+   'the CTA class is plain "preview__cta" for today, "preview__cta preview__cta--ghost" for a future/other session');
+ok(/#previewView \.preview__cta--ghost \{ background: transparent; color: var\(--ink\); border: 1px solid var\(--line-strong\); \}/.test(SRC),
+   'the ghost CTA is a genuinely quieter treatment -- transparent fill, hairline border, plain ink text, no accent colour');
+
+// 4/5/6. Summary line built only from ses.blocks[].minutes; total = sum; omitted when blocks absent/empty.
+{
+  const summaryBlockMatch = renderPreviewSrc.match(/var summaryHtml = "";\s*\n\s*if \(Array\.isArray\(ses\.blocks\) && ses\.blocks\.length\) \{([\s\S]*?)\n    \}/);
+  ok(!!summaryBlockMatch, 'renderPreview computes summaryHtml only inside an `Array.isArray(ses.blocks) && ses.blocks.length` guard (omitted otherwise)');
+  const summaryBody = summaryBlockMatch ? summaryBlockMatch[1] : '';
+  ok(/totalMin \+= b\.minutes/.test(summaryBody), 'the summary total is accumulated purely from b.minutes (no exercise-count derivation)');
+  ok(!/\.exercises\.length|\.sets\b/.test(summaryBody), 'the summary block never reads exercise count or set count -- Unit Honesty (minutes only)');
+  ok(/summaryHtml = ""/.test(renderPreviewSrc.slice(0, renderPreviewSrc.indexOf('var blocksHtml = "";'))),
+     'summaryHtml defaults to empty string, so a session with no ses.blocks renders no summary line at all');
+}
+
+// 7/8/9. Block cards render as .preview__block sections with a .preview__block-head carrying the duration.
+ok(/'<section class="preview__block">' \+/.test(renderPreviewSrc), 'each populated block renders as a <section class="preview__block">');
+ok(/'<div class="preview__block-head">/.test(renderPreviewSrc), 'each block card has a .preview__block-head header row');
+ok(SRC.indexOf("b.minutes + ' min</span>") >= 0, 'the block header shows that block\'s own stored minutes -- not a derived or shared value');
+
+// 10. previewExRow no longer renders e.why coach-note text.
+{
+  const previewExRowSrc = extractFn('previewExRow');
+  ok(!/e\.why/.test(previewExRowSrc), 'previewExRow no longer reads or renders e.why -- coach notes are gone from default preview rows');
+  ok(!/preview__ex-note/.test(previewExRowSrc), 'the preview__ex-note element is gone from previewExRow\'s output entirely');
+}
+
+// 11. Form notes still render as a collapsed <details>.
+ok(/<details class="preview__ex-formnotes"><summary>Form notes<\/summary>/.test(extractFn('previewExRow')),
+   'Form notes remain an unopened <details>/<summary> disclosure, unchanged');
 
 console.log('v1.12 Preview Mode Separation: ' + pass + ' passed, ' + fail + ' failed');
 if (fail) { fails.forEach(f => console.log('  FAIL: ' + f)); process.exit(1); }
