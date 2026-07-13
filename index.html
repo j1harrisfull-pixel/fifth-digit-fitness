@@ -5869,7 +5869,12 @@ function computeFatigueState(state) {
           var el = sl && sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
           var best = 0, rpes = [];
           el.sets.forEach(function (s) {
-            if (s.completed && s.actual_reps != null) {
+            // 13 July 2026: cap at <=12 reps -- Epley's validated range, past
+            // which the estimate balloons. A high-rep set could otherwise read
+            // as a false "PR" and mask a genuine strength drop from the fatigue
+            // signal, or a false "drop" from an inflated prior estimate. Same
+            // cap as strengthFoot/computeWeekRecap/buildHistoryData.
+            if (s.completed && s.actual_reps != null && s.actual_reps <= 12) {
               var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
               var o = epley(w, s.actual_reps); if (o > best) best = o;
             }
@@ -6814,7 +6819,9 @@ function resolveSpec(request, state) {
           (ses.exercises || []).forEach(function (ex) {
             var el = sl.ex ? sl.ex[ex.id] : null; if (!el || !Array.isArray(el.sets)) return;
             el.sets.forEach(function (s) {
-              if (!s.completed || s.actual_reps == null) return;
+              // 13 July 2026: same <=12-rep cap as strengthFoot/buildHistoryData --
+              // Epley stops being trustworthy past its validated rep range.
+              if (!s.completed || s.actual_reps == null || s.actual_reps > 12) return;
               var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
               var r = Math.round(epley(w, s.actual_reps));
               if (r > (priorBest[ex.name] || 0)) priorBest[ex.name] = r;
@@ -6839,7 +6846,9 @@ function resolveSpec(request, state) {
           var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
           var reps = s.actual_reps != null ? s.actual_reps : 0;
           if (w > 0 && reps > 0) totalVolume += w * reps;
-          if (ex.type === "strength" && reps > 0) {
+          // 13 July 2026: same <=12-rep cap -- this week's "new best" must be
+          // built from the same trusted rep range as everywhere else.
+          if (ex.type === "strength" && reps > 0 && reps <= 12) {
             var o = Math.round(epley(w, reps));
             if (o > (thisWeekBest[ex.name] || 0)) thisWeekBest[ex.name] = o;
           }
@@ -7184,7 +7193,11 @@ function resolveSpec(request, state) {
             el.sets.forEach(function (s) {
               if (!s.completed) return;
               setsDone++;
-              if (s.actual_reps != null) {
+              // 13 July 2026: cap which sets can set the displayed/trended est-1RM
+              // to <=12 reps -- Epley's validated range, past which the estimate
+              // balloons. Same cap applied everywhere est-1RM is shown or compared
+              // (strengthFoot, computeWeekRecap, computeFatigueState).
+              if (s.actual_reps != null && s.actual_reps <= 12) {
                 var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
                 var o = epley(w, s.actual_reps); if (o > best) { best = o; bestW = w; bestR = s.actual_reps; }
               }
@@ -7857,7 +7870,13 @@ function resolveSpec(request, state) {
     var best = 0, n = e.sets, top = repsTop(e);
     // Uses each set's own effective weight (default or override), not the shared
     // exercise weight -- a backoff set logged lighter no longer inflates est-1RM.
-    for (var k = 0; k < n; k++) { var s = lg.sets[k]; if (s.completed && s.real) { var o = est1RM(s.weight, s.reps); if (o > best) best = o; } }
+    // 13 July 2026: Epley's own validated range is roughly 1-10 reps; past
+    // ~12 the estimate balloons and stops being trustworthy, so a high-rep
+    // backoff/hypertrophy set no longer counts toward "best" here. If every
+    // completed set on this exercise is above the cap, ormTxt below honestly
+    // falls back to "--" (the existing best>0 check), rather than showing a
+    // number Epley was never validated to produce.
+    for (var k = 0; k < n; k++) { var s = lg.sets[k]; if (s.completed && s.real && s.reps <= 12) { var o = est1RM(s.weight, s.reps); if (o > best) best = o; } }
     var ready = allSetsAtTop(n, top,
       function (i) { return lg.sets[i].completed; },
       function (i) { return lg.sets[i].reps; },

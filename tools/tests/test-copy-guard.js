@@ -41,7 +41,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // instead of execSync/exec -- avoids shell-interpolation risk even though
 // INDEX_PATH here is a fixed constant, not user input.
 const spanMd5 = execFileSync('sh', ['-c', `sed -n '/__COACH_START__/,/__COACH_END__/p' '${INDEX_PATH}' | md5`]).toString().trim();
-ok(spanMd5 === '62fa16a3f1f9b9952d9060d2bda135e4', 'coach-span md5 unchanged (62fa16a3f1f9b9952d9060d2bda135e4), got ' + spanMd5);
+ok(spanMd5 === 'ce6452b369d4d1d14fd0bf8560208ce7', 'coach-span md5 unchanged (ce6452b369d4d1d14fd0bf8560208ce7), got ' + spanMd5);
 
 // ---------- 1. Extraction helpers (same brace-matching pattern as every
 // other test file in this directory) ----------

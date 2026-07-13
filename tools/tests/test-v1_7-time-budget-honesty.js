@@ -291,6 +291,12 @@ profiles.forEach(p => {
   // from this frozen list below and covered by test-phase-b-warmup-cooldown.js
   // instead. pickPulseRaiser/pickMobilityByPatterns stay in this list: their
   // function bodies are untouched (only the library data and callers changed).
+  // 13 July 2026 (James-approved coach-span amendment): computeFatigueState
+  // also removed from this frozen list -- capped which sets can feed its
+  // internal Epley est-1RM signal to <=12 reps (Epley's validated range),
+  // matching the same cap applied to every user-facing est-1RM site
+  // (strengthFoot/computeWeekRecap/buildHistoryData). Covered by
+  // test-est1rm-rep-cap.js instead.
   const UNCHANGED_FNS = [
     'parseIntake', 'libraryIntegrity', 'splitLabel', 'kitSupportsPPL', 'splitForDays',
     'isHeavyLowerRole', 'pickHardConditioningDay', 'equipOk', 'poolTierOf', 'skillAllowed',
@@ -306,7 +312,7 @@ profiles.forEach(p => {
     'topUpThinDay', 'computeBlockBudgets', 'attachBlocks', 'pickEmomPair',
     'applyDensityFormat', 'guaranteeSession', 'derivePurposeSlots', 'buildIntent',
     'hardRunType', 'runLayout', 'runWorkout', 'makeRequest', 'requestToIntake',
-    'requestToParsed', 'parsedToRequest', 'computeWeeklyDebt', 'computeFatigueState',
+    'requestToParsed', 'parsedToRequest', 'computeWeeklyDebt',
     'fatigueBand', 'fatigueBandForAnchorPattern', 'fatigueBandForPatterns',
     'stubBlockWeek', 'todayStr', 'getReadinessToday', 'degradation', 'pickLightPump',
     'resolveSpec'
