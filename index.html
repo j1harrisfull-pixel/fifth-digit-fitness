@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#14110D">
-<meta name="description" content="A personal offline strength and mobility training log with Claude-driven adaptive programs.">
+<meta name="description" content="A personal offline strength and mobility training log with AI-driven adaptive programs.">
 <title>Fifth Digit Coach</title>
 
 <link rel="manifest" href="manifest.webmanifest">
@@ -1113,7 +1113,14 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    was not reliably hiding the beat, leaving it visually on top of the result
    sheet. Same narrow per-element fix as those other cases. */
 .signoff-beat[hidden] { display: none; }
-.sheet h2 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 8px 0 4px; letter-spacing: -.01em; }
+/* 13 July 2026 (James: "make the opening sequence match the app look and
+   hierarchy"): this used to be the same 20px/700 weight as .wstep__q below --
+   two headings of equal visual force, fighting each other, unlike the
+   eyebrow+hero pattern used everywhere else in the app (e.g. the active-
+   workout card's small "CURRENT / WARM-UP 1 OF 3" label over the big
+   exercise name). The sheet title now reads as that same quiet frame label;
+   the actual question (.wstep__q) becomes the one true heading. */
+.sheet h2 { font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--ink-dim); margin: 8px 0 2px; letter-spacing: .01em; }
 .sheet__lead { font-size: 13px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
 .sect { margin-bottom: 28px; }
 .sect__label { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim); font-weight: 700; margin-bottom: 10px; }
@@ -1152,7 +1159,11 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    the same one-.wstep-visible-at-a-time pattern as the welcome flow's
    .intro__step, instead of every field stacked on one settings-style page. */
 .wizard__meta { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
-.wstep__q { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 0 0 14px; letter-spacing: -.01em; }
+/* 13 July 2026: promoted to --fs-h1 (the same scale as the active-workout
+   card's exercise name, .card__name's --fs-h2 stablemate) -- this question is
+   the one thing the user is actually deciding on this screen, so it now reads
+   as the true heading instead of matching the sheet title's old weight. */
+.wstep__q { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h1); line-height: var(--lh-h1); margin: 0 0 14px; letter-spacing: -.01em; }
 .wstep[hidden] { display: none; }
 .wizard__nav { display: flex; gap: 10px; margin-top: 20px; }
 .wizard__nav #wizBack { flex: 0 0 auto; min-width: 88px; }
@@ -1261,8 +1272,8 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 /* Phase 4 (Build sheet only): .sect__label, .adv and .preview are shared with
    Settings/onboarding/complete-receipt, so overrides are scoped to #planSheet
    rather than touching the bare classes -- same de-tracking as .blabel below,
-   applied only to the "Ask Claude directly" step labels ("1 Copy this...",
-   "2 Paste Claude's reply"). */
+   applied only to the "Ask an AI directly" step labels ("1 Copy, paste...",
+   "2 Paste its reply back here"). */
 #planSheet .sect__label { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; }
 /* Phase 6 (Settings only): same de-tracking as #planSheet above, scoped
    separately so this rule never collides with it. .sect__label/.sect__hint/
@@ -1276,7 +1287,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    weight change. */
 #planSheet .adv > summary::before { content: "›  "; font-weight: 400; opacity: .55; }
 #planSheet .adv[open] > summary::before { content: "⌄  "; }
-/* "Ask Claude directly" is genuinely tertiary next to Build a week / Just
+/* "Ask an AI directly" is genuinely tertiary next to Build a week / Just
    today -- quieter type than the Training days / Adjust disclosures so it
    reads as an occasional escape hatch, not a third core option. */
 #planSheet .adv--tertiary > summary { font-size: 12px; font-weight: 500; color: var(--faint); }
@@ -1876,16 +1887,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
 
     <details class="adv adv--tertiary">
-      <summary>Ask Claude directly</summary>
+      <summary>Ask an AI directly</summary>
       <div class="sect" style="margin-top:14px">
-        <div class="sect__step"><span class="sect__num">1</span><span class="sect__label" style="margin:0">Copy this, paste it to Claude</span></div>
-        <p class="sect__hint">Includes your progress and the exact format. Add what you want, then send.</p>
-        <textarea class="codebox" id="reqText" readonly aria-label="Request to copy for Claude"></textarea>
+        <div class="sect__step"><span class="sect__num">1</span><span class="sect__label" style="margin:0">Copy, paste into any AI chat</span></div>
+        <textarea class="codebox" id="reqText" readonly aria-label="Request to copy for your AI"></textarea>
         <div class="btn-row" style="margin-top:10px"><button class="btn" id="copyReqBtn" type="button">Copy request</button></div>
       </div>
       <div class="sect">
-        <div class="sect__step"><span class="sect__num">2</span><span class="sect__label" style="margin:0">Paste Claude's reply</span></div>
-        <textarea class="pastebox" id="loadText" placeholder="Paste the program Claude gave you…" aria-label="Paste Claude's program"></textarea>
+        <div class="sect__step"><span class="sect__num">2</span><span class="sect__label" style="margin:0">Paste its reply back here</span></div>
+        <textarea class="pastebox" id="loadText" placeholder="Paste what it gave you…" aria-label="Paste the AI's program"></textarea>
         <div class="btn-row" style="margin-top:10px"><button class="btn" id="loadBtn" type="button">Load program</button></div>
         <div class="preview hidden" id="loadPreview"></div>
       </div>
@@ -2317,7 +2327,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     return null;
   }
   function parseProgramText(text) {
-    if (text == null || String(text).trim() === "") throw new Error("Nothing to load. Paste the program Claude gave you.");
+    if (text == null || String(text).trim() === "") throw new Error("Nothing to load. Paste what your AI gave you.");
     var s = String(text).trim();
     var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) s = fence[1].trim();
@@ -9257,7 +9267,7 @@ function resolveSpec(request, state) {
     document.documentElement.removeAttribute("data-theme");
   }
 
-  /* ===================== Plan sheet (Claude loop) ===================== */
+  /* ===================== Plan sheet (ask-an-AI loop) ===================== */
   var planSheet = $("planSheet"), pending = null, pendingBuild = null, buildSeed = 0, todaySeed = 0, pendingToday = null, pendingTodayAnyway = null;
   // Monotonic id for each Just-Today build request. parseIntent may resolve
   // async (LLM parse), so a later tap must invalidate an earlier in-flight one:
@@ -9460,6 +9470,12 @@ function resolveSpec(request, state) {
       mobility: p.mobility === undefined ? true : !!p.mobility,
       conditioning: p.conditioning === undefined ? cardioGoal : !!p.conditioning,
       weeks: [1, 4].indexOf(parseInt(p.weeks, 10)) >= 0 ? parseInt(p.weeks, 10) : 4,
+      // 13 July 2026: weeks always needs a concrete fallback (4) since
+      // generation reads it directly -- but that fallback must not make the
+      // plan-choice screen LOOK like "Four weeks" was already picked before
+      // the user has touched anything. This flag tracks a genuine choice,
+      // separately from the fallback value itself.
+      planChoiceMade: !!p.planChoiceMade,
       equipment: equip,
       trainDays: Array.isArray(p.trainDays) ? p.trainDays.filter(function (d) { return typeof d === "number" && d >= 0 && d <= 6; }) : []
     };
@@ -9520,9 +9536,13 @@ function resolveSpec(request, state) {
     $("modeWeek").hidden = true;
     $("modeToday").hidden = true;
     var p = buildPrefs();
+    // 13 July 2026 (James): this screen must never look pre-decided. Only
+    // mark a button pressed once the user has genuinely chosen on THIS
+    // control -- buildPrefs().weeks always has a concrete fallback value
+    // (needed by generation), but that fallback is not a real choice.
     document.querySelectorAll("#bPlanChoice button").forEach(function (b) {
       var plan = b.getAttribute("data-plan");
-      b.setAttribute("aria-pressed", plan !== "today" && parseInt(plan, 10) === p.weeks);
+      b.setAttribute("aria-pressed", p.planChoiceMade && plan !== "today" && parseInt(plan, 10) === p.weeks);
     });
   }
   function choosePlan(plan) {
@@ -9531,6 +9551,7 @@ function resolveSpec(request, state) {
       setPlanMode("today");
     } else {
       buildPrefs().weeks = parseInt(plan, 10);
+      buildPrefs().planChoiceMade = true;
       save();
       setPlanMode("week");
       showWeekStep(1);
@@ -10238,9 +10259,9 @@ function resolveSpec(request, state) {
   function copyRequest() {
     var text = $("reqText").value;
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast("Copied. Paste into Claude"); }).catch(fallbackCopy);
+      navigator.clipboard.writeText(text).then(function () { toast("Copied. Paste into any AI chat"); }).catch(fallbackCopy);
     } else fallbackCopy();
-    function fallbackCopy() { var ta = $("reqText"); ta.focus(); ta.select(); try { document.execCommand("copy"); toast("Copied. Paste into Claude"); } catch (e) { toast("Select the text above and copy it"); } }
+    function fallbackCopy() { var ta = $("reqText"); ta.focus(); ta.select(); try { document.execCommand("copy"); toast("Copied. Paste into any AI chat"); } catch (e) { toast("Select the text above and copy it"); } }
   }
   function showLoadError(msg) {
     var pv = $("loadPreview");
