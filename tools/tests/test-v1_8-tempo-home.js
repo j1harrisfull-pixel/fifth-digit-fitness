@@ -16,7 +16,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 const spanMatch = SRC.match(/\/\*__COACH_START__\*\/([\s\S]*?)\/\*__COACH_END__\*\//);
 ok(!!spanMatch, 'coach-span markers present');
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '8dfbd4f07360fc76d5218c38eea8f0ae', 'coach-span md5 unchanged (8dfbd4f07360fc76d5218c38eea8f0ae), got ' + spanMd5);
+ok(spanMd5 === '62fa16a3f1f9b9952d9060d2bda135e4', 'coach-span md5 unchanged (62fa16a3f1f9b9952d9060d2bda135e4), got ' + spanMd5);
 
 // ---------- 2. New memory helper: read-only, outside coach-span, no writes ----------
 const spanStart = SRC.indexOf('/*__COACH_START__*/');

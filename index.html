@@ -2539,8 +2539,20 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   };
   function isExerciseFlaggedByInjury(exercise, injury) {
     var norm = normalizeInjuryText(injury.target);
-    if (norm && exercise.name.toLowerCase().indexOf(norm) >= 0) return true; // Tier 4: named movement
     var tokens = norm.split(/\s+/);
+    // Priority 7 exception: tier 4 assumes "name contains the flagged word"
+    // means "this IS the risky named movement" (e.g. excluding "bench press"
+    // should match Bench Press). A rehab_for-tagged corrective exercise is the
+    // opposite -- it's named for the joint it treats, not a risky movement
+    // matching it -- so a bare joint concern ("knee") must not trip tier 4 for
+    // the joint it's tagged for. Deliberately an EXACT match on the whole
+    // normalized target, not a token-in-name check: an athlete excluding the
+    // specific named movement "Banded Terminal Knee Extension" (norm has more
+    // tokens than just "knee") must still have tier 4 exclude it -- this
+    // exception only covers the generic "my knee hurts" case, not a named
+    // exclusion that happens to mention a joint.
+    var isRehabForThis = Array.isArray(exercise.rehab_for) && exercise.rehab_for.indexOf(norm) >= 0;
+    if (norm && !isRehabForThis && exercise.name.toLowerCase().indexOf(norm) >= 0) return true; // Tier 4: named movement
     for (var i = 0; i < tokens.length; i++) {
       var tags = INJURY_KEYWORD_TAGS[tokens[i]]; if (!tags) continue;        // Tier 2/3: metadata + keyword
       if (tags.joints && exercise.joint_stress && tags.joints.some(function (j) { return exercise.joint_stress.indexOf(j) >= 0; })) return true;
@@ -3034,6 +3046,24 @@ const LIBRARY = [
   // CLOSER_IDS) instead of it closing every session unconditionally.
   { id: "childs-pose", name: "Child's Pose", type: "mobility", equipment: "bodyweight", pattern: "cooldown-closer", muscles: ["back", "hips"], compound: false, goals: MOB, unit: "sec", movement_pattern: "cooldown-closer", primary_muscles: ["back"], secondary_muscles: ["hips"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["knee"], is_unilateral: false, stability_demand: "free", variations: ["standing-forward-fold", "box-breathing"], progression_policy: "pace_or_duration", cue: "Setup: kneel and sit back onto the heels, reach the arms forward and rest the chest toward the thighs. Key: let the low back and shoulders release, breathing slow and even. Fault: forcing the hips down past a comfortable range, or holding the breath instead of easing into it." },
   { id: "standing-forward-fold", name: "Standing Forward Fold", type: "mobility", equipment: "bodyweight", pattern: "cooldown-closer", muscles: ["hamstrings", "back"], compound: false, goals: MOB, unit: "sec", movement_pattern: "cooldown-closer", primary_muscles: ["hamstrings"], secondary_muscles: ["back"], plane: "sagittal", fatigue_cost: "low", joint_stress: ["spine"], is_unilateral: false, stability_demand: "free", variations: ["childs-pose", "box-breathing"], progression_policy: "pace_or_duration", cue: "Setup: stand tall, feet hip-width, knees soft. Key: hinge from the hips and let the upper body hang, arms and neck relaxed, weight even through the feet. Fault: locking the knees straight, or rounding hard through the lower back to force extra range." },
+  // ===== Rehab/corrective content (Master Ticket Priority 7, 13 July 2026) =====
+  // James: the app only ever AVOIDED a flagged injury, never HELPED it. These
+  // are deliberately gentle, low/no-load corrective drills for the seven joint
+  // areas the injury system already recognises (see normalizeInjuryText's
+  // vocabulary) -- picked and prescribed by pickRehabForInjuries(), not the
+  // normal warm-up group logic. joint_stress is deliberately [] (not the joint
+  // they treat): these are authored to be safe FOR that exact joint at a
+  // controlled, low-load, corrective range -- unlike a normal exercise's
+  // joint_stress (which flags real mechanical load/risk), tagging the joint
+  // here would make the hard injury filter wrongly exclude the one exercise
+  // meant to help it. rehab_for is the new field pickRehabForInjuries() reads.
+  { id: "rehab-band-pull-apart", name: "Rehab Band Pull-Apart", type: "mobility", equipment: "band", pattern: "shoulder-rehab", muscles: ["shoulders", "upper back"], compound: false, goals: MOB, unit: "reps", movement_pattern: "shoulder-rehab", primary_muscles: ["shoulders"], secondary_muscles: ["upper back"], plane: "frontal", fatigue_cost: "low", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["shoulder"], cue: "Setup: hold a light band at chest height, arms straight, hands shoulder-width apart. Key: pull the band apart by squeezing the shoulder blades together, controlled and slow. Fault: shrugging the shoulders up or using momentum instead of the mid-back." },
+  { id: "rehab-terminal-knee-extension", name: "Banded Terminal Knee Extension", type: "mobility", equipment: "band", pattern: "knee-rehab", muscles: ["quads"], compound: false, goals: MOB, unit: "reps", movement_pattern: "knee-rehab", primary_muscles: ["quads"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: true, stability_demand: "free", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["knee"], cue: "Setup: loop a band around a low anchor and behind the knee, stand with a soft bend. Key: straighten the knee fully by squeezing the quad, hold a beat at lockout. Fault: locking out fast with momentum instead of a slow, controlled squeeze." },
+  { id: "rehab-bird-dog", name: "Bird Dog Hold", type: "mobility", equipment: "bodyweight", pattern: "spine-rehab", muscles: ["core", "low back"], compound: false, goals: MOB, unit: "reps", movement_pattern: "spine-rehab", primary_muscles: ["core"], secondary_muscles: ["low back"], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: true, stability_demand: "stability", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["spine"], cue: "Setup: on hands and knees, spine neutral, core braced. Key: extend one arm and the opposite leg together, hold, keeping the hips and shoulders level. Fault: arching the low back or letting the hips rotate open." },
+  { id: "rehab-chin-tuck", name: "Chin Tuck", type: "mobility", equipment: "bodyweight", pattern: "neck-rehab", muscles: ["neck"], compound: false, goals: MOB, unit: "reps", movement_pattern: "neck-rehab", primary_muscles: ["neck"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["neck"], cue: "Setup: sit or stand tall, looking straight ahead. Key: draw the chin straight back, making a double chin, without tilting the head down. Fault: tilting the head down instead of gliding it straight back." },
+  { id: "rehab-wrist-isometric", name: "Wrist Flexor/Extensor Isometric Hold", type: "mobility", equipment: "bodyweight", pattern: "wrist-rehab", muscles: ["forearms"], compound: false, goals: MOB, unit: "sec", movement_pattern: "wrist-rehab", primary_muscles: ["forearms"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: true, stability_demand: "free", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["wrist"], cue: "Setup: forearm supported on a table, hand off the edge. Key: press gently into the opposite hand's resistance, both flexing and extending the wrist, holding each direction. Fault: pushing into pain or moving fast instead of a steady, gentle hold." },
+  { id: "rehab-clamshell", name: "Rehab Clamshell", type: "mobility", equipment: "band", pattern: "hip-rehab", muscles: ["glutes"], compound: false, goals: MOB, unit: "reps", movement_pattern: "hip-rehab", primary_muscles: ["glutes"], secondary_muscles: [], plane: "frontal", fatigue_cost: "low", joint_stress: [], is_unilateral: true, stability_demand: "free", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["hip"], cue: "Setup: lie on your side, knees bent, a light band above the knees. Key: keeping feet together, lift the top knee by rotating from the hip, slow and controlled. Fault: rolling the hips backward instead of isolating the rotation." },
+  { id: "rehab-ankle-balance-reach", name: "Single-Leg Balance Reach", type: "mobility", equipment: "bodyweight", pattern: "ankle-rehab", muscles: ["ankles"], compound: false, goals: MOB, unit: "reps", movement_pattern: "ankle-rehab", primary_muscles: ["ankles"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: true, stability_demand: "stability", variations: [], progression_policy: "rom_hold_quality", rehab_for: ["ankle"], cue: "Setup: stand tall on one leg, knee soft. Key: reach the free foot forward, to the side, and back while balancing, controlled and slow. Fault: letting the standing knee cave inward or rushing the reaches." },
   { id: "smith-shoulder-press", name: "Smith Shoulder Press", type: "strength", equipment: "smith", pattern: "vpush", muscles: ["shoulders", "triceps"], compound: true, goals: C, unit: "reps", setup: "Set the bar at upper-chest height, position an upright bench centred under it, safeties just below your lowest press point.", movement_pattern: "vert_push", primary_muscles: ["shoulders"], secondary_muscles: ["triceps"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["shoulder", "elbow", "spine"], is_unilateral: false, stability_demand: "machine", variations: ["machine-shoulder-press", "band-overhead-press", "dumbbell-shoulder-press", "arnold-press"], progression_policy: "linear_double_progression_load", cue: "Setup: Seated or standing under the bar at upper-chest height, elbows slightly in front of the bar, ribs stacked over the pelvis. Key: Press the bar up the fixed path to lockout, finishing with the biceps near the ears. Fault: Flaring the elbows wide or arching the lower back to heave the bar off the chest." },
   { id: "smith-rdl", name: "Smith Romanian Deadlift", type: "strength", equipment: "smith", pattern: "hinge", muscles: ["hamstrings", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", setup: "Set the bar at mid-thigh height, feet hip-width directly under it, stand close so the bar tracks your legs.", movement_pattern: "hinge", primary_muscles: ["hamstrings"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "high", joint_stress: ["hip", "spine", "knee"], is_unilateral: false, stability_demand: "machine", variations: ["band-good-morning", "dumbbell-rdl", "kb-romanian-deadlift", "deadlift"], progression_policy: "linear_double_progression_load", cue: "Setup: Bar at the hips, soft knees, shoulder blades set, the bar tight against the thighs. Key: Push the hips back and trail the bar down the legs until the hamstrings stretch deep, then drive the hips forward to stand tall. Fault: Rounding the back to chase depth or bending the knees so the load leaves the hamstrings." },
   { id: "smith-split-squat", name: "Smith Split Squat", type: "strength", equipment: "smith", pattern: "lunge", muscles: ["quads", "glutes"], compound: true, lengthened: true, goals: C, unit: "reps", setup: "Set the bar on your traps, one foot forward under the bar and one back on the ball, safeties below your bottom.", movement_pattern: "lunge", primary_muscles: ["quads"], secondary_muscles: ["glutes"], plane: "sagittal", fatigue_cost: "med", joint_stress: ["knee", "hip", "ankle"], is_unilateral: true, stability_demand: "machine", variations: ["bulgarian-split-squat", "walking-lunge", "reverse-lunge", "step-up"], progression_policy: "linear_double_progression_load", cue: "Setup: Bar on the traps, split stance fixed with the front shin vertical, most of the weight through the front heel. Key: Sink until the rear knee nears the floor so the front glute loads deep, then press the front foot through to stand. Fault: Bouncing off the back knee or letting the front knee cave inward, losing the stretched-position tension." },
@@ -3867,6 +3897,36 @@ function pickCloser(used, seed, injuries) {
   if (!avail.length) avail = pool.filter(function (e) { return !isExerciseInjuryFlagged(e, injuries); });
   return avail.length ? avail[Math.abs(seed) % avail.length] : null;
 }
+// Master Ticket Priority 7 (13 July 2026): the app only ever AVOIDED an
+// injury (hard-filtered it out), never HELPED it. This is the first real
+// rehab/corrective prescription -- for each distinct joint keyword the
+// athlete's injuries normalize to (reusing normalizeInjuryText's existing
+// vocabulary, not a new one), find a rehab_for-tagged exercise for that
+// joint and include it in the warm-up. Capped at 2 so a long injury list
+// can't crowd out the day's actual work. Every category counts here (not
+// just the hard-exclusion ones) -- rehab is offered for anything flagged,
+// including a "So-so" soreness note, since corrective work is never unsafe
+// to offer, unlike training through a hard "pain"/"nogo" restriction.
+function pickRehabForInjuries(injuries, allowed, used, seed) {
+  var joints = [];
+  (injuries || []).forEach(function (inj) {
+    normalizeInjuryText(inj.target).split(/\s+/).forEach(function (tok) {
+      if (INJURY_KEYWORD_TAGS[tok] && joints.indexOf(tok) < 0) joints.push(tok);
+    });
+  });
+  var picks = [];
+  joints.forEach(function (joint) {
+    if (picks.length >= 2) return;
+    var pool = LIBRARY.filter(function (e) {
+      return Array.isArray(e.rehab_for) && e.rehab_for.indexOf(joint) >= 0 && equipOk(e, allowed) && !used[e.id] && !isExerciseInjuryFlagged(e, injuries);
+    });
+    if (!pool.length) return;
+    var pick = pool[Math.abs(seed + picks.length * 13) % pool.length];
+    used[pick.id] = 1;
+    picks.push({ exercise: pick, joint: joint });
+  });
+  return picks;
+}
 // Builds the day's real warm-up (pulse-raiser + movement-prep drills) and
 // cool-down (static stretches + a quiet closer), matched to what the day
 // ACTUALLY trains -- derived from the raw strength picks' patterns (works
@@ -3950,6 +4010,11 @@ function buildWarmupCooldown(strengthPicks, allowed, used, seed, weightMap, minu
     var pEx = buildEx(pulse, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Raises the pulse before the work.");
     pEx.block = "warmup"; warmup.push(pEx);
   }
+  // Priority 7: real corrective work for a flagged injury, not just avoidance.
+  pickRehabForInjuries(injuries, allowed, used, seed + 71).forEach(function (r) {
+    var rEx = buildEx(r.exercise, "general", false, weightMap, minutes, weekNum, isDeload, lastLogs, false, "Because you flagged your " + r.joint + " -- corrective work, not just avoidance.");
+    rEx.block = "warmup"; warmup.push(rEx);
+  });
   groups.forEach(function (g, i) {
     var drill = pickMobilityByPatterns([g], false, allowed, used, seed + 43 + i * 7, injuries);
     if (drill) {
