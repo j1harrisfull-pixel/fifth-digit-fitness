@@ -80,16 +80,36 @@ const SHOULDER_INJ = [{ category: "pain", target: "shoulder" }];
 }
 
 {
-  // KNOWN GAP, discovered while writing this test, OUT OF SCOPE for Phase 7
-  // (guardrail: no new safety logic) -- recorded in the Technical Debt
-  // Register, not fixed here. normalizeInjuryText's back/lower-back->spine
-  // replacement has no word boundary, so it corrupts any injury target that
-  // contains "back" as a raw substring of a longer word (e.g. "Triceps
-  // Kickback" normalizes to "...kickspine", no longer a substring of the
-  // real exercise name, so the tier-4 name match silently fails to flag it).
+  // TECH-DEBT #11, FIXED (13 July 2026): normalizeInjuryText's back/lower-
+  // back->spine replacement used to have no word boundary, so it corrupted
+  // any injury target containing "back" as a raw substring of a longer word
+  // (e.g. "Triceps Kickback" normalized to "...kickspine", no longer a
+  // substring of the real exercise name, so the tier-4 name match silently
+  // failed to flag it). Now word-bounded the same way the l/r replacement
+  // already was -- a genuine named-movement exclusion works again, while a
+  // real "back"/"lower back" injury still correctly excludes spine-loading
+  // lifts (see the assertion right after).
   const kickback = byName("Triceps Kickback");
   if (kickback) {
-    ok(!isExerciseInjuryFlagged(kickback, [{ category: "pain", target: "Triceps Kickback" }]), "KNOWN GAP (Technical Debt Register, not fixed in Phase 7): normalizeInjuryText's unbounded back->spine replacement corrupts a full-name injury target for \"Triceps Kickback\", so it silently isn't flagged -- documented, not touched");
+    ok(isExerciseInjuryFlagged(kickback, [{ category: "pain", target: "Triceps Kickback" }]), "TECH-DEBT #11 fixed: an exact named-movement exclusion for \"Triceps Kickback\" now flags it (word-bounded back->spine replacement no longer corrupts the target)");
+    ok(!isExerciseInjuryFlagged(kickback, [{ category: "pain", target: "back" }]), "a generic \"back\" injury does NOT flag Triceps Kickback -- it isn't a real spine-loading movement, so this must stay unflagged");
+  }
+  const spineLift = LIBRARY.find(e => Array.isArray(e.joint_stress) && e.joint_stress.indexOf("spine") >= 0);
+  if (spineLift) {
+    ok(isExerciseInjuryFlagged(spineLift, [{ category: "pain", target: "back" }]), "a genuine \"back\" injury still flags a real spine-stress lift (" + spineLift.name + ") -- the word-boundary fix narrowed the match, it didn't break it");
+    ok(isExerciseInjuryFlagged(spineLift, [{ category: "pain", target: "lower back" }]), "\"lower back\" still normalizes to spine and flags the same lift");
+  }
+}
+
+{
+  // TECH-DEBT #10, FIXED (13 July 2026): INJURY_KEYWORD_TAGS had no "elbow"
+  // entry, so an athlete tagging a bare "elbow" injury could never joint-
+  // match elbow-stressing work (curls, pushdowns, most arm isolation) --
+  // only an exact named-movement match could exclude it, unlike every other
+  // tracked joint (shoulder/knee/spine/neck/wrist/hip/ankle).
+  const elbowEx = LIBRARY.find(e => Array.isArray(e.joint_stress) && e.joint_stress.indexOf("elbow") >= 0);
+  if (elbowEx) {
+    ok(isExerciseInjuryFlagged(elbowEx, [{ category: "pain", target: "elbow" }]), "TECH-DEBT #10 fixed: a bare \"elbow\" injury now joint-matches an elbow-stressing exercise (" + elbowEx.name + ")");
   }
 }
 

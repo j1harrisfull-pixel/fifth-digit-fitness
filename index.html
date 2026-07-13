@@ -2539,14 +2539,27 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       // exclusion must still match the L-Sit exercise.
       .replace(/(^| )l( |$)/g, "$1left$2").replace(/(^| )r( |$)/g, "$1right$2")
       .replace(/shoulders?/g, "shoulder").replace(/knees?/g, "knee")
-      .replace(/(lower\s*)?backs?|lumbar/g, "spine").replace(/necks?|cervical/g, "neck")
+      // TECH-DEBT #11 fix: the old `/(lower\s*)?backs?|lumbar/g` had no word
+      // boundary, so it silently corrupted "Triceps Kickback" into
+      // "...kickspine" -- the same class of bug already fixed once for the
+      // l/r replacement above, never given the same treatment here. Bounded
+      // the same way: only a standalone "back"/"backs" (optionally preceded
+      // by "lower "), never a substring of a longer word.
+      .replace(/(^| )(lower\s*)?backs?( |$)/g, "$1spine$3").replace(/(^| )lumbar( |$)/g, "$1spine$2")
+      .replace(/necks?|cervical/g, "neck")
       .replace(/wrists?/g, "wrist").replace(/hips?/g, "hip").replace(/ankles?/g, "ankle")
+      // TECH-DEBT #10 fix: elbow had no keyword at all, so an athlete tagging
+      // a bare "elbow" injury could never joint-match elbow-stressing work
+      // (curls, pushdowns, most arm isolation) -- only an exact named-movement
+      // match could exclude it, unlike every other tracked joint.
+      .replace(/elbows?/g, "elbow")
       .replace(/overheads?|ohp/g, "overhead");
   }
   // Keyword -> the exercise METADATA fields it should be checked against.
   var INJURY_KEYWORD_TAGS = {
     shoulder: { joints: ["shoulder"] }, knee: { joints: ["knee"] }, spine: { joints: ["spine"] },
     neck: { joints: ["neck"] }, wrist: { joints: ["wrist"] }, hip: { joints: ["hip"] }, ankle: { joints: ["ankle"] },
+    elbow: { joints: ["elbow"] },
     overhead: { patterns: ["vpush"] }
   };
   function isExerciseFlaggedByInjury(exercise, injury) {
