@@ -2147,6 +2147,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <h2 class="finish-page__spoken" id="completeTitle"><span id="completeTitleText">Work logged.</span></h2>
       <p class="finish-page__name" id="completeSessionName"></p>
       <div class="finish-page__ledger" id="completeLedger"></div>
+      <!-- Build item 2 (13 July, taste preview A, research-backed: Strava/
+           Hevy/Strong all put a stat recap -> PR/achievement callout -> close
+           in that order, treating the PR as the emotional payoff, not a
+           buried clause). Reuses .complete__pr-banner -- CSS that already
+           existed for exactly this (accent-tint box, accent-ink border/text)
+           but had no markup wired to it -- and honestRead.prs, the same PR
+           data the ledger's inline "best yet" tags already use. No new PR
+           logic, no new CSS; hidden entirely when there's no real PR. -->
+      <p class="complete__pr-banner" id="completePrCallout" hidden>★ <span id="completePrCalloutText"></span></p>
       <p class="finish-page__close" id="completeClose"></p>
       <div class="finish-page__stamp" id="completeStamp">
         <svg class="finish-page__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
@@ -10694,6 +10703,20 @@ function resolveSpec(request, state) {
     var honestRead = buildHonestRead(ses);
     var prNames = {};
     honestRead.prs.forEach(function (p) { prNames[p.name] = true; });
+    // Build item 2: the callout itself, built from the exact same prs array
+    // above -- one line naming every genuine PR this session, not a repeat
+    // of the ledger's own "· best yet" tags (those stay put, unchanged).
+    var prCalloutEl = $("completePrCallout"), prCalloutTextEl = $("completePrCalloutText");
+    if (prCalloutEl && prCalloutTextEl) {
+      if (honestRead.prs.length) {
+        var prLabel = honestRead.prs.length === 1 ? "New best" : "New bests";
+        var prList = honestRead.prs.map(function (p) { return esc(p.name) + " " + p.orm + esc(unit); }).join(", ");
+        prCalloutTextEl.innerHTML = "<b>" + prLabel + "</b> — " + prList;
+        prCalloutEl.hidden = false;
+      } else {
+        prCalloutEl.hidden = true;
+      }
+    }
     var ledgerEl = $("completeLedger");
     if (ledgerEl) {
       var rowsHtml = "";
