@@ -299,6 +299,17 @@ body.has-bottomnav { padding-bottom: 0; }
 .consistency-cell { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); border: 0; }
 .consistency-cell.is-trained { background: color-mix(in srgb, var(--ready) 50%, var(--surface-2)); }
 .consistency-cell.is-today { box-shadow: 0 0 0 1px var(--ink-dim); }
+/* Priority 5 ("the week as a rhythm, not a list"): a small shape above the
+   week list -- hard day, easy day, rest, at a glance instead of reading every
+   row's minutes. .rhythm__track is a fixed-height box so bars of different
+   inline-style heights align at the bottom like a real bar chart. */
+.rhythm { display: flex; align-items: flex-end; gap: 6px; padding: 4px 14px 14px; }
+.rhythm__col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; min-width: 0; }
+.rhythm__track { width: 100%; height: 34px; display: flex; align-items: flex-end; }
+.rhythm__bar { width: 100%; border-radius: 3px; background: color-mix(in srgb, var(--accent) 55%, var(--surface-2)); }
+.rhythm__col--rest .rhythm__bar { height: 3px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.rhythm__col.is-done .rhythm__bar { background: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); }
+.rhythm__lbl { font-size: 10px; font-weight: 600; letter-spacing: .04em; color: var(--faint); text-transform: uppercase; }
 /* The fatigue reading, demoted from a percentage donut to one honest line:
    semantic dot + sentence, silent when there's no data yet. Phase 3: a touch
    lighter than the greeting so it reads as secondary state, not a second
@@ -1669,6 +1680,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="home-hero view-week" id="homeHero"></div>
     <p class="consistency-label view-week" id="consistencyLabel"></p>
     <div class="consistency view-week" id="consistencyStrip"></div>
+    <div class="rhythm view-week" id="weekRhythm" hidden></div>
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
     <div class="coachhint view-day" id="coachHint" hidden>
@@ -7333,8 +7345,49 @@ function resolveSpec(request, state) {
     if (laterTouched) return { key: "skipped", pr: pr, isAlt: isAlt };
     return { key: "pending", pr: pr, isAlt: isAlt };
   }
+  // Priority 5 ("the week as a rhythm, not a list"): a small bar strip above
+  // the week list -- taller bars for longer/harder sessions, flat gaps for
+  // rest days. Reads only data every session already carries (block
+  // minutes, the existing trainDays scheduling) -- no new coach logic, pure
+  // presentation, so it can never disagree with the list underneath.
+  function sessionMinutes(ses) {
+    var m = 0;
+    if (ses && Array.isArray(ses.blocks)) ses.blocks.forEach(function (b) { if (typeof b.minutes === "number") m += b.minutes; });
+    return m;
+  }
+  function renderWeekRhythm(sessions) {
+    var host = $("weekRhythm"); if (!host) return;
+    if (!sessions.length) { host.hidden = true; host.innerHTML = ""; return; }
+    var mins = sessions.map(sessionMinutes);
+    var maxMin = Math.max.apply(null, mins.concat([1]));
+    var td = programTrainDays();
+    var cols;
+    if (td) {
+      // A real Mon-first week shape: every weekday gets a slot, unscheduled
+      // days render as a flat rest gap instead of just not existing.
+      var byWeekday = {};
+      sessions.forEach(function (s, i) { byWeekday[weekdayForSession(i)] = i; });
+      cols = WEEKDAY_ORDER.map(function (d) {
+        var si = byWeekday[d];
+        return si == null ? { rest: true, label: WEEKDAYS_SHORT[d] } : { rest: false, label: WEEKDAYS_SHORT[d], idx: si };
+      });
+    } else {
+      // Unscheduled ("flexible, your own pace"): no real calendar to hang
+      // rest gaps on, so just show each session's relative length in order.
+      cols = sessions.map(function (s, i) { return { rest: false, label: String(i + 1), idx: i }; });
+    }
+    host.hidden = false;
+    host.innerHTML = cols.map(function (c) {
+      if (c.rest) return '<div class="rhythm__col rhythm__col--rest"><div class="rhythm__track"><div class="rhythm__bar"></div></div><span class="rhythm__lbl">' + esc(c.label) + '</span></div>';
+      var pct = Math.max(16, Math.round(mins[c.idx] / maxMin * 100));
+      var done = isSessionFinished(sessions[c.idx]);
+      return '<button type="button" class="rhythm__col' + (done ? " is-done" : "") + '" data-day="' + c.idx + '" aria-label="Open ' + esc(dayPositionLabel(sessions, c.idx)) + '">' +
+        '<div class="rhythm__track"><div class="rhythm__bar" style="height:' + pct + '%"></div></div><span class="rhythm__lbl">' + esc(c.label) + '</span></button>';
+    }).join("");
+  }
   function renderWeekList() {
     var sessions = curWeek().sessions;
+    renderWeekRhythm(sessions);
     // v1.15: the true fresh-install/no-plan state (renderHomeHero's own big
     // "Build your training week" CTA) already offers Build -- don't double it
     // up with a second Build row here. Only append the row when a program
@@ -9051,11 +9104,10 @@ function resolveSpec(request, state) {
   // every row there is correctly preview-only). Everything else --
   // shouldPromptReadiness, openDay, ensureSessionLive, the recovery swap --
   // is unchanged; this is routing only.
-  weekListEl.addEventListener("click", function (ev) {
-    if (ev.target.closest("#homeBuildRow")) { openPlan(); return; }
-    var open = ev.target.closest(".weekrow__open");
-    if (!open) return;
-    var day = parseInt(open.getAttribute("data-day"), 10);
+  // Shared by the week list rows AND the rhythm strip's bars (Priority 5,
+  // "the week as a rhythm, not a list") -- same routing either way, so
+  // tapping a bar behaves exactly like tapping its row.
+  function openWeekDayFromList(day) {
     var wk = curWeek(), ses = wk.sessions[day];
     if (!ses) return;
     // v1.12 Preview Mode Separation: any not-yet-started, not-already-
@@ -9074,6 +9126,16 @@ function resolveSpec(request, state) {
     } else {
       openPreview(day);
     }
+  }
+  weekListEl.addEventListener("click", function (ev) {
+    if (ev.target.closest("#homeBuildRow")) { openPlan(); return; }
+    var open = ev.target.closest(".weekrow__open");
+    if (!open) return;
+    openWeekDayFromList(parseInt(open.getAttribute("data-day"), 10));
+  });
+  $("weekRhythm").addEventListener("click", function (ev) {
+    var col = ev.target.closest(".rhythm__col"); if (!col || col.classList.contains("rhythm__col--rest")) return;
+    openWeekDayFromList(parseInt(col.getAttribute("data-day"), 10));
   });
   $("backWeek").addEventListener("click", backToWeek);
   var previewBackBtn = $("previewBack");

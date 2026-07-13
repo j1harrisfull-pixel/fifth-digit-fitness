@@ -107,10 +107,13 @@ const nextTestOut = execSync('node /Users/jamesharris/Desktop/training-log-app/t
 ok(/37 passed, 0 failed/.test(nextTestOut), 'v1.11.1 NEXT highlight test suite still fully green (' + nextTestOut.trim().split('\n').pop() + ')');
 
 // ---------- 20. Completed sessions never accidentally become trainable via preview ----------
-const weekRowHandlerMatch = SRC.match(/weekListEl\.addEventListener\("click", function \(ev\) \{[\s\S]*?\n  \}\);/);
-ok(!!weekRowHandlerMatch, 'week-row click handler found');
+// Priority 5 (13 July 2026, week-as-rhythm) factored this routing logic out of
+// the inline click handler into openWeekDayFromList() so the new rhythm strip
+// can share it -- same logic, new home, so the check now targets that function.
+const weekRowHandlerMatch = SRC.match(/function openWeekDayFromList\(day\) \{[\s\S]*?\n  \}/);
+ok(!!weekRowHandlerMatch, 'openWeekDayFromList() found (the shared week-row/rhythm-bar routing function)');
 const weekRowHandlerSrc = weekRowHandlerMatch[0];
-ok(/var finished = isSessionFinished\(ses\);/.test(weekRowHandlerSrc), 'week-row handler checks isSessionFinished before routing');
+ok(/var finished = isSessionFinished\(ses\);/.test(weekRowHandlerSrc), 'openWeekDayFromList() checks isSessionFinished before routing');
 ok(/if \(alreadyStarted \|\| finished\) \{/.test(weekRowHandlerSrc), 'a finished session is routed to the existing openDay/maybeOpenDayWithReadiness path, never openPreview');
 
 // Master Ticket P3 (2026-07-13): the cta element no longer exists at all when
