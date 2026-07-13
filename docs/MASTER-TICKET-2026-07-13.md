@@ -159,3 +159,14 @@ The strength catalogue is genuinely extensive. The gaps, in build order:
 2. Read-only first when unsure. No surprise changes.
 3. Reports to James: short sentences, no code talk, problems labelled simply.
 4. Anything new that comes up gets added HERE first, not built on impulse.
+
+---
+
+## Overnight run status (13 July 2026, unattended pass, all local commits — none pushed)
+
+- **Priority 1 — DONE** (commit `55acd21`). The resume strip works and survives closing the app. Tested end to end.
+- **Priority 2 — DONE** (commits `0ddf57f`/`8e31c1d`). Nav is Home / Progress / Settings. Tested end to end.
+- **Priority 3 — DONE** (commit `1911400`). Removed the one real duplicate Build button (Home hero's "Build next week" vanishing act when the standing Build row already offers the same thing). The other "9 entry points" were re-checked and each turned out to do a genuinely different job (fresh install, swap-today, onboarding) — left alone on purpose.
+- **Priority 6 (dedupe) — investigated, mostly nothing to fix.** Injuries and readiness already share one function each behind their two screens — that's fine, not a bug. Found one real duplication (the same weight-estimate formula written out four times) but it's a pre-existing, already-logged, low-risk item — not touched tonight since it's numeric coaching logic and shouldn't change without you looking at it first.
+- **Priority 4 (conversation-style Build + new goal picker) — not started, needs your look at previews first**, see next section.
+- **Priority 5 (loop/delight items) — not started, same reason.**
