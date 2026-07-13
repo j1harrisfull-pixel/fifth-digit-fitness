@@ -525,6 +525,13 @@ body.has-bottomnav { padding-bottom: 0; }
 .today-card { background: var(--surface-3); border: 1px solid color-mix(in srgb, var(--line-strong) 55%, var(--surface-3)); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
 .today-card__label { font-size: 11px; letter-spacing: .01em; color: var(--faint); font-weight: 600; margin-bottom: 6px; }
 .today-card__name { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: -.01em; margin: 0; }
+/* Build item 1 (13 July, taste preview B): "open ready" -- the one, most-seen
+   daily state (a session is up next, untouched, week not done) reads as one
+   instruction instead of an eyebrow+title+meta stack. Only this state; every
+   other hero state (started/todayPicked/weekDone) keeps its existing markup
+   unchanged -- see renderHomeHero's isReadyLead branch. */
+.today-card__lead { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-h1); line-height: 1.28; letter-spacing: -.01em; margin: 0; }
+.today-card__lead-go { color: var(--accent); }
 .today-card__why { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; white-space: pre-line; }
 .today-card__lifts { list-style: none; margin: 14px 0 2px; padding: 0; }
 .today-card__lift { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); }
@@ -6837,6 +6844,19 @@ function resolveSpec(request, state) {
     var metaHtml = (!weekDone && heroTotalMin > 0 && heroFocus)
       ? '<p class="today-card__meta mono">' + esc(Math.round(heroTotalMin) + " MIN · " + heroFocus.toUpperCase()) + '</p>'
       : "";
+    // Build item 1 (13 July, taste preview B, research-grounded against
+    // Whoop/Oura/Hevy's zero-tap "today" hero pattern): the one, most-common
+    // daily moment -- a session is up next, untouched, week not done, and it
+    // isn't an explicit todayPick -- reads as one instruction instead of an
+    // eyebrow+title+meta stack. Reuses the exact same name/heroTotalMin data
+    // the old stack used; no new computation. Every other hero state
+    // (todayPicked/started/weekDone) is untouched below.
+    var isReadyLead = !weekDone && !todayPicked && !started;
+    var leadHtml = isReadyLead
+      ? '<p class="today-card__lead">' + esc(name) + '.' +
+        (heroTotalMin > 0 ? '<br>' + Math.round(heroTotalMin) + ' minutes.' : '') +
+        '<br><span class="today-card__lead-go">Let\'s go.</span></p>'
+      : '<div class="today-card__label">' + esc(label2) + '</div><h2 class="today-card__name">' + esc(name) + '</h2>' + metaHtml;
     // v1.9 Home Hero Flow: a valid todayPick gets the exact "review beat"
     // copy in place of the normal subline -- reuses the existing
     // .today-card__why paragraph (same element, same styling, just this
@@ -6970,9 +6990,7 @@ function resolveSpec(request, state) {
         // proportions. Purely decorative (aria-hidden), same watermark
         // placement/opacity as before.
         '<svg class="today-card__mark" viewBox="0 0 1725 1210" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>' +
-        '<div class="today-card__label">' + esc(label2) + '</div>' +
-        '<h2 class="today-card__name">' + esc(name) + '</h2>' +
-        metaHtml +
+        leadHtml +
         subHtml +
         reasonHtml +
         liftsHtml +
