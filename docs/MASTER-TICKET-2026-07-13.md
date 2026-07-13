@@ -108,8 +108,12 @@ Not broken things — things that turn "works" into "love it." In rough order:
 2. **The finish moment.** The session receipt is honest but flat. The end of a workout
    is the emotional high point — make it feel like something. (Strava's magic is the
    moment after you stop.)
-3. **A reason to come back tomorrow.** The 14-day strip is easy to miss. One gentle,
-   visible hook — "3 weeks consistent." (Duolingo's streak, without the guilt.)
+3. ~~A reason to come back tomorrow.~~ **DROPPED (13 July).** James: people already
+   have a reason to work out — the workout itself. A streak hook manufactures urgency
+   for apps whose core activity has no pull on its own (Duolingo, feeds); training
+   isn't that. Adding it would violate the app's own "nothing outside the realms of
+   a fitness app" rule. Not resurrected unless there's real evidence people are
+   forgetting to open the app — a different, evidence-led conversation.
 4. **Progress told as a sentence.** "Your bench is up 10kg since March." The data
    already exists; the sentence is missing.
 5. **One-tap set logging.** Pre-fill everything; the user just confirms. Adjust only
