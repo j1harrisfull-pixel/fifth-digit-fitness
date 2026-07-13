@@ -918,7 +918,14 @@ p.card__zonelabel { margin: 0 0 4px; }
    deliberate unit: "the set I'm doing now." The "Set N" label becomes a small
    heading on its own line above the controls (flex-basis:100%), separating
    "what" from "how" the way a considered layout would, not an assembled row. */
-.setrow:not(.is-done) { background: color-mix(in srgb, var(--surface-3) 55%, var(--bg)); border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent); padding: 11px 12px 9px; }
+/* 13 July 2026, Option D (James picked this over A/B/C after seeing all
+   four): same accent-as-outline language as the rest of this refinement,
+   with the corner radius nudged from a full 999px pill toward the app's
+   14px card radius -- 9px sits deliberately between the two, softer than
+   sharp/instrument but short of a candy pill. Border tint raised slightly
+   (12% -> 20%) so the current-set card reads as clearly marked, matching
+   what he approved in the mockup. */
+.setrow:not(.is-done) { background: color-mix(in srgb, var(--surface-3) 55%, var(--bg)); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); border-radius: 9px; padding: 11px 12px 9px; }
 .setrow:not(.is-done) .setrow__n { flex-basis: 100%; color: var(--ink); font-weight: 700; font-size: 14px; margin-bottom: 1px; }
 .setrow:not(.is-done) .setrow__plan { display: none; }
 .setrow:not(.is-done) .setrow__wt { display: flex; align-items: center; gap: 2px; }
@@ -961,7 +968,7 @@ p.card__zonelabel { margin: 0 0 4px; }
    feeling pill, matching the calmer effort/status-tag language used
    elsewhere. Same hit areas (via the inset pseudo + min-height), same
    bindings, same taps. */
-.setrow__wt, .setrow__reps { background: var(--surface-2); border-radius: 999px; padding: 3px 5px; gap: 2px; }
+.setrow__wt, .setrow__reps { background: var(--surface-2); border-radius: 9px; padding: 3px 5px; gap: 2px; }
 /* The current set's card bg is now deeper than plain --surface-2 (above), so
    its pills need a touch more lift + breathing room to stay a clearly
    separate, composed control cluster rather than blending into the card. */
@@ -969,7 +976,7 @@ p.card__zonelabel { margin: 0 0 4px; }
    manipulable control (like a physical dial), not a flat HTML input --
    same steppers, same value, same bindings. */
 .setrow:not(.is-done) .setrow__wt, .setrow:not(.is-done) .setrow__reps { background: color-mix(in srgb, var(--surface-2) 100%, var(--ink) 6%); padding: 3px 5px; box-shadow: inset 0 1px 2px color-mix(in srgb, var(--bg) 55%, transparent); }
-.rstep, .wtstep { position: relative; width: 27px; height: 30px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 999px; font-size: 15px; color: var(--faint); transition: color .12s ease, background .12s ease; }
+.rstep, .wtstep { position: relative; width: 27px; height: 30px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 7px; font-size: 15px; color: var(--faint); transition: color .12s ease, background .12s ease; }
 .rstep:hover, .wtstep:hover { color: var(--ink); background: var(--surface); }
 .rstep::after, .wtstep::after { content: ""; position: absolute; inset: -7px -4px; }
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 24px; text-align: center; color: var(--ink); }
@@ -999,7 +1006,7 @@ p.card__zonelabel { margin: 0 0 4px; }
    quiet settled state once logged. Same <button>, same data-act binding, same
    handler; only its presentation changes (text via ::after, the old check svg
    hidden). Never the accent -- that stays reserved for the one hero action. */
-.setrow__done { width: auto; height: auto; min-height: 40px; margin-left: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: .01em; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.setrow__done { width: auto; height: auto; min-height: 40px; margin-left: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 18px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: .01em; transition: background .14s ease, border-color .14s ease, color .14s ease; }
 .setrow__done::after { content: "Log"; }
 .setrow__done > svg { display: none; }
 .setrow:not(.is-done) .setrow__done:hover { border-color: var(--ink); }
