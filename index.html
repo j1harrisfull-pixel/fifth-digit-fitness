@@ -972,19 +972,25 @@ p.card__zonelabel { margin: 0 0 4px; }
 /* The current set's card bg is now deeper than plain --surface-2 (above), so
    its pills need a touch more lift + breathing room to stay a clearly
    separate, composed control cluster rather than blending into the card. */
-/* Whole-journey pass: a touch of inset depth so the pill reads as a
-   manipulable control (like a physical dial), not a flat HTML input --
-   same steppers, same value, same bindings. */
-.setrow:not(.is-done) .setrow__wt, .setrow:not(.is-done) .setrow__reps { background: color-mix(in srgb, var(--surface-2) 100%, var(--ink) 6%); padding: 3px 5px; box-shadow: inset 0 1px 2px color-mix(in srgb, var(--bg) 55%, transparent); }
+/* Whole-journey pass: the outer pill stays flat (see Option-1 chip below,
+   which now carries the depth cue on the number itself, not the whole
+   cluster -- two stacked insets read muddy). */
+.setrow:not(.is-done) .setrow__wt, .setrow:not(.is-done) .setrow__reps { background: color-mix(in srgb, var(--surface-2) 100%, var(--ink) 6%); padding: 3px 5px; }
 .rstep, .wtstep { position: relative; width: 27px; height: 30px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 7px; font-size: 15px; color: var(--faint); transition: color .12s ease, background .12s ease; }
 .rstep:hover, .wtstep:hover { color: var(--ink); background: var(--surface); }
 .rstep::after, .wtstep::after { content: ""; position: absolute; inset: -7px -4px; }
-.rval { font-family: "Spline Sans Mono", monospace; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 24px; text-align: center; color: var(--ink); }
+/* 13 July 2026, "clear focus around the numbers" (James, after Option D
+   shipped): the value itself now sits in its own recessed inset chip inside
+   the pill, like a dial readout -- bigger, its own tighter background, a
+   real depth cue -- instead of just being plain text floating between the
+   steppers. Steppers are unchanged (same size, same taps); only the number
+   gets the new chip. */
+.rval { font-family: "Spline Sans Mono", monospace; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 30px; text-align: center; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 4px 10px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
 /* The weight value sits inside the same pill as its steppers -- no border,
    no underline. Inherited/shared value reads dimmed; a per-set override reads
    full-ink brass, the same distinction the old underline carried, now calmer.
    Still directly typable, same 44px+ effective width, no extra tap, no modal. */
-.setrow__wtinput { flex: none; width: 40px; box-sizing: border-box; min-height: 30px; padding: 0; border: 0; background: none; font-size: 16px; font-weight: 600; color: var(--ink-dim); text-align: center; font-variant-numeric: tabular-nums; }
+.setrow__wtinput { flex: none; width: 48px; box-sizing: border-box; min-height: 30px; padding: 4px 10px; border: 0; background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); font-size: 19px; font-weight: 700; color: var(--ink-dim); text-align: center; font-variant-numeric: tabular-nums; }
 .setrow__wtinput:focus { outline: none; color: var(--ink); }
 .setrow__wt.is-override .setrow__wtinput { color: var(--accent-ink); }
 /* Done: the one control that matters mid-set -- visibly tappable at rest (not
