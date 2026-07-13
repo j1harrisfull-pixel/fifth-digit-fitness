@@ -459,9 +459,18 @@ body.has-bottomnav { padding-bottom: 0; }
 /* Thin clay progress bar: true completed/total sets for THIS exercise only. */
 .card__exprogress { height: 3px; background: var(--tempo-line); margin: 6px 0 10px; overflow: hidden; border-radius: 2px; }
 .card__exprogress-fill { height: 100%; width: var(--ex-fill, 0%); background: var(--tempo-clay); transition: width .15s ease; }
-/* Square clay tick: LOGGED set state only -- the not-yet-logged "Log" pill
-   (.setrow:not(.is-done) .setrow__done) is untouched, same handlers/labels. */
-.app[data-view="day"] .setrow.is-done .setrow__done { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 7px; background: var(--tempo-clay-deep); border-color: var(--tempo-clay-deep); color: var(--tempo-bone); }
+/* 13 July 2026: this was a solid 34px filled clay SQUARE -- the same
+   "filled block" shape the whole premium-refinement pass elsewhere already
+   moved away from (small quiet check, not a filled disc/square), just never
+   caught here since this rule is scoped to .app[data-view="day"] specifically
+   and is more specific than the base .setrow.is-done .setrow__done rule, so
+   it silently won the cascade. Recolours to the same restrained tinted-badge
+   language used everywhere else this session (week-row's done badge, the
+   number-focus chip): a small circular tint, not a filled block. Clay is
+   kept (not swapped back to --ready green) -- it's the on-brand accent and
+   avoids the original "green pops like a status LED" complaint; only the
+   SHAPE changes. Not-yet-logged "Log" pill is untouched, same handlers/labels. */
+.app[data-view="day"] .setrow.is-done .setrow__done { width: 26px; height: 26px; min-height: 26px; padding: 0; border-radius: 50%; background: color-mix(in srgb, var(--tempo-clay-deep) 55%, var(--surface-3)); border-color: transparent; color: var(--tempo-bone); }
 .app[data-view="day"] .setrow.is-done .setrow__done::after { content: none; }
 .app[data-view="day"] .setrow.is-done .setrow__done > svg { display: block; }
 /* Tightens the existing .pulse tick-scale animation (already wired in JS on
@@ -786,18 +795,19 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    (--manage), not the alarm accent, so it reads as "your turn" not "wrong". */
 .startweight.is-unset .startweight__label { color: var(--manage); }
 .startweight.is-unset .weight__input { color: var(--manage); }
-/* Redesign Pass 1 alignment: the "set your weight" prompt keeps its amber
-   (--manage) "your turn" signal via the label + value colour, but the
-   underline is a CALM SOLID line, not the dashed cue Pass 1 removed from the
-   set rows -- so the active card never repeats the admin/spreadsheet language
-   we just took out. Same prompt purpose, still directly typable, no behaviour
-   change. */
-.startweight.is-unset .weight__field { border-bottom: 1px solid var(--manage); padding-bottom: 1px; }
+/* 13 July 2026: this used to be a bare underline (border-bottom), the same
+   "HTML form control" look the number-focus ticket already fixed on the
+   per-set weight/rep chips -- this one control was missed since it's a
+   separate exercise-level field, not a .setrow. Matches the same inset-chip
+   language now: recessed background + shadow, no underline. Amber
+   (--manage) "your turn" signal is kept via the border colour, just as a
+   full ring around the chip instead of a bottom rule. */
+.startweight.is-unset .weight__field { border: 1px solid var(--manage); }
 .startweight__group { display: inline-flex; align-items: center; gap: 5px; }
 .step { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
 .step:hover { border-color: var(--accent-ink); }
 .step:active { transform: scale(.9); }
-.weight__field { display: inline-flex; align-items: baseline; gap: 3px; justify-content: center; }
+.weight__field { display: inline-flex; align-items: baseline; gap: 3px; justify-content: center; background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 4px 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
 .weight__input { width: 56px; box-sizing: border-box; padding: 0 3px; text-align: right; background: none; border: 0; font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; letter-spacing: -.02em; -moz-appearance: textfield; }
 .weight__input::-webkit-outer-spin-button, .weight__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .weight__unit { font-size: 12px; color: var(--ink-dim); font-weight: 600; letter-spacing: .04em; }

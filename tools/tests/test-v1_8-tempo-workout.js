@@ -82,14 +82,29 @@ ok(!/https?:\/\//.test(workoutCss), 'no network reference in the Ticket 3 CSS bl
 // ---------- 10. No new stored fields / no data-shape change ----------
 ok(!/sl\.exProgress|state\.exProgress|\.effortLogged\s*=/.test(NEW_CODE), 'no new stored field introduced by the Ticket 3 display code');
 
-// ---------- 11. Contrast: the square tick uses the safe clay-deep (not plain clay) fill ----------
+// ---------- 11. Contrast: the round tick uses a clay-deep TINT (not a flat fill), bone icon ----------
+// 13 July 2026: this was a solid 34px filled clay-deep SQUARE -- the same
+// "filled block" shape the wider premium-refinement pass moved away from
+// everywhere else. Recoloured to a small round tinted badge (26px, 55%
+// clay-deep mixed with --surface-3), matching the restrained-tint language
+// used for the week-row done badge and the number-focus chip. Contrast is
+// re-verified against the ACTUAL resulting background (the tint blended
+// with the card surface), not the old flat clay-deep fill.
 function srgbToLinear(c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 function relLum(hex) { const n = parseInt(hex.replace('#', ''), 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b); }
 function contrast(a, b) { const L1 = relLum(a), L2 = relLum(b); const lighter = Math.max(L1, L2), darker = Math.min(L1, L2); return (lighter + 0.05) / (darker + 0.05); }
-const bone = '#EDE8DF', clayDeep = '#A84A2F', clay = '#C25436';
-ok(contrast(bone, clayDeep) >= 4.5, 'tick icon (bone) on clay-deep fill >= 4.5:1, got ' + contrast(bone, clayDeep).toFixed(2));
-ok(/\.setrow\.is-done \.setrow__done \{[^}]*background: var\(--tempo-clay-deep\)/.test(workoutCss),
-   'the logged-tick fill uses --tempo-clay-deep (contrast-safe), not plain --tempo-clay');
+function mix(hexA, hexB, pct) {
+  const a = parseInt(hexA.replace('#', ''), 16), b = parseInt(hexB.replace('#', ''), 16);
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  const r = Math.round(ar * pct + br * (1 - pct)), g = Math.round(ag * pct + bg * (1 - pct)), bl = Math.round(ab * pct + bb * (1 - pct));
+  return '#' + [r, g, bl].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+const bone = '#EDE8DF', clayDeep = '#A84A2F', surface3 = '#2E2820';
+const badgeBg = mix(clayDeep, surface3, 0.55);
+ok(contrast(bone, badgeBg) >= 3, 'tick icon (bone) on the resulting tinted badge background >= 3:1 (icon/UI-component bar, not the 4.5:1 text bar), got ' + contrast(bone, badgeBg).toFixed(2));
+ok(/\.setrow\.is-done \.setrow__done \{[^}]*background: color-mix\(in srgb, var\(--tempo-clay-deep\) 55%, var\(--surface-3\)\)[^}]*color: var\(--tempo-bone\)/.test(workoutCss),
+   'the logged-tick is a clay-deep-tinted round badge with a bone icon, not a flat clay-deep fill');
 
 // ---------- 12. Scoping: new rules apply only to the day view / set rows ----------
 const dayScopedLines = workoutCss.split('\n').filter(function (l) { return /^\.app\[data-view="day"\]/.test(l.trim()); });
