@@ -1114,6 +1114,18 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .seg button[hidden] { display: none; }
 .seg__sub { font-size: 10.5px; font-weight: 500; color: var(--ink-dim); letter-spacing: .01em; }
 .linklike { display: block; margin: 8px 0 0; font-size: 12px; color: var(--ink-dim); text-decoration: underline; text-underline-offset: 2px; }
+/* Build-a-week wizard (Master Ticket Priority 4): one question per screen,
+   the same one-.wstep-visible-at-a-time pattern as the welcome flow's
+   .intro__step, instead of every field stacked on one settings-style page. */
+.wizard__meta { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; margin: 0 0 4px; }
+.wstep__q { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 0 0 14px; letter-spacing: -.01em; }
+.wstep[hidden] { display: none; }
+.wizard__nav { display: flex; gap: 10px; margin-top: 20px; }
+.wizard__nav #wizBack { flex: 0 0 auto; min-width: 88px; }
+/* .btn's `display: inline-flex` has the same specificity as the UA [hidden]
+   rule and wins by source order -- same gotcha as .segtoggle[hidden] earlier
+   in this file. Without this, "hidden" nav buttons still render. */
+.wizard__nav .btn[hidden] { display: none; }
 .adv--adjust .seg button { padding: 8px 12px; font-size: 12.5px; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn { flex: 1 1 auto; min-height: var(--tap); display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 0 16px; font-weight: 600; font-size: 14px; transition: transform .1s ease, border-color .12s ease; }
@@ -1715,40 +1727,49 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
 
     <div id="modeWeek">
-    <div class="bsect">
-      <div class="blabel">Goal</div>
-      <div class="seg seg--full seg--goal" id="bGoal" role="group" aria-label="Goal">
-        <button data-goal="strength" type="button">Get stronger<span class="seg__sub">Big lifts, heavier each week</span></button>
-        <button data-goal="hypertrophy" type="button">Build muscle<span class="seg__sub">More sets, muscle-focused</span></button>
-        <button data-goal="hybrid" type="button">Strength + cardio<span class="seg__sub">Lift + one hard cardio day</span></button>
-        <!-- Endurance shelved until the run-week programming is built out -- hidden,
-             not deleted, so restoring it is just removing `hidden`. -->
-        <button data-goal="endurance" type="button" hidden>Endurance<span class="seg__sub">Run-led week</span></button>
-      </div>
-      <button class="linklike" id="bGoalUnsure" type="button">Not sure? I'll build you a balanced week.</button>
-    </div>
-    <div class="bsect">
-      <div class="blabel">Days a week</div>
-      <div class="seg seg--full" id="bDays" role="group" aria-label="Days a week">
-        <button data-days="2" type="button">2</button>
-        <button data-days="3" type="button">3</button>
-        <button data-days="4" type="button">4</button>
-        <button data-days="5" type="button">5</button>
-        <button data-days="6" type="button">6</button>
-      </div>
-    </div>
-    <details class="adv adv--adjust" id="scheduleAdv">
-      <summary><span class="adv__label">Training days</span> <span class="adv__hint" id="scheduleHint">Flexible · no set days</span></summary>
-      <div class="adv__body">
-        <div class="bsect">
-          <div class="chips" id="bDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
-          <p class="sect__hint" style="margin-top:8px">Optional. Pick the weekdays you train and each session gets scheduled to a day, so the app knows what's due today. Leave blank to work through the plan at your own pace.</p>
+    <!-- Conversation rebuild (Master Ticket Priority 4): one question per
+         screen, like the welcome flow's .intro__step pattern, instead of
+         every field stacked on one settings-style page. Same fields, same
+         buildPrefs()/syncBuild() wiring underneath -- only the presentation
+         (one wstep visible at a time) is new. -->
+    <div class="wizard" id="weekWizard">
+      <p class="wizard__meta" id="weekStepLabel">Step 1 of 4</p>
+
+      <div class="wstep" data-wstep="1">
+        <h3 class="wstep__q">What's the goal?</h3>
+        <div class="seg seg--full seg--goal" id="bGoal" role="group" aria-label="Goal">
+          <button data-goal="strength" type="button">Get stronger<span class="seg__sub">Big lifts, heavier each week</span></button>
+          <button data-goal="hypertrophy" type="button">Build muscle<span class="seg__sub">More sets, muscle-focused</span></button>
+          <button data-goal="hybrid" type="button">Strength + cardio<span class="seg__sub">Lift + one hard cardio day</span></button>
+          <!-- Endurance shelved until the run-week programming is built out -- hidden,
+               not deleted, so restoring it is just removing `hidden`. -->
+          <button data-goal="endurance" type="button" hidden>Endurance<span class="seg__sub">Run-led week</span></button>
         </div>
+        <button class="linklike" id="bGoalUnsure" type="button">Not sure? I'll build you a balanced week.</button>
       </div>
-    </details>
-    <details class="adv adv--adjust" id="weekAdjust">
-      <summary><span class="adv__label">Adjust</span> <span class="adv__hint" id="adjustHint"></span></summary>
-      <div class="adv__body">
+
+      <div class="wstep" data-wstep="2" hidden>
+        <h3 class="wstep__q">How many days a week?</h3>
+        <div class="seg seg--full" id="bDays" role="group" aria-label="Days a week">
+          <button data-days="2" type="button">2</button>
+          <button data-days="3" type="button">3</button>
+          <button data-days="4" type="button">4</button>
+          <button data-days="5" type="button">5</button>
+          <button data-days="6" type="button">6</button>
+        </div>
+        <details class="adv adv--adjust" id="scheduleAdv">
+          <summary><span class="adv__label">Training days</span> <span class="adv__hint" id="scheduleHint">Flexible · no set days</span></summary>
+          <div class="adv__body">
+            <div class="bsect">
+              <div class="chips" id="bDaysOfWeek" role="group" aria-label="Days of the week you train"></div>
+              <p class="sect__hint" style="margin-top:8px">Optional. Pick the weekdays you train and each session gets scheduled to a day, so the app knows what's due today. Leave blank to work through the plan at your own pace.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="wstep" data-wstep="3" hidden>
+        <h3 class="wstep__q">How long, and for how long?</h3>
         <div class="bsect">
           <div class="blabel">Time per session</div>
           <div class="seg seg--full" id="bTime" role="group" aria-label="Time per session">
@@ -1764,6 +1785,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
             <button data-weeks="4" type="button">4-week block<span class="seg__sub">Same lifts, builds each week</span></button>
           </div>
         </div>
+      </div>
+
+      <div class="wstep" data-wstep="4" hidden>
+        <h3 class="wstep__q">What have you got?</h3>
         <div class="bsect">
           <div class="blabel">Include</div>
           <div class="chips" id="bInclude" role="group" aria-label="Include">
@@ -1777,9 +1802,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
           <p class="sect__hint" style="margin-top:8px">Bodyweight is always included. Tap off anything you don't have.</p>
         </div>
       </div>
-    </details>
 
-    <div class="btn-row" style="margin-top:18px"><button class="btn btn--primary" id="buildBtn" type="button">Build my week</button></div>
+      <div class="wizard__nav">
+        <button class="btn" id="wizBack" type="button" hidden>Back</button>
+        <button class="btn btn--primary" id="wizNext" type="button">Next</button>
+      </div>
+    </div>
+
+    <div class="btn-row hidden" id="weekBuildRow"><button class="btn btn--primary" id="buildBtn" type="button">Build my week</button></div>
     <div class="preview hidden" id="buildPreview"></div>
     </div>
 
@@ -9272,6 +9302,24 @@ function resolveSpec(request, state) {
       }
     }
   }
+  // Build-a-week wizard step (Master Ticket Priority 4): tracks which single
+  // question is showing. 1-4 are the questions; showWeekStep(5) reveals the
+  // existing Build button + preview in place of Next (no 5th wstep exists).
+  var WEEK_WIZARD_STEPS = 4;
+  var weekWizardStep = 1;
+  function showWeekStep(n) {
+    weekWizardStep = Math.max(1, Math.min(WEEK_WIZARD_STEPS + 1, n));
+    document.querySelectorAll("#weekWizard .wstep").forEach(function (el) {
+      el.hidden = parseInt(el.getAttribute("data-wstep"), 10) !== weekWizardStep;
+    });
+    var label = $("weekStepLabel");
+    var onReview = weekWizardStep > WEEK_WIZARD_STEPS;
+    if (label) label.textContent = onReview ? "Ready" : "Step " + weekWizardStep + " of " + WEEK_WIZARD_STEPS;
+    var back = $("wizBack"), next = $("wizNext"), buildRow = $("weekBuildRow");
+    if (back) back.hidden = weekWizardStep <= 1;
+    if (next) next.hidden = onReview;
+    if (buildRow) buildRow.classList.toggle("hidden", !onReview);
+  }
   function syncBuild() {
     var p = buildPrefs();
     document.querySelectorAll("#bGoal button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-goal") === p.goal); });
@@ -9324,13 +9372,16 @@ function resolveSpec(request, state) {
     syncBuildCtaEmphasis();
     syncSubBanner(); // clears any stale banner if the sheet was last left open on Just-Today
     syncBuild();
+    showWeekStep(1);
     syncEquipChips("todayEquip"); syncTodayEquipHint(); syncReadinessChips();
     $("reqText").value = buildRequest();
     // First build ever: surface equipment up front instead of leaving it collapsed,
     // so the very first program actually fits the kit you have. Every later open
-    // goes back to the normal collapsed default.
-    var firstBuild = !hasProgram(), wa = $("weekAdjust"), ta = $("todayAdjust");
-    if (wa) wa.open = firstBuild; if (ta) ta.open = firstBuild;
+    // goes back to the normal collapsed default. (Week mode's equipment now
+    // lives on its own wizard step, always reached in order -- only Just
+    // Today's equipment is still a collapsible <details> to un-collapse.)
+    var firstBuild = !hasProgram(), ta = $("todayAdjust");
+    if (ta) ta.open = firstBuild;
     openSheetNoKb(planSheet);
   }
   // Entry point for the home hero's "Can't do X today? Substitute with Just
@@ -10111,8 +10162,10 @@ function resolveSpec(request, state) {
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
-  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength" || p.goal === "hypertrophy") { p.conditioning = false; } save(); syncBuild(); });
-  $("bGoalUnsure").addEventListener("click", function () { var p = buildPrefs(); p.goal = "general"; p.conditioning = false; save(); syncBuild(); });
+  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength" || p.goal === "hypertrophy") { p.conditioning = false; } save(); syncBuild(); showWeekStep(weekWizardStep + 1); });
+  $("bGoalUnsure").addEventListener("click", function () { var p = buildPrefs(); p.goal = "general"; p.conditioning = false; save(); syncBuild(); showWeekStep(weekWizardStep + 1); });
+  $("wizNext").addEventListener("click", function () { showWeekStep(weekWizardStep + 1); });
+  $("wizBack").addEventListener("click", function () { showWeekStep(weekWizardStep - 1); });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
   $("bDaysOfWeek").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-dow]"); if (!b) return;
