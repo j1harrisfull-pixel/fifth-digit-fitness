@@ -70,7 +70,22 @@ function extractFn(name) {
     'the wizard question (.wstep__q) is promoted to --fs-h1, the app\'s real hero-heading scale');
 }
 
-// ---------- 4. Coach-span untouched -- this is presentation/copy only ----------
+// ---------- 4. Options are individually outlined, but still one flush group ----------
+// James, after seeing the mockup: "the options need to be outlined just not
+// separate" -- each of the 3 plan-choice/goal cards gets its own visible
+// border so they read as distinct choices, but they stay in the same
+// segmented group (same tight 3px gap) rather than becoming floating,
+// separated cards.
+{
+  ok(/\.seg--goal button \{ display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; border: 1px solid var\(--line-strong\); \}/.test(SRC),
+    'each .seg--goal option (plan-choice AND goal-picker, same shared class) has its own visible border');
+  ok(/\.seg--goal button\[aria-pressed="true"\] \{ border-color: var\(--ink\); \}/.test(SRC),
+    'the selected option\'s border brightens to --ink on top of the existing ring, so the outline itself also signals selection');
+  ok(/\.seg \{ display: inline-flex; background: var\(--surface-2\); border: 1px solid var\(--line\); border-radius: var\(--radius\); padding: 3px; gap: 3px; \}/.test(SRC),
+    'the shared group container still uses the same tight 3px gap -- outlining the options did not space them apart into separate cards');
+}
+
+// ---------- 5. Coach-span untouched -- this is presentation/copy only ----------
 {
   const { execFileSync } = require('child_process');
   const spanMd5 = execFileSync('sh', ['-c', "sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5"]).toString().trim();

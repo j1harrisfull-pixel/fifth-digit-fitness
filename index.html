@@ -1147,8 +1147,14 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    reads by text brightness + the ring; orange stays reserved for actions. */
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
 /* GOAL is the decision that defines the whole build -- two-line cards with a
-   plain-language descriptor, visibly senior to the Adjust panel's controls. */
-.seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; }
+   plain-language descriptor, visibly senior to the Adjust panel's controls.
+   13 July 2026 (James, re: the plan-choice mockup): "outlined just not
+   separate" -- each option gets its own visible border so three distinct
+   choices read clearly, but they stay flush together in the one segmented
+   group (same 3px gap, no extra spacing pulling them apart into floating
+   cards). */
+.seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; border: 1px solid var(--line-strong); }
+.seg--goal button[aria-pressed="true"] { border-color: var(--ink); }
 /* [hidden] can't beat the display:flex above on its own -- this makes the
    attribute actually hide a seg button (used to shelve Endurance until it's
    built out; drop the button's `hidden` to bring it back). */
