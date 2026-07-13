@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fifth Digit Coach — Taste Previews (13 July 2026)</title>
+<style>
+@font-face { font-family: "Spline Sans Mono"; src: local("Spline Sans Mono"); font-weight: 500 700; }
+:root {
+  --bg: #14110D; --surface: #1C1915; --surface-2: #262119; --surface-3: #2E2820;
+  --ink: #F6F1EA; --ink-dim: #9C9287; --line: #29241E; --line-strong: #473F35;
+  --accent: #C79A43; --on-accent: #14110D; --accent-tint: rgba(199,154,67,.14);
+  --muted: #9C9287; --faint: #877D71; --radius: 14px; --tap: 48px;
+  --tempo-bone: #EDE8DF; --tempo-bone-ink: #17181A; --tempo-bone-dim: #66614F;
+  --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #0A0908; color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- page chrome (not app chrome) ---- */
+.page-head { max-width: 1400px; margin: 0 auto; padding: 48px 24px 32px; }
+.page-head h1 { font-size: 28px; margin: 0 0 8px; }
+.page-head p { color: var(--faint); font-size: 15px; line-height: 1.6; max-width: 640px; margin: 0 0 4px; }
+.page-head .instructions { margin-top: 20px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; color: var(--ink-dim); }
+.page-head .instructions b { color: var(--accent); }
+
+section.item { max-width: 1400px; margin: 0 auto; padding: 0 24px 64px; }
+section.item h2 { font-size: 20px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+section.item h2 .num { font-family: var(--font-mono); font-size: 13px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; }
+section.item > p.desc { color: var(--faint); font-size: 14px; margin: 0 0 24px; max-width: 640px; }
+
+.variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start; }
+.variant { background: var(--bg); border: 1px solid var(--line-strong); border-radius: 20px; overflow: hidden; }
+.variant-label { padding: 10px 16px; background: var(--surface-2); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+.variant-label b { color: var(--accent); }
+.phone { width: 100%; min-height: 520px; padding: 20px 18px; position: relative; overflow: hidden; }
+
+/* ============ shared app-like bits ============ */
+.brand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.brand-row svg { width: 20px; height: 20px; color: var(--ink); }
+.brand-row span { font-weight: 700; font-size: 13px; letter-spacing: .02em; color: var(--ink-dim); }
+.today-card { background: var(--tempo-bone); color: var(--tempo-bone-ink); border-radius: var(--radius); padding: 20px 18px; position: relative; overflow: hidden; }
+.today-card__label { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.today-card__name { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+.today-card__meta { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--tempo-bone-dim); }
+.cta { display: block; width: 100%; text-align: center; padding: 15px; border-radius: 999px; border: 0; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: .01em; cursor: pointer; margin-top: 16px; }
+.cta.primary { background: var(--accent); color: var(--on-accent); }
+.cta.ghost { background: none; border: 1px solid var(--line-strong); color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Taste previews — 13 July 2026</h1>
+  <p>Five things from Priority 4 &amp; 5 of the master ticket, each in 2–3 versions. Nothing here touches the app — pick what you like, say "bin" to what you don't, and I'll build the winner properly next.</p>
+  <div class="instructions">Scroll down. Each item has its own row of variants, side by side, styled with the app's real dark palette and mono-label type. <b>These are static — nothing is wired up.</b></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. OPEN READY — the app opens already knowing what today is -->
+<!-- ============================================================ -->
+<section class="item">
+  <h2><span class="num">1</span> Open ready — zero-tap home</h2>
+  <p class="desc">Right now Home always shows the same card shape. These three try different ways of making the FIRST thing you see feel like a decision already made for you.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A — <b>Quiet confidence</b> (minimal change)<span>current shape, tighter copy</span></div>
+      <div class="phone">
+        <div class="brand-row"><svg viewBox="0 0 1725 1210" fill="currentColor"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg><span>COACH</span></div>
+        <p style="font-size:15px;color:var(--ink-dim);margin:0 0 14px;">Good morning</p>
+        <div class="today-card">
+          <div class="today-card__label">TODAY</div>
+          <div class="today-card__name">Bench day</div>
+          <div class="today-card__meta">45 MIN</div>
+          <button class="cta primary" style="position:relative;margin-top:18px;">Start</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — <b>The instruction</b><span>reads like a coach texted you</span></div>
+      <div class="phone">
+        <div class="brand-row"><svg viewBox="0 0 1725 1210" fill="currentColor"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg><span>COACH</span></div>
+        <div style="padding:28px 4px 4px;">
+          <p style="font-size:26px;line-height:1.25;font-weight:600;margin:0 0 20px;">Bench day.<br>45 minutes.<br><span style="color:var(--accent);">Let's go.</span></p>
+          <button class="cta primary">Start</button>
+          <button class="cta ghost">Not today →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">C — <b>The number first</b><span>leads with the recovery/readiness read</span></div>
+      <div class="phone">
+        <div class="brand-row"><svg viewBox="0 0 1725 1210" fill="currentColor"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg><span>COACH</span></div>
+        <div style="text-align:center;padding:10px 0 22px;">
+          <div style="width:120px;height:120px;border-radius:999px;border:6px solid var(--accent);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+            <span class="mono" style="font-size:28px;font-weight:800;">92</span>
+            <span class="mono" style="font-size:9px;color:var(--faint);letter-spacing:.08em;">READY</span>
+          </div>
+          <p style="font-weight:700;font-size:17px;margin:0;">Bench day is on.</p>
+        </div>
+        <button class="cta primary">Start (45 min)</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 2. THE FINISH MOMENT -->
+<!-- ============================================================ -->
+<section class="item">
+  <h2><span class="num">2</span> The finish moment</h2>
+  <p class="desc">The end of a workout is the emotional high point. Today's receipt is honest but flat. These try to make it feel like something, without inventing fake enthusiasm.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A — <b>The stamp</b><span>current receipt, one flourish added</span></div>
+      <div class="phone" style="background:var(--tempo-bone);color:var(--tempo-bone-ink);">
+        <p class="mono" style="font-size:11px;color:var(--tempo-bone-dim);margin:0 0 20px;">MON 13 JUL 2026</p>
+        <p style="font-size:15px;margin:0 0 6px;">Work logged.</p>
+        <h3 style="font-size:26px;margin:0 0 24px;">Upper · Bench</h3>
+        <div style="border-top:1px solid #D5CEC1;padding-top:14px;display:flex;justify-content:space-between;font-size:14px;">
+          <span>Bench Press</span><span class="mono">4 × 6</span>
+        </div>
+        <div style="margin-top:20px;padding:12px 14px;background:rgba(199,154,67,.16);border-radius:10px;border:1px solid var(--accent);">
+          <span style="font-weight:700;color:#8a5f16;">★ New best — 82.5kg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — <b>The number that moved</b><span>leads with a stat, not a list</span></div>
+      <div class="phone" style="background:var(--tempo-bone);color:var(--tempo-bone-ink);text-align:center;padding-top:44px;">
+        <p style="font-size:14px;color:var(--tempo-bone-dim);margin:0 0 8px;">You just lifted</p>
+        <p class="mono" style="font-size:44px;font-weight:800;margin:0 0 8px;">3,240<span style="font-size:18px;">kg</span></p>
+        <p style="font-size:14px;color:var(--tempo-bone-dim);margin:0 0 28px;">across 11 exercises</p>
+        <div style="display:inline-block;padding:10px 18px;background:#17181A;color:var(--tempo-bone);border-radius:999px;font-weight:700;font-size:13px;">Bench up 2.5kg since last week</div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">C — <b>Quiet close</b><span>minimal, one honest line, no chart</span></div>
+      <div class="phone" style="background:var(--tempo-bone);color:var(--tempo-bone-ink);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-height:480px;">
+        <svg viewBox="0 0 1725 1210" fill="currentColor" style="width:36px;height:36px;opacity:.5;margin-bottom:22px;"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
+        <p style="font-size:19px;font-weight:600;margin:0 0 6px;">Bench day, done.</p>
+        <p style="font-size:14px;color:var(--tempo-bone-dim);margin:0;">Best set of the day: 82.5kg × 6.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 3. REASON TO COME BACK TOMORROW -->
+<!-- ============================================================ -->
+<section class="item">
+  <h2><span class="num">3</span> A reason to come back tomorrow</h2>
+  <p class="desc">The 14-day dot strip on Home is easy to miss. These make consistency visible without turning it into a guilt trip.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A — <b>Streak chip</b><span>small, sits in the greeting line</span></div>
+      <div class="phone">
+        <p style="font-size:15px;margin:0 0 4px;">Good morning</p>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:6px 12px;margin-bottom:18px;">
+          <span style="color:var(--accent);">●</span>
+          <span class="mono" style="font-size:12px;font-weight:700;">3-week streak</span>
+        </div>
+        <div class="today-card"><div class="today-card__label">TODAY</div><div class="today-card__name">Bench day</div></div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — <b>The week as a shape</b><span>replaces the dot strip entirely</span></div>
+      <div class="phone">
+        <p style="font-size:13px;color:var(--faint);margin:0 0 10px;">This week</p>
+        <div style="display:flex;gap:6px;margin-bottom:20px;">
+          <div style="flex:1;height:40px;border-radius:8px;background:var(--accent);"></div>
+          <div style="flex:1;height:26px;border-radius:8px;background:var(--surface-3);align-self:flex-end;"></div>
+          <div style="flex:1;height:40px;border-radius:8px;background:var(--accent);"></div>
+          <div style="flex:1;height:14px;border-radius:8px;background:var(--surface-2);align-self:flex-end;"></div>
+          <div style="flex:1;height:40px;border-radius:8px;background:var(--surface-3);border:2px dashed var(--line-strong);"></div>
+          <div style="flex:1;height:14px;border-radius:8px;background:var(--surface-2);align-self:flex-end;"></div>
+          <div style="flex:1;height:14px;border-radius:8px;background:var(--surface-2);align-self:flex-end;"></div>
+        </div>
+        <p style="font-size:12px;color:var(--faint);margin:0 0 20px;">Tall = heavy day. Short = easy/rest. Dashed = today.</p>
+        <div class="today-card"><div class="today-card__label">TODAY</div><div class="today-card__name">Bench day</div></div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">C — <b>Milestone nudge</b><span>only appears at real moments (7/30/100 days)</span></div>
+      <div class="phone">
+        <p style="font-size:15px;margin:0 0 14px;">Good morning</p>
+        <div style="background:var(--accent-tint);border:1px solid var(--accent);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
+          <p style="margin:0;font-weight:700;color:var(--accent);">30 days training. First month done.</p>
+        </div>
+        <div class="today-card"><div class="today-card__label">TODAY</div><div class="today-card__name">Bench day</div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 4. BUILD AS A CONVERSATION -->
+<!-- ============================================================ -->
+<section class="item">
+  <h2><span class="num">4</span> Build feels like a conversation</h2>
+  <p class="desc">Right now Build is one long form. These try one-question-per-screen instead — shown here as just the FIRST question: the new goal picker (Get stronger / Build muscle / Strength + cardio / Not sure), per the 13 July decision.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A — <b>Big tappable cards</b><span>one per goal, full-width</span></div>
+      <div class="phone">
+        <p style="font-size:13px;color:var(--faint);margin:0 0 4px;">Step 1 of 4</p>
+        <h3 style="font-size:20px;margin:0 0 20px;">What are you here for?</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="cta ghost" style="text-align:left;padding:16px;margin:0;">Get stronger</button>
+          <button class="cta ghost" style="text-align:left;padding:16px;margin:0;border-color:var(--accent);">Build muscle</button>
+          <button class="cta ghost" style="text-align:left;padding:16px;margin:0;">Strength + cardio</button>
+        </div>
+        <p style="text-align:center;font-size:13px;color:var(--faint);margin:18px 0 0;">Not sure? I'll build you a balanced week.</p>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — <b>Chat-style</b><span>reads as a question being asked</span></div>
+      <div class="phone">
+        <div style="display:flex;gap:10px;margin-bottom:18px;">
+          <div style="width:28px;height:28px;border-radius:999px;background:var(--accent);flex:none;"></div>
+          <div style="background:var(--surface-2);border-radius:16px 16px 16px 4px;padding:12px 14px;font-size:15px;">What are you training for right now?</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-left:38px;">
+          <span class="mono" style="padding:9px 14px;border-radius:999px;background:var(--surface-3);border:1px solid var(--accent);color:var(--accent);font-size:13px;">Get stronger</span>
+          <span class="mono" style="padding:9px 14px;border-radius:999px;background:var(--surface-2);font-size:13px;">Build muscle</span>
+          <span class="mono" style="padding:9px 14px;border-radius:999px;background:var(--surface-2);font-size:13px;">Strength + cardio</span>
+        </div>
+        <p style="margin-left:38px;font-size:12px;color:var(--faint);margin-top:10px;">Not sure? Tap here.</p>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">C — <b>Swipe deck</b><span>one card visible, dots below for progress</span></div>
+      <div class="phone" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+        <p style="font-size:13px;color:var(--faint);">1 / 4</p>
+        <div style="width:100%;background:var(--surface-2);border-radius:20px;padding:28px 20px;margin:14px 0 20px;">
+          <p style="font-size:12px;color:var(--faint);margin:0 0 10px;text-transform:uppercase;letter-spacing:.06em;">Goal</p>
+          <h3 style="font-size:22px;margin:0 0 6px;">Get stronger</h3>
+          <p style="font-size:13px;color:var(--ink-dim);margin:0;">Big lifts, heavier each week.</p>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <span style="width:7px;height:7px;border-radius:999px;background:var(--accent);"></span>
+          <span style="width:7px;height:7px;border-radius:999px;background:var(--line-strong);"></span>
+          <span style="width:7px;height:7px;border-radius:999px;background:var(--line-strong);"></span>
+          <span style="width:7px;height:7px;border-radius:999px;background:var(--line-strong);"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 5. PROGRESS TOLD AS A SENTENCE -->
+<!-- ============================================================ -->
+<section class="item">
+  <h2><span class="num">5</span> Progress told as a sentence</h2>
+  <p class="desc">The data already exists (est. 1RM history) — the app never says it out loud. Shown here on the Progress screen.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A — <b>One line, top of Progress</b><span>plain sentence above the list</span></div>
+      <div class="phone">
+        <p class="mono" style="font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Progress</p>
+        <div style="background:var(--surface-2);border-radius:12px;padding:14px 16px;margin-bottom:18px;">
+          <p style="margin:0;font-size:15px;">Your bench is up <b style="color:var(--accent);">7.5kg</b> since you started.</p>
+        </div>
+        <p style="font-size:13px;color:var(--faint);margin:0 0 8px;">Recent sessions</p>
+        <div style="border-top:1px solid var(--line);padding-top:10px;">Upper · Bench <span class="mono" style="float:right;color:var(--faint);">13 Jul</span></div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — <b>Per-lift sentence</b><span>attached to each lift row, not a banner</span></div>
+      <div class="phone">
+        <p class="mono" style="font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:0 0 14px;">Strength trend</p>
+        <div style="padding:12px 0;border-bottom:1px solid var(--line);">
+          <p style="margin:0 0 4px;font-weight:700;">Bench Press</p>
+          <p style="margin:0;font-size:13px;color:var(--accent);">Up 7.5kg over 6 sessions</p>
+        </div>
+        <div style="padding:12px 0;border-bottom:1px solid var(--line);">
+          <p style="margin:0 0 4px;font-weight:700;">Squat</p>
+          <p style="margin:0;font-size:13px;color:var(--ink-dim);">Holding steady at 100kg</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
