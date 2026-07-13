@@ -204,14 +204,20 @@ ok(/var readingTxt = band === "red" \? "Recent sessions ran hard\. Keep today cl
 ok(SRC.indexOf('Best week streak') === -1, 'old "Best week streak" label is gone');
 ok(SRC.indexOf('Longest run of full weeks') !== -1, 'renamed streak stat present: "Longest run of full weeks"');
 
-ok(/ closed<\/span>/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'week-row "closed" annotation present (lower case)');
+// 13 July 2026: "closed" (a generic status word) was cut -- research across
+// Hevy/Strong/Fitbod/Future found none of them label a done day with a
+// status word. The checkmark badge itself is still present, unlabeled.
+ok(/weekrow__anno--done" aria-label="closed">/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'week-row done-state checkmark badge present (no visible status word)');
 ok(SRC.indexOf('CLOSED</span>') === -1, 'old uppercase "CLOSED</span>" tag is gone');
 ok(SRC.indexOf('READY</span>') === -1, 'old uppercase "READY</span>" tag is gone');
 ok(SRC.indexOf('SKIPPED</span>') === -1, 'old uppercase "SKIPPED</span>" tag is gone');
 ok(!/BANKED ·/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'old uppercase "BANKED ·" wording is gone from rendered week-row output');
 ok(/banked · " \+ bk\.setsDone \+ " set/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']),
    'week-row "banked · N sets" annotation present, driven by bk.setsDone (true completed-set count, unit-honesty preserved)');
-ok(/weekrow__anno">planned<\/span>/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'week-row "planned" annotation present');
+// 13 July 2026: "planned" (a generic status word) was cut entirely -- a
+// future row shows no status annotation, just the session name/focus already
+// rendered in weekrow__main (research-backed, see the "closed" note above).
+ok(SRC.indexOf('weekrow__anno">planned</span>') === -1, 'old "planned" annotation is gone');
 ok(/weekrow__anno">set aside<\/span>/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'week-row "set aside" annotation present');
 ok(/weekrow__tag--today">Today<\/span>/.test(RENDERED_SURFACES['renderWeekList (week-row annotations)']), 'week-row "Today" scheduling marker still present (unchanged, own axis, not part of the completion-state annotation set)');
 

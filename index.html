@@ -594,7 +594,14 @@ body.has-bottomnav { padding-bottom: 0; }
    status light. Scoped to week rows and the preview banner only (per v1.10
    Ticket 1) -- not introduced anywhere else in the app. */
 .weekrow__anno { flex: none; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .01em; color: var(--ink-dim); padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: none; font-variant-numeric: tabular-nums; }
-.weekrow__anno--done { display: inline-flex; align-items: center; gap: 4px; }
+.weekrow__anno--done { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 4px; border-radius: 50%; color: var(--ready); border-color: color-mix(in srgb, var(--ready) 45%, var(--line)); }
+/* 13 July 2026: dropped the "closed"/"planned" status words (research across
+   Hevy/Strong/Fitbod/Future found none of them label a day with a generic
+   status word -- the session name IS the label, completion is a visual mark).
+   The hierarchy James asked for is now visual, not textual: a done row's own
+   name/focus recedes (dims), so the eye lands on what's still undone. */
+.weekrow.is-done .weekrow__name { color: var(--ink-dim); }
+.weekrow.is-done .weekrow__focus { color: var(--faint); }
 /* Accent is reserved for the one primary action (the hero CTA); the current-day
    row is marked by the week strip + its position, not by recoloring its title. */
 .weekrow__focus { font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; }
@@ -7426,16 +7433,21 @@ function resolveSpec(request, state) {
       // ALT marks a swapped-in alternate session -- a content-origin marker on
       // its own axis, so it also sits inline by the name.
       if (st.isAlt) tagHtml += '<span class="weekrow__tag weekrow__tag--alt">' + swapIcon + ' Alt</span>';
-      // Completion status: ONE consistent ledger annotation per row on the
-      // right -- quiet, lower case, mono, dim ink. Replaces the v1.8 TEMPO
-      // coloured-fill tags (CLOSED/BANKED · N SETS/READY/SKIPPED) with
-      // Training Ledger wording (v1.10 Human Feel, Ticket 1): the same 5
-      // states, the same real data, just spoken as a kept log instead of a
-      // status board. Unit honesty unchanged -- "banked · N sets" still
-      // counts true completed sets (or true density rounds), never a
-      // different unit.
+      // Completion status: real-content annotations only -- no generic status
+      // words. Research across Hevy/Strong/Fitbod/Future (13 July 2026, James
+      // asked for this after rejecting "closed"/"planned" as bureaucratic
+      // ledger jargon): none of them label a day "done" or "planned" as a
+      // word -- the session's own name/focus (already shown in weekrow__main)
+      // IS the label, and completion is a lightweight visual mark (dot/check/
+      // fill) layered over it, never competing status text. "banked · N
+      // sets"/"N / total"/"set aside" all carry real numbers or a real state
+      // James didn't object to, so those stay; only the two content-free
+      // words ("closed", "planned") are cut. Done rows also get is-done on
+      // the row itself so CSS can recede the name/focus -- history fades,
+      // what's next/undone stays full-strength (the hierarchy James asked
+      // for, done visually instead of with more words).
       var statHtml;
-      if (st.key === "done") statHtml = '<span class="weekrow__anno weekrow__anno--done">' + checkIcon + ' closed</span>';
+      if (st.key === "done") statHtml = '<span class="weekrow__anno weekrow__anno--done" aria-label="closed">' + checkIcon + '</span>';
       // v136A: finished-early is its own honest annotation -- no check icon
       // (the check is reserved for genuine completion), so it can never be
       // mistaken for a full close. v1.8 TEMPO Ticket 2 fix-up: the unit in
@@ -7452,7 +7464,7 @@ function resolveSpec(request, state) {
       }
       else if (st.key === "progress") statHtml = '<span class="weekrow__anno">' + pr.done + ' / ' + pr.total + '</span>';
       else if (st.key === "skipped") statHtml = '<span class="weekrow__anno">set aside</span>';
-      else statHtml = '<span class="weekrow__anno">planned</span>';
+      else statHtml = "";
       // No per-row delete: a destructive control shown on every row of the
       // most-visited screen, for an action taken maybe once a program. It now
       // lives quietly inside the day itself (see the "Remove this day" control
@@ -7461,7 +7473,8 @@ function resolveSpec(request, state) {
       // "Upper" read as a real session rather than a list entry.
       var focusTxt = (sessions[i] && sessions[i].focus) || "";
       var focusHtml = focusTxt ? '<span class="weekrow__focus">' + esc(focusTxt) + '</span>' : "";
-      return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + '" data-day="' + i + '">' +
+      var doneCls = (st.key === "done" || st.key === "finished") ? " is-done" : "";
+      return '<div class="weekrow' + (i === state.activeSession ? " is-current" : "") + doneCls + '" data-day="' + i + '">' +
         '<button class="weekrow__open" type="button" data-day="' + i + '" aria-label="Open ' + esc(dayPositionLabel(sessions, i)) + '">' +
         '<span class="weekrow__main"><span class="weekrow__name">' + esc(dayPositionLabel(sessions, i)) + tagHtml + '</span>' + focusHtml + '</span>' +
         statHtml +

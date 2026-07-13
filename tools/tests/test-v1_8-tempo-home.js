@@ -90,13 +90,17 @@ APPROVED_LITERALS.forEach(function (s) {
 // Ledger annotations -- same data, same unit-honesty guarantee, just spoken
 // instead of shouted. See test-v1_9-t1-preview.js and test-v1_8-tempo-
 // ticket2-fixup.js for the full v1.10 wording assertions.
-ok(SRC.indexOf('weekrow__anno weekrow__anno--done">') !== -1 && / closed</.test(SRC), 'week-row "closed" annotation present');
+// 13 July 2026: dropped the "closed" word (research found no real training
+// app labels a done day with a status word -- see test-copy-guard.js for the
+// full assertion). The checkmark badge itself is still present.
+ok(/weekrow__anno weekrow__anno--done" aria-label="closed">/.test(SRC), 'week-row done-state checkmark badge present');
 // v1.8 TEMPO Ticket 2 fix-up (approved): the banked label now reads a true
 // completed-set count (bk.setsDone) instead of pr.done (which counts
 // completed EXERCISES, a different unit) -- see test-v1_8-tempo-finish.js
 // for the full unit-honesty test coverage of this fix.
 ok(/banked · " \+ bk\.setsDone \+ " set/.test(SRC), 'week-row "banked · N sets" annotation present, uses true completed-set count (v1.8 fix-up, v1.10 wording)');
-ok(/weekrow__anno">planned</.test(SRC), 'week-row "planned" annotation present');
+// 13 July 2026: dropped "planned" too -- the future row shows no status word,
+// just the session name/focus already rendered in weekrow__main.
 ok(/weekrow__anno">set aside</.test(SRC), 'week-row "set aside" annotation present');
 ok(SRC.indexOf('’s session is banked.') !== -1, 'memory line 1 template present');
 ok(SRC.indexOf(' moved up this block.') !== -1, 'memory line 2 template present');
