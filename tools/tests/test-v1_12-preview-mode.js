@@ -113,7 +113,10 @@ const weekRowHandlerSrc = weekRowHandlerMatch[0];
 ok(/var finished = isSessionFinished\(ses\);/.test(weekRowHandlerSrc), 'week-row handler checks isSessionFinished before routing');
 ok(/if \(alreadyStarted \|\| finished\) \{/.test(weekRowHandlerSrc), 'a finished session is routed to the existing openDay/maybeOpenDayWithReadiness path, never openPreview');
 
-const heroClickWiringMatch = SRC.match(/if \(cta\) cta\.addEventListener\("click", weekDone \? openPlan : function \(\) \{[\s\S]*?\n\s*\}\);/);
+// Master Ticket P3 (2026-07-13): the cta element no longer exists at all when
+// weekDone (the hero goes CTA-less, relying on the standing Build row
+// instead), so the click wiring is a plain function, not a weekDone ternary.
+const heroClickWiringMatch = SRC.match(/if \(cta\) cta\.addEventListener\("click", function \(\) \{[\s\S]*?\n\s*\}\);/);
 ok(!!heroClickWiringMatch, 'hero CTA click wiring found');
 ok(/if \(started\) maybeOpenDayWithReadiness\(heroIdx\);/.test(heroClickWiringMatch[0]),
    'an already-started (resumed) hero session skips preview and goes straight back into the live chain (approved resume-in-progress decision)');
@@ -199,7 +202,7 @@ ok(/<details class="preview__ex-formnotes"><summary>Form notes<\/summary>/.test(
 // bottom CTA. Build is hidden (not removed) from #app whenever
 // data-mode="preview" or data-view="day", so Home/plan-setup keeps it
 // working exactly as before.
-ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(SRC),
    'Home hero CTA reads "View the workout" for a not-yet-started session (Preview\'s own CTA keeps "Start the session")');
 ok(!/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
    'the old "Start the session" hero-CTA assignment is gone -- no longer a false promise of a live session');

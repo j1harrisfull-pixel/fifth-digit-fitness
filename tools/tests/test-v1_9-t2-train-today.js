@@ -491,7 +491,7 @@ const chosenBodySnippet = renderHomeHeroSrc.slice(chosenBodyIdx, chosenBodyIdx +
   // v1.12.2: the hero opens Today Preview, not a live session -- "View the
   // workout" replaces "Start the session" here (which now lives on
   // Preview's own bottom CTA).
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(renderHomeHeroSrc),
+  ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(renderHomeHeroSrc),
      'Home hero primary CTA reads "View the workout" for a not-yet-started session, chosen or not (test 11, v1.12.2) -- no new start button was added');
   ok(/maybeOpenDayWithReadiness\(heroIdx\)/.test(renderHomeHeroSrc),
      'the CTA click handler still opens the session at heroIdx via the existing maybeOpenDayWithReadiness/openDay path -- no new start function (test 13)');

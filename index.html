@@ -6933,9 +6933,15 @@ function resolveSpec(request, state) {
     // not a live session). "View the workout" honestly describes what the
     // tap actually does; "Start the session" is now reserved for Preview's
     // own bottom CTA, the one tap that genuinely triggers readiness/live.
-    // "Continue" (already resumed) and "Build next week" keep their
-    // existing, already-honest meanings -- untouched.
-    var ctaLabel = weekDone ? "Build next week" : started ? "Continue" : "View the workout";
+    // "Continue" (already resumed) keeps its existing, already-honest
+    // meaning, untouched. Master Ticket P3 (2026-07-13): weekDone no longer
+    // gets its own "Build next week" hero button -- with the week fully
+    // done, this button and the standing Build row below the week list
+    // (buildRowHtml, see renderWeekList) were both visible at once, both
+    // doing the exact same thing. The Build row is the one quiet door once
+    // a program exists; the hero goes CTA-less here and just states the
+    // week's recap.
+    var ctaLabel = started ? "Continue" : "View the workout";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.
@@ -6971,7 +6977,10 @@ function resolveSpec(request, state) {
         reasonHtml +
         liftsHtml +
         recapHtml +
-        '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>' +
+        // Master Ticket P3: no CTA button at all once the week is done --
+        // the standing Build row below the week list is the one door left,
+        // not a second "Build next week" button saying the same thing.
+        (weekDone ? "" : '<button type="button" class="today-card__cta" id="homeHeroCta">' + esc(ctaLabel) + '</button>') +
         subLinkHtml +
       '</div>';
     var cta = $("homeHeroCta");
@@ -6983,8 +6992,10 @@ function resolveSpec(request, state) {
     // preview there would just add a redundant extra tap to get back into
     // a workout that's already under way, so that case goes straight back
     // into the existing, unchanged maybeOpenDayWithReadiness/openDay chain
-    // (which itself never re-prompts readiness once sets exist).
-    if (cta) cta.addEventListener("click", weekDone ? openPlan : function () {
+    // (which itself never re-prompts readiness once sets exist). No cta
+    // element exists at all when weekDone (see above), so this is a no-op
+    // in that case.
+    if (cta) cta.addEventListener("click", function () {
       if (started) maybeOpenDayWithReadiness(heroIdx);
       else openPreview(heroIdx);
     });

@@ -29,7 +29,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   // v1.12.2: the hero opens Today Preview, not a live session -- "Start the
   // session" moved to Preview's own bottom CTA (see test-v1_12-preview-mode.js);
   // the hero's untouched-session label is now the honest "View the workout".
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+  ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(SRC),
      'the untouched-session hero CTA label is "View the workout" (v1.12.2, approved) (test: Home hero copy)');
   ok(!/"Start training"/.test(SRC), 'the old "Start training" copy is gone entirely');
   // The hero CTA's click handler resolves through maybeOpenDayWithReadiness
@@ -38,7 +38,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   // test-v1_12-preview-mode.js) are both proven to never call
   // ensureSessionLive directly, so the hero itself contains no direct
   // ensureSessionLive/openDayToTrain call either way.
-  ok(/if \(cta\) cta\.addEventListener\("click", weekDone \? openPlan : function \(\) \{\s*\n\s*if \(started\) maybeOpenDayWithReadiness\(heroIdx\);\s*\n\s*else openPreview\(heroIdx\);\s*\n\s*\}\);/.test(SRC),
+  ok(/if \(cta\) cta\.addEventListener\("click", function \(\) \{\s*\n\s*if \(started\) maybeOpenDayWithReadiness\(heroIdx\);\s*\n\s*else openPreview\(heroIdx\);\s*\n\s*\}\);/.test(SRC),
      'the hero CTA routes through maybeOpenDayWithReadiness (resumed) or openPreview (not yet started) only -- no direct timer start (test: Home hero does not start timer)');
 }
 

@@ -168,7 +168,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   // v1.12.2: hero opens Today Preview, not a live session -- "View the
   // workout" replaces "Start the session" on the hero (which now lives on
   // Preview's own bottom CTA instead).
-  ok(/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "View the workout";/.test(SRC),
+  ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(SRC),
      'hero CTA reads "View the workout" (v1.12.2, approved)');
   ok(/Signing off session…/.test(SRC), 'the signing-off beat copy is untouched');
   ok(/\.cuebox \{ display: flex; flex-direction: column; gap: 8px; background: none;/.test(SRC),
