@@ -170,6 +170,19 @@ input, textarea { font: inherit; color: inherit; }
 body.has-bottomnav { padding-bottom: 0; }
 .bottomnav[hidden] { display: none; }
 
+/* P1 resume strip -- the one loud element in the app. Full-width tap target,
+   accent-bordered, sits above everything on Home and Preview until the
+   in-progress session is finished or ended. */
+.resumestrip { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 5px; color: var(--ink); text-align: left; cursor: pointer; }
+.resumestrip[hidden] { display: none; }
+.resumestrip__pulse { width: 9px; height: 9px; flex: none; border-radius: 999px; background: var(--accent); animation: resumepulse 1.6s ease-in-out infinite; }
+@keyframes resumepulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .resumestrip__pulse { animation: none; } }
+.resumestrip__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.resumestrip__label { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.resumestrip__detail { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resumestrip__cta { flex: none; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 8px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); }
+
 /* Today/History segment toggle inside the Train screen (reuses Preview) --
    same pill surface/radius/mono-type language as .weeknav, not a new style. */
 .segtoggle { display: flex; align-items: center; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; width: max-content; margin: 0 0 18px; }
@@ -1631,6 +1644,20 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 
   <main>
+    <!-- P1 (Master Ticket 2026-07-13): the trust fix. Whenever any session in
+         the current week has real logged work but isn't finished, this strip
+         is the first thing on screen -- Home AND Preview (deliberately no
+         .view-week class, so preview mode's display gate doesn't hide it).
+         Hidden only inside the live day view itself (renderAll) and when
+         nothing is in progress. Tapping anywhere on it resumes that day. -->
+    <button type="button" class="resumestrip" id="resumeStrip" hidden>
+      <span class="resumestrip__pulse" aria-hidden="true"></span>
+      <span class="resumestrip__text">
+        <span class="resumestrip__label">Workout in progress</span>
+        <span class="resumestrip__detail" id="resumeStripDetail"></span>
+      </span>
+      <span class="resumestrip__cta">Resume</span>
+    </button>
     <div class="home-hero view-week" id="homeHero"></div>
     <p class="consistency-label view-week" id="consistencyLabel"></p>
     <div class="consistency view-week" id="consistencyStrip"></div>
@@ -8187,6 +8214,45 @@ function resolveSpec(request, state) {
     if (animate) revealTimer = setTimeout(function () { listEl.classList.remove("reveal"); }, 900);
     else listEl.classList.remove("reveal");
   }
+  // P1 (Master Ticket): find the session the user is mid-way through -- real
+  // logged work but not finished. "In progress" = at least one completed SET
+  // exists (countCompletedSets, the same honest per-set reduction the week-row
+  // BANKED label and finish receipt already use) and isSessionFinished() is
+  // false -- NOT sessionProgress()'s done/total, which counts fully-finished
+  // EXERCISES and would miss the single most common in-progress moment: one
+  // set into your first exercise. If more than one session qualifies, the
+  // most recently touched log wins. Reads only what's already persisted, so
+  // it survives reload, app close, and phone restart for free.
+  function findInProgressSession() {
+    var wk = curWeek(); if (!wk || !wk.sessions) return null;
+    var best = null;
+    wk.sessions.forEach(function (s, i) {
+      if (isSessionFinished(s)) return;
+      var sl = state.log[s.id];
+      var setsDone = countCompletedSets(sl);
+      if (setsDone <= 0) return;
+      var pr = sessionProgress(sessionItemsFor(s));
+      var stamp = (sl && sl.date) ? String(sl.date) : "";
+      if (!best || stamp > best.stamp) best = { idx: i, ses: s, pr: pr, setsDone: setsDone, stamp: stamp };
+    });
+    return best;
+  }
+  function renderResumeStrip() {
+    var el = $("resumeStrip"); if (!el) return;
+    var hit = (state.view !== "day" && hasProgram()) ? findInProgressSession() : null;
+    el.hidden = !hit;
+    if (!hit) return;
+    var name = dayPositionLabel(curWeek().sessions, hit.idx);
+    // Exercise-count ("N of M exercises done") only once at least one whole
+    // exercise is finished -- otherwise it reads as "0 of 4" against a strip
+    // that says "in progress", which looks like a contradiction. Below that
+    // point the honest, still-true fact is simply how many sets landed.
+    var detail = hit.pr.done > 0
+      ? (hit.pr.done + " of " + hit.pr.total + " exercises done")
+      : (hit.setsDone + (hit.setsDone === 1 ? " set logged" : " sets logged"));
+    $("resumeStripDetail").textContent = name + " — " + detail;
+    el.setAttribute("data-resume-idx", String(hit.idx));
+  }
   function renderAll(animate) {
     expireTodayPick(); // v1.9-T2: date/validity check runs before anything else renders
     clampActive();
@@ -8194,6 +8260,7 @@ function resolveSpec(request, state) {
     renderWeekBar();
     if (state.view === "day") { renderDayBar(); renderHead(); renderList(animate); maybeShowCoachHint(); resumeDensityTimer(); if (animate) scrollToCurrent(); }
     else { renderHomeHero(); renderWeekList(); }
+    renderResumeStrip();
     // v1.15 Bottom Navigation: hidden only during a live workout -- the LOG
     // bar/rest timer already own that bottom edge, a third stacked element
     // there was the one place a persistent bar actively harms the layout.
@@ -9960,6 +10027,18 @@ function resolveSpec(request, state) {
   });
   $("navTrain").addEventListener("click", openTrain);
   $("navSettings").addEventListener("click", openSheet);
+  // P1 (Master Ticket): the resume strip's own tap target -- reuses the
+  // existing openDay() directly (no readiness re-prompt; readiness was
+  // already answered once to start this same session earlier today/this
+  // week). Also closes Preview/Settings first if either happened to be open,
+  // same cleanup navHome already does above.
+  $("resumeStrip").addEventListener("click", function () {
+    var idx = parseInt($("resumeStrip").getAttribute("data-resume-idx"), 10);
+    if (isNaN(idx)) return;
+    if (appEl.getAttribute("data-mode") === "preview") closePreview();
+    if (sheet.open) closeSheet();
+    openDay(idx);
+  });
   $("trainSegToday").addEventListener("click", showTrainToday);
   $("trainSegHistory").addEventListener("click", showTrainHistory);
   $("trainHistoryBody").addEventListener("click", function (ev) {
