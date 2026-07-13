@@ -1113,6 +1113,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    built out; drop the button's `hidden` to bring it back). */
 .seg button[hidden] { display: none; }
 .seg__sub { font-size: 10.5px; font-weight: 500; color: var(--ink-dim); letter-spacing: .01em; }
+.linklike { display: block; margin: 8px 0 0; font-size: 12px; color: var(--ink-dim); text-decoration: underline; text-underline-offset: 2px; }
 .adv--adjust .seg button { padding: 8px 12px; font-size: 12.5px; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn { flex: 1 1 auto; min-height: var(--tap); display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 0 16px; font-weight: 600; font-size: 14px; transition: transform .1s ease, border-color .12s ease; }
@@ -1717,12 +1718,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="bsect">
       <div class="blabel">Goal</div>
       <div class="seg seg--full seg--goal" id="bGoal" role="group" aria-label="Goal">
-        <button data-goal="hybrid" type="button">Hybrid<span class="seg__sub">Lift + one hard cardio day</span></button>
-        <button data-goal="strength" type="button">Strength<span class="seg__sub">Big lifts, heavier each week</span></button>
+        <button data-goal="strength" type="button">Get stronger<span class="seg__sub">Big lifts, heavier each week</span></button>
+        <button data-goal="hypertrophy" type="button">Build muscle<span class="seg__sub">More sets, muscle-focused</span></button>
+        <button data-goal="hybrid" type="button">Strength + cardio<span class="seg__sub">Lift + one hard cardio day</span></button>
         <!-- Endurance shelved until the run-week programming is built out -- hidden,
              not deleted, so restoring it is just removing `hidden`. -->
         <button data-goal="endurance" type="button" hidden>Endurance<span class="seg__sub">Run-led week</span></button>
       </div>
+      <button class="linklike" id="bGoalUnsure" type="button">Not sure? I'll build you a balanced week.</button>
     </div>
     <div class="bsect">
       <div class="blabel">Days a week</div>
@@ -9229,7 +9232,7 @@ function resolveSpec(request, state) {
     // Endurance is temporarily shelved (its button is hidden), so a stale saved
     // "endurance" pref from a prior build falls back to hybrid rather than
     // silently regenerating a run week no one can re-select.
-    var goal = ["hybrid", "strength"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
+    var goal = ["hybrid", "strength", "hypertrophy", "general"].indexOf(p.goal) >= 0 ? p.goal : "hybrid";
     var cardioGoal = goal === "hybrid" || goal === "endurance";
     var equip = Array.isArray(p.equipment) ? p.equipment.filter(function (x) { return x === "bodyweight" || EQUIP_ALL.indexOf(x) >= 0; }) : EQUIP_ALL.filter(function (x) { return x !== "sled"; });
     state.buildPrefs = {
@@ -10108,7 +10111,8 @@ function resolveSpec(request, state) {
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
   $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
-  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength") { p.conditioning = false; } save(); syncBuild(); });
+  $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength" || p.goal === "hypertrophy") { p.conditioning = false; } save(); syncBuild(); });
+  $("bGoalUnsure").addEventListener("click", function () { var p = buildPrefs(); p.goal = "general"; p.conditioning = false; save(); syncBuild(); });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
   $("bDaysOfWeek").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-dow]"); if (!b) return;
