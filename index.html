@@ -1098,13 +1098,6 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    nine white blocks on one Build sheet inverted the hierarchy. Selection now
    reads by text brightness + the ring; orange stays reserved for actions. */
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
-/* The Build sheet's mode tabs are wayfinding, not a value choice -- they carry
-   the sheet's single small accent moment (an underline) instead of the ring.
-   Phase 4: stacked label + one-line intent caption (reuses .seg__sub, same
-   pattern as .seg--goal below) so the two modes read as two distinct requests
-   -- "plan the next block" vs "build one session" -- not a generic toggle. */
-#planMode button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 -2px 0 0 var(--accent); }
-#planMode button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px; min-height: 50px; }
 /* GOAL is the decision that defines the whole build -- two-line cards with a
    plain-language descriptor, visibly senior to the Adjust panel's controls. */
 .seg--goal button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 10px; }
@@ -1721,9 +1714,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <h2>Build my week</h2>
     <p class="sheet__lead">Tell me what you've got, I'll build the session.</p>
 
-    <div class="seg seg--full" id="planMode" role="group" aria-label="What to build" style="margin-bottom:18px">
-      <button data-mode="week" type="button" aria-pressed="true">Build a week<span class="seg__sub">Plan the next block</span></button>
-      <button data-mode="today" type="button" aria-pressed="false">Just today<span class="seg__sub">Build one session</span></button>
+    <!-- The true first question (James, 13 July): how much do you want to
+         plan, as one 3-way choice -- Just today / One week / Four weeks --
+         not a mode toggle plus a buried "Program length" step later. Picking
+         Just today jumps straight into the existing Just-Today screen;
+         picking a week length sets buildPrefs().weeks and enters the
+         week wizard at Goal. -->
+    <div class="wstep" id="planChoiceStep">
+      <h3 class="wstep__q">How much do you want to plan?</h3>
+      <div class="seg seg--full seg--goal" id="bPlanChoice" role="group" aria-label="How much to plan">
+        <button data-plan="today" type="button">Just today<span class="seg__sub">Build one session</span></button>
+        <button data-plan="1" type="button">One week<span class="seg__sub">A complete week, your pace</span></button>
+        <button data-plan="4" type="button">Four weeks<span class="seg__sub">Same lifts, builds each week</span></button>
+      </div>
     </div>
 
     <div id="modeWeek">
@@ -1769,21 +1772,11 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       </div>
 
       <div class="wstep" data-wstep="3" hidden>
-        <h3 class="wstep__q">How long, and for how long?</h3>
-        <div class="bsect">
-          <div class="blabel">Time per session</div>
-          <div class="seg seg--full" id="bTime" role="group" aria-label="Time per session">
-            <button data-min="30" type="button">30 min</button>
-            <button data-min="45" type="button">45 min</button>
-            <button data-min="60" type="button">60 min</button>
-          </div>
-        </div>
-        <div class="bsect">
-          <div class="blabel">Program length</div>
-          <div class="seg seg--full seg--goal" id="bWeeks" role="group" aria-label="Program length">
-            <button data-weeks="1" type="button">Single week<span class="seg__sub">A complete week, your pace</span></button>
-            <button data-weeks="4" type="button">4-week block<span class="seg__sub">Same lifts, builds each week</span></button>
-          </div>
+        <h3 class="wstep__q">How long is each session?</h3>
+        <div class="seg seg--full" id="bTime" role="group" aria-label="Time per session">
+          <button data-min="30" type="button">30 min</button>
+          <button data-min="45" type="button">45 min</button>
+          <button data-min="60" type="button">60 min</button>
         </div>
       </div>
 
@@ -9316,9 +9309,37 @@ function resolveSpec(request, state) {
     var onReview = weekWizardStep > WEEK_WIZARD_STEPS;
     if (label) label.textContent = onReview ? "Ready" : "Step " + weekWizardStep + " of " + WEEK_WIZARD_STEPS;
     var back = $("wizBack"), next = $("wizNext"), buildRow = $("weekBuildRow");
-    if (back) back.hidden = weekWizardStep <= 1;
+    // Back always has somewhere to go now: step 1 (Goal) returns to the
+    // "how much do you want to plan?" choice, not nowhere.
+    if (back) back.hidden = false;
     if (next) next.hidden = onReview;
     if (buildRow) buildRow.classList.toggle("hidden", !onReview);
+  }
+  // The true first question (James, 13 July): Just today / One week / Four
+  // weeks, as one 3-way choice, instead of a mode toggle plus a "Program
+  // length" step buried three questions in. Picking a week length sets
+  // buildPrefs().weeks and enters the wizard at Goal; picking Just today
+  // jumps straight to the existing Just-Today screen (unchanged).
+  function showPlanChoice() {
+    $("planChoiceStep").hidden = false;
+    $("modeWeek").hidden = true;
+    $("modeToday").hidden = true;
+    var p = buildPrefs();
+    document.querySelectorAll("#bPlanChoice button").forEach(function (b) {
+      var plan = b.getAttribute("data-plan");
+      b.setAttribute("aria-pressed", plan !== "today" && parseInt(plan, 10) === p.weeks);
+    });
+  }
+  function choosePlan(plan) {
+    $("planChoiceStep").hidden = true;
+    if (plan === "today") {
+      setPlanMode("today");
+    } else {
+      buildPrefs().weeks = parseInt(plan, 10);
+      save();
+      setPlanMode("week");
+      showWeekStep(1);
+    }
   }
   function syncBuild() {
     var p = buildPrefs();
@@ -9332,9 +9353,6 @@ function resolveSpec(request, state) {
       b.classList.toggle("is-locked", locked);
       b.setAttribute("aria-disabled", locked ? "true" : "false");
       if (locked) b.title = "Cardio is core to Endurance (always on)"; else b.removeAttribute("title");
-    });
-    document.querySelectorAll("#bWeeks button").forEach(function (b) {
-      b.setAttribute("aria-pressed", parseInt(b.getAttribute("data-weeks"), 10) === p.weeks);
     });
     renderDayOfWeekChips();
     syncDayOfWeekChips();
@@ -9372,7 +9390,7 @@ function resolveSpec(request, state) {
     syncBuildCtaEmphasis();
     syncSubBanner(); // clears any stale banner if the sheet was last left open on Just-Today
     syncBuild();
-    showWeekStep(1);
+    showPlanChoice();
     syncEquipChips("todayEquip"); syncTodayEquipHint(); syncReadinessChips();
     $("reqText").value = buildRequest();
     // First build ever: surface equipment up front instead of leaving it collapsed,
@@ -9390,7 +9408,7 @@ function resolveSpec(request, state) {
   function openPlanForSubstitute(dayIdx) {
     openPlan();
     pendingSubstituteIdx = dayIdx;
-    setPlanMode("today");
+    choosePlan("today");
   }
   function syncSubBanner() {
     var el = $("todaySubBanner"); if (!el) return;
@@ -9473,7 +9491,6 @@ function resolveSpec(request, state) {
     if (!today) pendingSubstituteIdx = null; // switching to Build-a-week abandons any pending substitution
     $("modeWeek").hidden = today;
     $("modeToday").hidden = !today;
-    document.querySelectorAll("#planMode button").forEach(function (b) { b.setAttribute("aria-pressed", (b.getAttribute("data-mode") === mode).toString()); });
     var h = planSheet.querySelector("h2"); if (h) h.textContent = today ? "Today's session" : "Build my week";
     if (today) syncSubBanner();
   }
@@ -10161,11 +10178,11 @@ function resolveSpec(request, state) {
   })();
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
-  $("planMode").addEventListener("click", function (ev) { var b = ev.target.closest("[data-mode]"); if (!b) return; setPlanMode(b.getAttribute("data-mode")); });
+  $("bPlanChoice").addEventListener("click", function (ev) { var b = ev.target.closest("[data-plan]"); if (!b) return; choosePlan(b.getAttribute("data-plan")); });
   $("bGoal").addEventListener("click", function (ev) { var b = ev.target.closest("[data-goal]"); if (!b) return; var p = buildPrefs(); p.goal = b.getAttribute("data-goal"); if (p.goal === "hybrid" || p.goal === "endurance") { p.conditioning = true; p.mobility = true; } else if (p.goal === "strength" || p.goal === "hypertrophy") { p.conditioning = false; } save(); syncBuild(); showWeekStep(weekWizardStep + 1); });
   $("bGoalUnsure").addEventListener("click", function () { var p = buildPrefs(); p.goal = "general"; p.conditioning = false; save(); syncBuild(); showWeekStep(weekWizardStep + 1); });
   $("wizNext").addEventListener("click", function () { showWeekStep(weekWizardStep + 1); });
-  $("wizBack").addEventListener("click", function () { showWeekStep(weekWizardStep - 1); });
+  $("wizBack").addEventListener("click", function () { if (weekWizardStep <= 1) { showPlanChoice(); } else { showWeekStep(weekWizardStep - 1); } });
   $("bDays").addEventListener("click", function (ev) { var b = ev.target.closest("[data-days]"); if (!b) return; buildPrefs().days = parseInt(b.getAttribute("data-days"), 10); save(); syncBuild(); });
   $("bDaysOfWeek").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-dow]"); if (!b) return;
@@ -10174,13 +10191,6 @@ function resolveSpec(request, state) {
     save(); syncDayOfWeekChips();
   });
   $("bTime").addEventListener("click", function (ev) { var b = ev.target.closest("[data-min]"); if (!b) return; buildPrefs().minutes = parseInt(b.getAttribute("data-min"), 10); save(); syncBuild(); });
-  $("bWeeks").addEventListener("click", function (ev) {
-    var b = ev.target.closest("[data-weeks]");
-    if (!b) return;
-    buildPrefs().weeks = parseInt(b.getAttribute("data-weeks"), 10);
-    save();
-    syncBuild();
-  });
   $("bInclude").addEventListener("click", function (ev) { var b = ev.target.closest("[data-inc]"); if (!b) return; var k = b.getAttribute("data-inc"); var p = buildPrefs(); if (k === "conditioning" && p.goal === "endurance") return; p[k] = !p[k]; save(); syncBuild(); });
   wireEquipChips("bEquip");
   $("copyReqBtn").addEventListener("click", copyRequest);
