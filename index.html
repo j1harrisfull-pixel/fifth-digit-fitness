@@ -183,14 +183,6 @@ body.has-bottomnav { padding-bottom: 0; }
 .resumestrip__detail { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .resumestrip__cta { flex: none; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 8px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); }
 
-/* Today/History segment toggle inside the Train screen (reuses Preview) --
-   same pill surface/radius/mono-type language as .weeknav, not a new style. */
-.segtoggle { display: flex; align-items: center; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; width: max-content; margin: 0 0 18px; }
-.segtoggle[hidden] { display: none; }
-.segtoggle__btn { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .02em; padding: 7px 16px; border: 0; border-radius: 999px; background: none; color: var(--ink-dim); cursor: pointer; }
-.segtoggle__btn.active { background: var(--surface-3); color: var(--ink); }
-.history-inline .history__section { margin-bottom: 18px; }
-
 /* week bar */
 .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 18px 12px; }
 .app[data-view="week"] .view-day { display: none; }
@@ -1294,12 +1286,15 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    fixed by id-scoping instead of renaming, since the HTML/JS still emit
    the same class names and #buildPreview's own untouched rules keep
    working exactly as before. */
-#previewView { display: none; padding: 4px 4px calc(env(safe-area-inset-bottom) + 96px); }
+#previewView, #progressView { display: none; padding: 4px 4px calc(env(safe-area-inset-bottom) + 96px); }
 .app[data-mode="preview"] .view-week,
-.app[data-mode="preview"] .view-day { display: none !important; }
+.app[data-mode="preview"] .view-day,
+.app[data-mode="progress"] .view-week,
+.app[data-mode="progress"] .view-day { display: none !important; }
 .app[data-mode="preview"] #previewView { display: block; }
-#previewView .preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
-#previewView .preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
+.app[data-mode="progress"] #progressView { display: block; }
+#previewView .preview__back, #progressView .preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
+#previewView .preview__eyebrow, #progressView .preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
 /* v1.12.1: the title is the screen's one big element -- "what is this
    workout" gets the most visual weight on the page, more than it had
    before (was var(--fs-h2), 18px) and more than the CTA beneath it. */
@@ -1679,15 +1674,19 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          app is affected. -->
     <div id="previewView" hidden>
       <button type="button" class="preview__back" id="previewBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
-      <!-- v1.15: only shown when Preview was opened via the Train tab (trainMode
-           true) -- a week-row-triggered preview of a future/other day is left
-           completely unchanged, no toggle, exactly as before. -->
-      <div class="segtoggle" id="trainSegToggle" hidden>
-        <button type="button" class="segtoggle__btn active" id="trainSegToday">Today</button>
-        <button type="button" class="segtoggle__btn" id="trainSegHistory">History</button>
-      </div>
       <div class="preview__content" id="previewContent"></div>
-      <div id="trainHistoryBody" class="history-inline" hidden></div>
+    </div>
+    <!-- Master Ticket P2 (2026-07-13): Progress replaces the Train tab as the
+         third bottom-nav destination -- history, records, trends, lifetime
+         milestones get one real front door instead of being reachable only
+         via a per-exercise drill-down's "back" link. Same overlay pattern as
+         Preview (a data-mode attribute on #app, not a state.view value), and
+         renders the exact same renderHistoryOverview() content the old
+         History sheet used -- no second implementation. -->
+    <div id="progressView" hidden>
+      <button type="button" class="preview__back" id="progressBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
+      <p class="preview__eyebrow">Progress</p>
+      <div id="progressBody"></div>
     </div>
   </main>
   <div class="logbar view-day" id="logBar" hidden>
@@ -1974,18 +1973,22 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 </dialog>
 
-<!-- v1.15 Bottom Navigation: persistent 3-tab bar (Home/Train/Settings).
-     Body-level, position:fixed, same tier as .resttimer/.toast below --
-     hidden only during a live workout (state.view === "day"), visible on
-     Home, on the Train screen (Preview mode), and while Settings is open. -->
+<!-- Master Ticket P2 (2026-07-13): persistent 3-tab bar, Home/Progress/
+     Settings -- the middle tab was "Train" in v1.15, but it turned out to be
+     an exact duplicate of the Home hero's own tap target (same selection
+     logic, same destination), while Progress/history had no real front door
+     at all. Progress replaces it. Body-level, position:fixed, same tier as
+     .resttimer/.toast below -- hidden only during a live workout
+     (state.view === "day"), visible on Home, on the Progress screen, and
+     while Settings is open. -->
 <nav class="bottomnav" id="bottomNav" aria-label="Primary">
   <button type="button" class="bottomnav__item" id="navHome" aria-label="Home">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
     <span class="bottomnav__label">Home</span>
   </button>
-  <button type="button" class="bottomnav__item" id="navTrain" aria-label="Train">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 7v10M4 9v6M17.5 7v10M20 9v6M8.5 12h7"/></svg>
-    <span class="bottomnav__label">Train</span>
+  <button type="button" class="bottomnav__item" id="navProgress" aria-label="Progress">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V10M11 19V5M18 19v-7"/></svg>
+    <span class="bottomnav__label">Progress</span>
   </button>
   <button type="button" class="bottomnav__item" id="navSettings" aria-label="Settings and backup">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -8264,8 +8267,8 @@ function resolveSpec(request, state) {
     // v1.15 Bottom Navigation: hidden only during a live workout -- the LOG
     // bar/rest timer already own that bottom edge, a third stacked element
     // there was the one place a persistent bar actively harms the layout.
-    // Visible on Home, on the Train screen (Preview mode), and while Settings
-    // is open -- unaffected by any of those.
+    // Visible on Home, on the Progress screen, and while Settings is open --
+    // unaffected by any of those.
     var bn = $("bottomNav"); if (bn) bn.hidden = (state.view === "day");
     syncNavBar();
   }
@@ -8763,12 +8766,6 @@ function resolveSpec(request, state) {
   // buildCard/buildDensityCard/renderList/applyGlance/computeNextUpcomingId
   // are not read here and are not modified.
   var previewIdx = null;
-  // v1.15: true only when Preview was opened via the bottom nav's Train tab
-  // (openTrain, below) -- a week-row-triggered preview of a future/other day
-  // leaves trainMode false and behaves exactly as before this ticket (no
-  // toggle, no history segment). Plain in-memory var, never persisted, same
-  // pattern previewIdx already established.
-  var trainMode = false;
   function openPreview(i) {
     previewIdx = i;
     appEl.setAttribute("data-mode", "preview");
@@ -8780,49 +8777,24 @@ function resolveSpec(request, state) {
     appEl.removeAttribute("data-mode");
     window.scrollTo(0, 0);
     applySwReload(); // v1.14: release a deferred SW reload held while previewing
-    if (trainMode) { trainMode = false; showTrainToday(); var tst = $("trainSegToggle"); if (tst) tst.hidden = true; }
     syncNavBar();
   }
-  // Train tab entry point: mirrors the Home hero CTA's own branching exactly
-  // (renderHomeHero's homeHeroCta wiring) -- same heroInfo()/curWeek() read,
-  // same started/weekDone logic, same three destinations (openPreview /
-  // maybeOpenDayWithReadiness / openPlan). No new rendering, no new coaching
-  // logic -- only a second call site reaching the same existing functions.
-  function openTrain() {
-    if (!hasProgram()) { openPlan(); return; }
-    var wk = curWeek(), hi = heroInfo(wk);
-    if (hi.weekDone) { openPlan(); return; }
-    var heroSes = wk.sessions[hi.heroIdx];
-    var heroPr = heroSes ? sessionProgress(sessionItemsFor(heroSes)) : { done: 0, total: 0 };
-    var started = !hi.weekDone && heroPr.done > 0;
-    if (started) { maybeOpenDayWithReadiness(hi.heroIdx); return; }
-    trainMode = true;
-    openPreview(hi.heroIdx);
-    var tst = $("trainSegToggle"); if (tst) tst.hidden = false;
-    showTrainToday();
+  // Master Ticket P2 (2026-07-13): Progress tab entry point. Same overlay
+  // mechanism as Preview (a data-mode attribute, not a state.view value) --
+  // renders the identical renderHistoryOverview() content the History sheet
+  // has always used, just targeting #progressBody instead of the modal's
+  // #historyBody. No new history-building logic.
+  function openProgress() {
+    appEl.setAttribute("data-mode", "progress");
+    renderHistoryOverview($("progressBody"));
+    window.scrollTo(0, 0);
     syncNavBar();
   }
-  // Today/History segment switch inside the Train screen -- toggles which of
-  // the two sibling containers is visible; renderPreview()'s own markup
-  // (#previewContent) is completely untouched, and the History segment
-  // reuses the exact same overview-building function the History sheet uses
-  // (renderHistoryOverview, see openHistory below), just targeting a
-  // different container.
-  function showTrainToday() {
-    var pc = $("previewContent"), hb = $("trainHistoryBody");
-    if (pc) pc.hidden = false;
-    if (hb) hb.hidden = true;
-    var todayBtn = $("trainSegToday"), histBtn = $("trainSegHistory");
-    if (todayBtn) todayBtn.classList.add("active");
-    if (histBtn) histBtn.classList.remove("active");
-  }
-  function showTrainHistory() {
-    var pc = $("previewContent"), hb = $("trainHistoryBody");
-    if (hb) { renderHistoryOverview(hb); hb.hidden = false; }
-    if (pc) pc.hidden = true;
-    var todayBtn = $("trainSegToday"), histBtn = $("trainSegHistory");
-    if (todayBtn) todayBtn.classList.remove("active");
-    if (histBtn) histBtn.classList.add("active");
+  function closeProgress() {
+    appEl.removeAttribute("data-mode");
+    window.scrollTo(0, 0);
+    applySwReload();
+    syncNavBar();
   }
   // The one explicit transition out of preview and into the existing,
   // unchanged live-workout chain -- for today's own armed session this is
@@ -10016,52 +9988,53 @@ function resolveSpec(request, state) {
   });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
   $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
-  // v1.15 Bottom Navigation: Home returns from Preview/Train (closePreview is
-  // a no-op if not previewing) and closes Settings if it happens to be open;
-  // Train reuses the existing preview/readiness/build chain via openTrain();
+  // Master Ticket P2 (2026-07-13): Home returns from Preview/Progress
+  // (closePreview/closeProgress are each a no-op if not open) and closes
+  // Settings if it happens to be open; Progress opens the Progress screen;
   // Settings reuses the existing openSheet() unchanged.
   $("navHome").addEventListener("click", function () {
     if (appEl.getAttribute("data-mode") === "preview") closePreview();
+    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     if (sheet.open) closeSheet();
     syncNavBar();
   });
-  $("navTrain").addEventListener("click", openTrain);
+  $("navProgress").addEventListener("click", openProgress);
+  $("progressBack").addEventListener("click", closeProgress);
   $("navSettings").addEventListener("click", openSheet);
   // P1 (Master Ticket): the resume strip's own tap target -- reuses the
   // existing openDay() directly (no readiness re-prompt; readiness was
   // already answered once to start this same session earlier today/this
-  // week). Also closes Preview/Settings first if either happened to be open,
-  // same cleanup navHome already does above.
+  // week). Also closes Preview/Progress/Settings first if any happened to be
+  // open, same cleanup navHome already does above.
   $("resumeStrip").addEventListener("click", function () {
     var idx = parseInt($("resumeStrip").getAttribute("data-resume-idx"), 10);
     if (isNaN(idx)) return;
     if (appEl.getAttribute("data-mode") === "preview") closePreview();
+    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     if (sheet.open) closeSheet();
     openDay(idx);
   });
-  $("trainSegToday").addEventListener("click", showTrainToday);
-  $("trainSegHistory").addEventListener("click", showTrainHistory);
-  $("trainHistoryBody").addEventListener("click", function (ev) {
+  // Progress's own lift-drill-down reuses the exact same delegated pattern
+  // as the History sheet's own #historyBody listener above -- tapping a lift
+  // opens the existing historySheet modal (openExerciseHistory), not a
+  // second inline drill-down implementation.
+  $("progressBody").addEventListener("click", function (ev) {
     var row = ev.target.closest("[data-lift]"); if (!row) return;
-    // Drill-down into a specific lift reuses the existing per-lift history
-    // view -- it opens the existing historySheet modal (openExerciseHistory
-    // is tightly coupled to that dialog/title element already, unchanged
-    // here), not a second inline drill-down implementation.
     openExerciseHistory(row.getAttribute("data-lift"), true);
   });
-  // v1.15: which of Home/Train/Settings reads as the active tab. Train is
-  // active only when Preview is open AND it was opened via the Train tab
-  // (trainMode) -- a week-row-triggered preview of a future/other day still
-  // leaves Home as the active tab, unchanged from today's mental model.
+  // Master Ticket P2: which of Home/Progress/Settings reads as the active
+  // tab. Progress is active whenever its own data-mode overlay is open --
+  // no ambiguity with Preview (a week-row-triggered "view this workout" is
+  // its own separate mode and always leaves Home as the active tab).
   function syncNavBar() {
-    var navHome = $("navHome"), navTrain = $("navTrain"), navSettings = $("navSettings");
-    if (!navHome || !navTrain || !navSettings) return;
-    var previewOpen = appEl.getAttribute("data-mode") === "preview";
+    var navHome = $("navHome"), navProgress = $("navProgress"), navSettings = $("navSettings");
+    if (!navHome || !navProgress || !navSettings) return;
+    var progressOpen = appEl.getAttribute("data-mode") === "progress";
     var settingsOpen = sheet.open;
-    navTrain.classList.toggle("active", previewOpen && trainMode);
+    navProgress.classList.toggle("active", progressOpen);
     navSettings.classList.toggle("active", settingsOpen);
-    navHome.classList.toggle("active", !(previewOpen && trainMode) && !settingsOpen);
-    navTrain.classList.toggle("is-dim", !hasProgram());
+    navHome.classList.toggle("active", !progressOpen && !settingsOpen);
+    navProgress.classList.toggle("is-dim", !hasProgram());
   }
   // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
   function setReadiness(v) { state.readiness = { value: v, date: todayStr() }; save(); syncReadinessChips(); }
@@ -11106,6 +11079,7 @@ function resolveSpec(request, state) {
   function swReloadShouldHold() {
     if (state && state.view === "day") return true;
     if (appEl && appEl.getAttribute("data-mode") === "preview") return true;
+    if (appEl && appEl.getAttribute("data-mode") === "progress") return true;
     var sheets = document.querySelectorAll("dialog.sheet");
     for (var i = 0; i < sheets.length; i++) { if (sheets[i].open) return true; }
     return false;

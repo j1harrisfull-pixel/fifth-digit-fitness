@@ -127,7 +127,8 @@ ok(!/localStorage\.setItem\([^)]*previewIdx/.test(SRC), 'previewIdx is never wri
 // ---------- 25. 320px layout safety (structural CSS guard; full visual check is the browser QA pass) ----------
 // v1.15: bottom padding grew to clear the new fixed bottom-nav bar (still
 // fluid/safe-area-based, not a fixed width) -- same rule, updated value.
-ok(/#previewView \{ display: none; padding: 4px 4px calc\(env\(safe-area-inset-bottom\) \+ 96px\); \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
+// Master Ticket P2 (2026-07-13): #progressView shares the identical rule.
+ok(/#previewView, #progressView \{ display: none; padding: 4px 4px calc\(env\(safe-area-inset-bottom\) \+ 96px\); \}/.test(SRC), 'preview container uses the app\'s existing fluid padding, no fixed width');
 ok(!/#previewView[^{]*\{[^}]*width:\s*\d+px/.test(SRC), 'no preview rule hardcodes a pixel width that could overflow a 320px viewport');
 
 // ---------- Structural: preview never reuses the live .card markup ----------
