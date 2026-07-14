@@ -437,7 +437,12 @@ body.has-bottomnav { padding-bottom: 0; }
 #completeSheet .finish-page__mark { display: block; width: 34px; height: auto; }
 @keyframes fdStampSettle { from { opacity: 0; transform: scale(1.12); } to { opacity: .6; transform: none; } }
 /* The exit is a courtesy, not a control: one dim word at the bottom edge. */
-#completeSheet .finish-page__done { margin-top: auto; padding: 40px 0 6px; background: none; border: 0; font-size: 12px; color: var(--tempo-bone-dim); cursor: pointer; text-align: center; width: 100%; font-family: var(--font-body); }
+/* Tier 2 audit (13 July 2026): the page's ONLY action was 12px dim text
+   with zero button affordance -- quiet was right, invisible was not
+   (first-time finishers stall or Escape out). Now a calm outlined button:
+   legible ink, hairline bone border, still no fill and no accent. The
+   margin-top:auto still pins it to the page foot. */
+#completeSheet .finish-page__done { margin-top: auto; margin-bottom: 6px; padding: 12px 0; background: none; border: 1px solid var(--tempo-bone-line); border-radius: var(--radius); font-size: 14px; font-weight: 600; color: var(--tempo-bone-ink); cursor: pointer; text-align: center; width: 100%; font-family: var(--font-body); }
 /* ============================================================
    v1.8 TEMPO -- Active Workout Card (Ticket 3 of 3). Reuses Ticket 1's
    --tempo-* tokens only -- no new palette. Scoped to the day view's expanded
@@ -536,9 +541,13 @@ body.has-bottomnav { padding-bottom: 0; }
    state only (the day-view's "Nothing here yet" list keeps the existing
    .empty rule untouched, out of this ticket's scope). */
 .app[data-view="week"] #weekList .empty::before { content: "FD"; background: none; width: auto; aspect-ratio: auto; font-family: var(--font-display); font-weight: 700; font-size: 30vw; line-height: 1; color: var(--tempo-ink); opacity: .045; }
-/* Readiness prompt title: identity brass instead of alarm --danger red --
-   colour only, same element/copy/behavior. */
-#readinessPromptTitle { color: var(--tempo-brass); }
+/* Readiness prompt: Tier 2 audit (13 July 2026). The title used to borrow
+   .confirm__title (the DANGER-red alert class) recoloured to brass -- both
+   fragile and off-standard: brass on a heading breaks "accent is for the
+   one primary action", and the sheet had the old single-loud-heading shape.
+   Now its own eyebrow+hero pair, matching the Build sheet's fixed pattern. */
+.readiness-eyebrow { font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--ink-dim); margin: 8px 0 2px; letter-spacing: .01em; }
+#readinessPromptTitle { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: -.01em; color: var(--ink); margin: 0 0 14px; }
 /* Visual Reset Phase 2: the hero reads as ELEVATED, not framed. The old
    --line-strong outline made it a bordered box; pure fill-only elevation
    (--surface-3 vs --bg is only ~1.29:1) is too weak to read reliably on real
@@ -1562,13 +1571,18 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
    eyebrow being louder than another. */
 .history__section-title { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 600; margin: 0 0 10px; }
 /* Phase 5: "Training so far" is real, earned lifetime context -- not the
-   hero of the sheet. Scoped to #historySheet because .recap-stat* is shared
-   with Home's locked week-complete recap card (renderHomeHero); the bare
-   class must stay untouched so Home's card is unaffected. Smaller numbers,
-   quieter labels, tighter rhythm than the recap card's celebratory moment. */
-#historySheet .recap-stats { gap: 16px; }
-#historySheet .recap-stat__num { font-size: 15px; font-weight: 700; }
-#historySheet .recap-stat__label { text-transform: none; letter-spacing: 0; font-size: 11px; }
+   hero of the sheet. Scoped because .recap-stat* is shared with Home's
+   locked week-complete recap card (renderHomeHero); the bare class must
+   stay untouched so Home's card is unaffected. Smaller numbers, quieter
+   labels, tighter rhythm than the recap card's celebratory moment.
+   Tier 2 audit (13 July 2026): renderHistoryOverview also targets the
+   Progress TAB (#progressBody) now -- the same render was getting the loud
+   bare-class styling there (20px/800 numbers, uppercase tracked labels),
+   silently undoing this deliberate quieting on the newer surface. Widened
+   to cover both. */
+#historySheet .recap-stats, #progressView .recap-stats { gap: 16px; }
+#historySheet .recap-stat__num, #progressView .recap-stat__num { font-size: 15px; font-weight: 700; }
+#historySheet .recap-stat__label, #progressView .recap-stat__label { text-transform: none; letter-spacing: 0; font-size: 11px; }
 .history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .history__lift:first-child { border-top: 0; }
 .history__lift:hover .history__lift-name { color: var(--accent-ink); }
@@ -1577,18 +1591,32 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .history__back:hover { color: var(--ink); }
 .history__back span { font-size: 18px; line-height: 1; }
 .exhist__record { margin: 0 0 10px; font-size: 14px; color: var(--ink-dim); }
-.exhist__record b { color: var(--ink); font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; }
+/* Tier 2 audit: the lift's all-time best est-1RM gets the same recessed
+   chip as the trend rows' current value -- the two figures the drill-down
+   exists to answer. */
+.exhist__record b { color: var(--ink); font-family: "Spline Sans Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 700; background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 3px 7px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
 .exhist__chart { display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px; }
 .exhist__chart .history__lift-spark { flex: 1 1 auto; width: auto; height: 56px; }
 .exhist__axis { flex: none; display: flex; flex-direction: column; justify-content: space-between; font-family: "Spline Sans Mono", monospace; font-size: 11px; color: var(--faint); font-style: normal; }
 .exhist__axis b, .exhist__axis i { font-style: normal; font-weight: 600; }
-.exhist__pr { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 1px 5px; border: 1px solid var(--ready); color: var(--ready); margin-left: 6px; vertical-align: 1px; }
+/* Tier 2 audit (13 July 2026): this was --ready GREEN -- a colour that
+   means "ready/recovered" everywhere else in the app, borrowed here for an
+   unrelated meaning, while the finish receipt marks the same PR event in
+   its own ink. On dark surfaces the PR mark is now brass (the app's one
+   celebratory accent), with the small-chip radius the badge language uses. */
+.exhist__pr { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 1px 5px; border: 1px solid var(--accent-ink); color: var(--accent-ink); border-radius: 4px; margin-left: 6px; vertical-align: 1px; }
 .card__hist { position: relative; flex: none; margin-left: auto; background: none; border: 0; color: var(--ink-dim); font-size: 12px; font-weight: 600; padding: 4px 0 4px 10px; cursor: pointer; font-family: var(--font-body); }
 .card__hist::after { content: ""; position: absolute; inset: -10px -4px; }
 .card__hist:hover { color: var(--ink); }
 .history__lift-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__lift-spark { flex: none; width: 70px; height: 24px; color: var(--accent-ink); }
-.history__lift-val { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 56px; text-align: right; }
+/* Tier 2 audit (13 July 2026): the per-lift current est-1RM -- the literal
+   answer to "am I getting stronger" -- rendered as plain body text while
+   far less important numbers elsewhere already carry the recessed-chip
+   treatment. Same chip language as the set-value chips (.rval): darker
+   inset background, small radius, tabular numerals. The dense per-session
+   rows below stay plain deliberately (chip soup). */
+.history__lift-val { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); min-width: 56px; text-align: right; background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 4px 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
 .history__session { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 .history__session:first-child { border-top: 0; }
 .history__session-name { font-size: 14px; font-weight: 600; color: var(--ink); }
@@ -1769,9 +1797,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          Preview (a data-mode attribute on #app, not a state.view value), and
          renders the exact same renderHistoryOverview() content the old
          History sheet used -- no second implementation. -->
+    <!-- Site-wide audit Tier 2 (13 July 2026): Progress is a top-level
+         bottom-nav destination, a sibling of Home -- the old "‹ Week" back
+         chevron implied a drill-down and duplicated the Home tab one
+         thumb-length away, so it's gone (the nav bar is the exit; the
+         closeProgress mechanics are unchanged and still used by the nav).
+         And the tab only had the small eyebrow with no hero -- the
+         eyebrow+hero pair now matches the app's standard hierarchy. -->
     <div id="progressView" hidden>
-      <button type="button" class="preview__back" id="progressBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
-      <p class="preview__eyebrow">Progress</p>
+      <p class="preview__eyebrow">Your training</p>
+      <h2 class="history__title">Progress</h2>
       <div id="progressBody"></div>
     </div>
   </main>
@@ -2150,8 +2185,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <!-- Step 2: how it works, with a heading that names you once. -->
     <div class="intro__step" id="introStep2" hidden>
-      <h1 class="intro__title" id="introStep2Title">Here's how it works</h1>
+      <!-- Tier 2 audit (13 July 2026): the overline used to render BELOW the
+           h1, inverting the app's eyebrow-over-hero pattern. Same elements,
+           same show/hide logic (the eyebrow only appears when a name
+           personalises the heading), just the right way up. -->
       <p class="intro__how" id="introHowLabel" hidden>Here's how it works</p>
+      <h1 class="intro__title" id="introStep2Title">Here's how it works</h1>
       <ul class="intro__list">
         <li><b>Build a week:</b> pick your goal, days, time and kit. It builds instantly, fully offline.</li>
         <li><b>Log as you go:</b> set your reps, tap each set done, nudge the weight up or down.</li>
@@ -2167,6 +2206,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          addAthleteInjury("pain", ...) is the one shared write path. Only
          shown when actually building a first program (see showWelcome). -->
     <div class="intro__step" id="introStep3" hidden>
+      <p class="intro__how">Step 3 of 4</p>
       <h1 class="intro__title">Anything we should avoid?</h1>
       <label class="intro__ask" for="introInjInput">Add injuries, painful movements, restricted joints, or anything you don't want programmed.</label>
       <div class="intro__row">
@@ -2185,12 +2225,18 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          prescribe from session one. Writes state.athlete.experience via the
          same data path Settings' expChips already use. -->
     <div class="intro__step" id="introStep4" hidden>
-      <h1 class="intro__title">Training experience</h1>
+      <!-- Tier 2 audit (13 July 2026): "Training experience" was a Settings
+           field label mid-conversation -- steps 1 and 3 ask questions, this
+           one now does too. Chips become the outlined-but-flush segmented
+           treatment the Build sheet's choice groups use; same data-exp
+           buttons, same handler, same aria-pressed sync. -->
+      <p class="intro__how">Step 4 of 4</p>
+      <h1 class="intro__title">How long have you been training?</h1>
       <p class="intro__ask">This helps the coach set the right amount of work.</p>
-      <div class="chips" id="introExpChips" role="group" aria-label="Experience level">
-        <button class="chip" data-exp="beginner" type="button">Beginner</button>
-        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
-        <button class="chip" data-exp="advanced" type="button">Advanced</button>
+      <div class="seg seg--full seg--goal" id="introExpChips" role="group" aria-label="Experience level">
+        <button data-exp="beginner" type="button">Beginner</button>
+        <button data-exp="intermediate" type="button">Intermediate</button>
+        <button data-exp="advanced" type="button">Advanced</button>
       </div>
       <div class="intro__row" style="margin-top:18px">
         <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
@@ -2220,11 +2266,15 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 <dialog class="sheet" id="readinessPromptSheet" aria-labelledby="readinessPromptTitle">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
-    <h2 class="confirm__title" id="readinessPromptTitle">How are you feeling today?</h2>
-    <div class="chips" id="readinessPromptChips" role="group" aria-label="Today's readiness">
-      <button type="button" class="chip" data-rp="0">Rough</button>
-      <button type="button" class="chip" data-rp="1">So-so</button>
-      <button type="button" class="chip" data-rp="2">Great</button>
+    <p class="readiness-eyebrow">Before you start</p>
+    <h2 id="readinessPromptTitle">How are you feeling today?</h2>
+    <!-- Tier 2 audit: was a loose gap-separated .chips row -- now the same
+         outlined-but-flush segmented treatment (.seg--goal) the Build
+         sheet's choice groups use. Same data-rp buttons, same handler. -->
+    <div class="seg seg--full seg--goal" id="readinessPromptChips" role="group" aria-label="Today's readiness">
+      <button type="button" data-rp="0">Rough</button>
+      <button type="button" data-rp="1">So-so</button>
+      <button type="button" data-rp="2">Great</button>
     </div>
     <p class="sect__hint" style="margin-top:10px">A rough day offers a recovery session instead of forcing today's plan.</p>
     <button class="intro__skip" id="readinessPromptSkip" type="button" style="margin-top:6px">Skip</button>
@@ -10349,7 +10399,9 @@ function resolveSpec(request, state) {
     syncNavBar();
   });
   $("navProgress").addEventListener("click", openProgress);
-  $("progressBack").addEventListener("click", closeProgress);
+  // Tier 2 audit (13 July 2026): the "‹ Week" back button was removed from
+  // the Progress tab (it's a top-level nav destination, not a drill-down --
+  // the nav bar itself is the exit; closeProgress still runs via navHome).
   $("navSettings").addEventListener("click", openSheet);
   // P1 (Master Ticket): the resume strip's own tap target -- reuses the
   // existing openDay() directly (no readiness re-prompt; readiness was

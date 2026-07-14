@@ -60,9 +60,15 @@ ok(/\.intro \.btn--primary \{ background: var\(--tempo-clay-deep\)/.test(opening
    'intro primary actions use the contrast-safe clay-deep fill, not brass');
 ok(/#planSheet \.btn--primary \{ background: var\(--tempo-clay-deep\)/.test(openingCss),
    'plan sheet primary actions use the contrast-safe clay-deep fill, not brass');
-ok(/#readinessPromptTitle \{ color: var\(--tempo-brass\); \}/.test(openingCss),
-   'readiness prompt title recolored to brass identity token (not --danger)');
+// Tier 2 audit (13 July 2026): the brass title is gone entirely -- the
+// prompt now has its own eyebrow+hero pair (quiet "Before you start" label
+// over an ink --fs-h1 question), no borrowed .confirm__title class, no
+// accent spent on a heading. This supersedes the earlier brass recolour.
+ok(/#readinessPromptTitle \{ font-family: var\(--font-display\);[^}]*font-size: var\(--fs-h1\);[^}]*color: var\(--ink\);/.test(openingCss),
+   'readiness prompt title is an ink --fs-h1 hero heading (no brass, no borrowed alert class)');
+ok(/\.readiness-eyebrow \{ [^}]*color: var\(--ink-dim\);/.test(openingCss), 'the readiness prompt has a quiet eyebrow label above the hero question');
 ok(!/#readinessPromptTitle \{ color: var\(--danger\)/.test(SRC), 'readiness prompt title no longer forced to --danger anywhere');
+ok(SRC.indexOf('class="confirm__title" id="readinessPromptTitle"') === -1, 'the prompt no longer borrows the danger-alert .confirm__title class');
 
 // ---------- 5. FD ghost mark replaces thumbprint on intro + first-use empty state ----------
 ok(/#intro::before \{ content: "FD";/.test(openingCss), 'intro uses an FD ghost mark (not the old thumbprint image), ID-scoped to win the cascade over the older .intro::before rule');
