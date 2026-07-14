@@ -818,7 +818,10 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    full ring around the chip instead of a bottom rule. */
 .startweight.is-unset .weight__field { border: 1px solid var(--manage); }
 .startweight__group { display: inline-flex; align-items: center; gap: 5px; }
-.step { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
+.step { position: relative; width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); transition: transform .1s ease, border-color .12s ease; }
+/* Batch B: same invisible hit-area extension the .rstep/.wtstep ghosts get --
+   26px visual, ~40px effective target. */
+.step::after { content: ""; position: absolute; inset: -8px -6px; }
 .step:hover { border-color: var(--accent-ink); }
 .step:active { transform: scale(.9); }
 .weight__field { display: inline-flex; align-items: baseline; gap: 3px; justify-content: center; background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 4px 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
@@ -1010,6 +1013,11 @@ p.card__zonelabel { margin: 0 0 4px; }
    steppers. Steppers are unchanged (same size, same taps); only the number
    gets the new chip. */
 .rval { font-family: "Spline Sans Mono", monospace; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 30px; text-align: center; color: var(--ink); background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: 5px; padding: 4px 10px; box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
+/* Batch B: .rval became a typable number input -- same chip look, no native
+   spinners (the flanking steppers ARE the spinners), fixed width so the row
+   doesn't reflow as digits change. */
+input.rval { border: 0; width: 56px; appearance: textfield; -moz-appearance: textfield; }
+input.rval::-webkit-outer-spin-button, input.rval::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 /* The weight value sits inside the same pill as its steppers -- no border,
    no underline. Inherited/shared value reads dimmed; a per-set override reads
    full-ink brass, the same distinction the old underline carried, now calmer.
@@ -7931,7 +7939,7 @@ function resolveSpec(request, state) {
       // entirely for rep-driven exercises where a kg number is meaningless.
       var wtCtrl = loadable ? '<div class="setrow__wt' + (s.overridden ? ' is-override' : '') + '" data-unit="' + esc(state.program.unit) + '">' +
         '<button type="button" class="wtstep" data-act="wt-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Decrease weight, set ' + (k + 1) + '">−</button>' +
-        '<input class="setrow__wtinput mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight for set ' + (k + 1) + ', ' + s.weight + ' ' + esc(state.program.unit) + '">' +
+        '<input class="setrow__wtinput mono" type="number" inputmode="decimal" enterkeyhint="done" step="' + STEP + '" min="0" value="' + s.weight + '" data-act="setwt" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Weight for set ' + (k + 1) + ', ' + s.weight + ' ' + esc(state.program.unit) + '">' +
         '<button type="button" class="wtstep" data-act="wt+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Increase weight, set ' + (k + 1) + '">+</button>' +
       '</div>' : '';
       // PREV, always: rating effort moved to the rest-bar (the ~10s window
@@ -7975,7 +7983,10 @@ function resolveSpec(request, state) {
         wtCtrl +
         '<div class="setrow__reps">' +
           '<button type="button" class="rstep" data-act="rep-" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One fewer rep, set ' + (k + 1) + '">−</button>' +
-          '<span class="rval">' + rv + '</span>' +
+          // Batch B: reps are directly typable, same as weight -- the steppers
+          // stay for one-tap nudges, but "did 14" is one tap + two digits, not
+          // 14 stepper taps. Same data-act pattern as setwt.
+          '<input class="rval mono" type="number" inputmode="numeric" min="0" max="100" enterkeyhint="done" value="' + rv + '" data-act="repset" data-ex="' + e.id + '" data-set="' + k + '" aria-label="Reps for set ' + (k + 1) + '">' +
           '<button type="button" class="rstep" data-act="rep+" data-ex="' + e.id + '" data-set="' + k + '" aria-label="One more rep, set ' + (k + 1) + '">+</button>' +
         '</div>' +
         // Done: the one control that matters mid-set -- a full 44px tap target
@@ -8203,7 +8214,7 @@ function resolveSpec(request, state) {
     var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
     var weightUnset = loadable && !(lg.weight > 0);
     var weightCtrl = loadable
-      ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your working weight" : "Working weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
+      ? '<div class="startweight' + (weightUnset ? ' is-unset' : '') + '"><span class="startweight__label">' + (weightUnset ? "Set your working weight" : "Working weight") + '</span><div class="startweight__group" role="group" aria-label="Working weight"><button type="button" class="step" data-act="w-" data-ex="' + e.id + '" aria-label="Decrease weight">−</button><span class="weight__field"><input class="weight__input mono" type="number" inputmode="decimal" enterkeyhint="done" step="' + STEP + '" min="0" value="' + lg.weight + '" data-act="wset" data-ex="' + e.id + '" aria-label="Working weight in ' + esc(unit) + '"><span class="weight__unit">' + esc(unit) + '</span></span><button type="button" class="step" data-act="w+" data-ex="' + e.id + '" aria-label="Increase weight">+</button></div>' + lastHint + '</div>'
       : e.type === "conditioning" ? ''
       : e.type === "strength"
         ? '<span class="weight-note">' + esc(EQ_LABEL[e.equipment] || "Bodyweight") + ' · progress by reps</span>'
@@ -8968,10 +8979,10 @@ function resolveSpec(request, state) {
       applyGlance();
     } else if (act === "rep-" || act === "rep+") {
       var ri = parseInt(btn.getAttribute("data-set"), 10), wr = writeLog(ses, e), rs = wr.el.sets[ri];
-      var rrow = btn.closest(".setrow"), rcur = rs.actual_reps != null ? rs.actual_reps : (parseInt(rrow.querySelector(".rval").textContent, 10) || 0);
-      var rnv = Math.max(0, rcur + (act === "rep+" ? 1 : -1));
+      var rrow = btn.closest(".setrow"), rcur = rs.actual_reps != null ? rs.actual_reps : (parseInt(rrow.querySelector(".rval").value, 10) || 0);
+      var rnv = Math.max(0, Math.min(100, rcur + (act === "rep+" ? 1 : -1)));
       rs.actual_reps = rnv; saveSoon();
-      rrow.querySelector(".rval").textContent = rnv;
+      rrow.querySelector(".rval").value = rnv;
       refreshFoot(btn.closest(".card"), e, ses);
     } else if (act === "setrpe") {
       var pi = parseInt(btn.getAttribute("data-set"), 10), wp = writeLog(ses, e), ps = wp.el.sets[pi]; if (!ps) return;
@@ -9005,13 +9016,27 @@ function resolveSpec(request, state) {
     var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
     var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
     if (act === "wset") {
-      var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(el.value, 0))); saveSoon();
+      // Batch B: an emptied field is "still typing", not a 0 kg write --
+      // mirrors setwt's ""-means-no-change below. The old code wrote 0 the
+      // instant the user cleared the field to retype.
+      var rawW = String(el.value).trim(); if (rawW === "") return;
+      var w = writeLog(ses, e); w.el.weight = roundW(Math.max(0, numOr(rawW, 0))); saveSoon();
       var wc = el.closest(".card"), ipl = wc.querySelector(".plates"); if (ipl && e.equipment === "barbell") ipl.textContent = platesText(w.el.weight, state.program.unit);
       refreshStartWeightLabel(wc, w.el.weight);
       refreshWarm(wc, e, ses, w.el.weight, state.program.unit);
-      var iwlg = readLog(ses, e), iwut = refreshTargetLine(wc, iwlg, state.program.unit);
-      var iwsetlist = wc.querySelector(".setlist"); if (iwsetlist) iwsetlist.innerHTML = setRowsInner(e, iwlg, !!iwut);
+      refreshTargetLine(wc, readLog(ses, e), state.program.unit);
+      // Batch B: the setlist rebuild moved to onListChange (commit-time) --
+      // rebuilding innerHTML per keystroke destroyed sibling inputs mid-edit
+      // and forced a full re-render on every digit typed.
       refreshFoot(wc, e, ses);
+    } else if (act === "repset") {
+      // Batch B: typed reps. Same contract as setwt -- empty means "still
+      // typing", a real number is clamped to the steppers' 0-100 range.
+      var rri = parseInt(el.getAttribute("data-set"), 10);
+      var rawR = String(el.value).trim(); if (rawR === "") return;
+      var wr2 = writeLog(ses, e), rs2 = wr2.el.sets[rri]; if (!rs2) return;
+      rs2.actual_reps = Math.max(0, Math.min(100, parseInt(rawR, 10) || 0)); saveSoon();
+      refreshFoot(el.closest(".card"), e, ses);
     } else if (act === "setwt") {
       // Refreshes only the foot (est-1RM), never the setlist -- re-rendering it
       // here would destroy the input the user is actively typing into mid-edit.
@@ -9365,6 +9390,66 @@ function resolveSpec(request, state) {
   });
   listEl.addEventListener("click", function (ev) { if (swipeSuppress) { swipeSuppress = false; return; } onListClick(ev); });
   listEl.addEventListener("input", onListInput);
+  // ---- Batch B: entry ergonomics (all delegated, survive re-renders) ----
+  // Commit-time refresh for the working-weight field: the per-keystroke
+  // setlist rebuild moved here (fires on blur/Enter, once, when the value is
+  // final) so typing never destroys the input mid-edit. Also normalises an
+  // abandoned-empty field back to the stored value instead of leaving "".
+  listEl.addEventListener("change", function (ev) {
+    var el = ev.target, act = el.getAttribute("data-act"); if (!act) return;
+    if (isPreviewSession(state.activeSession)) return;
+    var e = findEx(el.getAttribute("data-ex")); if (!e) return; var ses = curSession();
+    if (act === "wset") {
+      var wc = el.closest(".card"), lg = readLog(ses, e);
+      if (String(el.value).trim() === "") el.value = lg.weight;
+      var ut = refreshTargetLine(wc, lg, state.program.unit);
+      var sl = wc.querySelector(".setlist"); if (sl) sl.innerHTML = setRowsInner(e, lg, !!ut);
+      refreshLogBarInner();
+    } else if (act === "repset") {
+      // Echo the stored value back on commit: restores an abandoned-empty
+      // field, and shows the clamped number if the user typed past 100.
+      var rsr = readLog(ses, e).sets[parseInt(el.getAttribute("data-set"), 10)];
+      if (rsr) el.value = rsr.reps;
+    }
+  });
+  // Tapping into a number field selects its contents: the common intent is
+  // "replace this value", and without this iOS puts the caret at the end so
+  // every correction starts with backspacing. setTimeout dodges WebKit
+  // clearing the selection right after focus.
+  listEl.addEventListener("focusin", function (ev) {
+    var el = ev.target;
+    if (el.matches && el.matches('input[data-act="wset"], input[data-act="setwt"], input[data-act="repset"]')) {
+      setTimeout(function () { try { el.select(); } catch (e) {} }, 0);
+    }
+  });
+  // Enter commits (blur fires the change handler above) instead of doing
+  // nothing -- pairs with enterkeyhint="done" on the fields.
+  listEl.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter") return;
+    var el = ev.target;
+    if (el.matches && el.matches('input[data-act="wset"], input[data-act="setwt"], input[data-act="repset"]')) { ev.preventDefault(); el.blur(); }
+  });
+  // Long-press auto-repeat on the +/- steppers: hold to run, so "up 10 kg"
+  // isn't 4 deliberate taps. After 450ms the button re-fires every 140ms
+  // through its normal click path; the release-click is swallowed so a
+  // long-press never lands one extra step.
+  (function () {
+    var lpTimer = null, lpInterval = null, lpFired = false, lpSynthetic = false;
+    function lpStop() { clearTimeout(lpTimer); clearInterval(lpInterval); lpTimer = lpInterval = null; }
+    listEl.addEventListener("pointerdown", function (ev) {
+      var b = ev.target.closest ? ev.target.closest('.step[data-act], .rstep, .wtstep') : null; if (!b) return;
+      lpFired = false; lpStop();
+      lpTimer = setTimeout(function () {
+        lpInterval = setInterval(function () { lpFired = true; lpSynthetic = true; b.click(); lpSynthetic = false; }, 140);
+      }, 450);
+    });
+    ["pointerup", "pointercancel"].forEach(function (t) { window.addEventListener(t, lpStop, true); });
+    listEl.addEventListener("click", function (ev) {
+      if (lpSynthetic) return;
+      var b = ev.target.closest ? ev.target.closest('.step[data-act], .rstep, .wtstep') : null;
+      if (b && lpFired) { lpFired = false; ev.stopPropagation(); ev.preventDefault(); }
+    }, true);
+  })();
   (function () {
     var sx = 0, sy = 0, tracking = false;
     listEl.addEventListener("touchstart", function (e) {
