@@ -430,7 +430,10 @@ body.has-bottomnav { padding-bottom: 0; }
 #completeSheet .finish-page__ledger { margin: 0 0 26px; }
 #completeSheet .finish-page__row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 6px 0; }
 #completeSheet .finish-page__ex { font-size: 15px; color: var(--tempo-bone-ink); min-width: 0; }
-#completeSheet .finish-page__kept { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 13px; color: var(--tempo-bone-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#completeSheet .finish-page__kept { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 13px; color: var(--tempo-bone-dim); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Batch F: the "All lifts (N)" expander -- a quiet full-width text control. */
+.history__more { display: block; width: 100%; padding: 10px 0 4px; background: none; border: 0; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); cursor: pointer; text-align: center; }
+.history__more:hover { color: var(--ink); }
 #completeSheet .finish-page__close { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 13px; color: var(--tempo-bone-dim); margin: 0 0 24px; font-variant-numeric: tabular-nums; }
 /* Pressed FD chop: certifies the entry above it. ~60% ink, never full black. */
 #completeSheet .finish-page__stamp { width: 34px; color: var(--tempo-bone-ink); opacity: .6; animation: fdStampSettle .3s ease-out; }
@@ -7394,13 +7397,17 @@ function resolveSpec(request, state) {
   // of a hand-duplicated copy. Behavior-preserving refactor -- computes and
   // returns the identical html openHistory() always assigned to
   // historyBody.innerHTML; openHistory() below simply targets that element.
+  var historyLiftsExpanded = false; // Batch F: session-scoped "All lifts" toggle
   function renderHistoryOverview(targetEl) {
     var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
     // Ranked by most-recent activity, not lifetime frequency -- a once-a-week
     // deadlift must never be pushed off this list by a thrice-a-week accessory.
     function lastDate(k) { var p = data.lifts[k]; return p[p.length - 1].date || ""; }
-    var liftNames = Object.keys(data.lifts).filter(function (k) { return data.lifts[k].length >= 2; })
-      .sort(function (a, b) { return lastDate(b).localeCompare(lastDate(a)); }).slice(0, 8);
+    var allLiftNames = Object.keys(data.lifts).filter(function (k) { return data.lifts[k].length >= 2; })
+      .sort(function (a, b) { return lastDate(b).localeCompare(lastDate(a)); });
+    // Batch F: the top-8 cap silently hid the rest of a long training
+    // history -- an "All lifts" expander shows the full list on demand.
+    var liftNames = historyLiftsExpanded ? allLiftNames : allLiftNames.slice(0, 8);
     var liftsHtml = liftNames.length ? liftNames.map(function (name) {
       var pts = data.lifts[name].slice(-8), values = pts.map(function (p) { return p.orm; }), last = values[values.length - 1];
       return '<button type="button" class="history__lift" data-lift="' + esc(name) + '"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></button>';
@@ -7428,7 +7435,9 @@ function resolveSpec(request, state) {
     // sits second, lifetime totals still close it out. No calculation change:
     // liftNames/liftsHtml/sessHtml/lifeHtml are unchanged, only concatenation
     // order differs.
-    var trendSection = '<div class="history__section"><p class="history__section-title">Strength trend</p>' + liftsHtml + '</div>';
+    var moreHtml = (!historyLiftsExpanded && allLiftNames.length > 8)
+      ? '<button type="button" class="history__more" data-act="lifts-all">All lifts (' + allLiftNames.length + ')</button>' : "";
+    var trendSection = '<div class="history__section"><p class="history__section-title">Strength trend</p>' + liftsHtml + moreHtml + '</div>';
     var sessSection = '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
     targetEl.innerHTML = liftNames.length
       ? (trendSection + sessSection + lifeHtml)
@@ -10609,6 +10618,7 @@ function resolveSpec(request, state) {
     cs.addEventListener("cancel", function (ev) { ev.preventDefault(); leaveToWeek(); }); // Escape
   })();
   $("historyBody").addEventListener("click", function (ev) {
+    if (ev.target.closest('[data-act="lifts-all"]')) { historyLiftsExpanded = true; renderHistoryOverview($("historyBody")); return; } // Batch F
     if (ev.target.closest('[data-act="histback"]')) { openHistory(); return; }
     var row = ev.target.closest("[data-lift]"); if (!row) return;
     openExerciseHistory(row.getAttribute("data-lift"), true); // from the Progress list -> offer a way back
@@ -10655,6 +10665,7 @@ function resolveSpec(request, state) {
   // opens the existing historySheet modal (openExerciseHistory), not a
   // second inline drill-down implementation.
   $("progressBody").addEventListener("click", function (ev) {
+    if (ev.target.closest('[data-act="lifts-all"]')) { historyLiftsExpanded = true; renderHistoryOverview($("progressBody")); return; } // Batch F
     var row = ev.target.closest("[data-lift]"); if (!row) return;
     openExerciseHistory(row.getAttribute("data-lift"), true);
   });
@@ -10723,7 +10734,10 @@ function resolveSpec(request, state) {
     if (i >= 0) p.trainDays.splice(i, 1); else p.trainDays.push(d);
     save(); syncDayOfWeekChips();
   });
-  $("bTime").addEventListener("click", function (ev) { var b = ev.target.closest("[data-min]"); if (!b) return; buildPrefs().minutes = parseInt(b.getAttribute("data-min"), 10); save(); syncBuild(); });
+  // Batch F: time auto-advances like goal does -- its step holds nothing
+  // else. Days deliberately keeps its Next button: the optional weekday
+  // picker lives on the same step and auto-advancing would hide it mid-pick.
+  $("bTime").addEventListener("click", function (ev) { var b = ev.target.closest("[data-min]"); if (!b) return; buildPrefs().minutes = parseInt(b.getAttribute("data-min"), 10); save(); syncBuild(); showWeekStep(weekWizardStep + 1); });
   $("bInclude").addEventListener("click", function (ev) { var b = ev.target.closest("[data-inc]"); if (!b) return; var k = b.getAttribute("data-inc"); var p = buildPrefs(); if (k === "conditioning" && p.goal === "endurance") return; p[k] = !p[k]; save(); syncBuild(); });
   wireEquipChips("bEquip");
   $("copyReqBtn").addEventListener("click", copyRequest);
@@ -10943,19 +10957,10 @@ function resolveSpec(request, state) {
 
   /* ===================== Rest timer (auto-start, read-only) ===================== */
   var audioCtx, reduceMotion = false, restState = { timer: null, endAt: 0, total: 0, rpeTarget: null }, restEl, restTimeEl, restFillEl, restRpeEl;
-  // The rest-bar RPE picker: shows the just-completed set's own rating state
-  // (so re-opening rest after +15s or a resumed rest still reflects reality),
-  // and is silent entirely for non-strength work, which never had a rating.
-  function showRestRpe(ex, setIdx) {
-    if (!restRpeEl) return;
-    if (ex.type !== "strength" || setIdx == null) { restState.rpeTarget = null; restRpeEl.hidden = true; return; }
-    restState.rpeTarget = { exId: ex.id, setIdx: setIdx };
-    var lg = readLog(curSession(), ex), cur = lg.sets[setIdx] ? lg.sets[setIdx].actual_rpe : null;
-    restRpeEl.querySelectorAll(".restrpe__chip").forEach(function (c) {
-      c.classList.toggle("is-set", cur != null && parseInt(c.getAttribute("data-rpe"), 10) === cur);
-    });
-    restRpeEl.hidden = false;
-  }
+  // Batch F: the rest-bar RPE picker is GONE (its #restRpe markup was removed
+  // when effort rating moved into the set row's rpeStripHtml) -- showRestRpe
+  // and its click handler were dead code against a null element. hideRestRpe
+  // stays as the null-safe no-op its many hide-path callers expect.
   function hideRestRpe() { restState.rpeTarget = null; if (restRpeEl) restRpeEl.hidden = true; }
   function unlockAudio() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {} }
   function beep() {
@@ -11560,19 +11565,6 @@ function resolveSpec(request, state) {
   }
   function initRest() {
     restEl = $("restTimer"); restTimeEl = $("restTime"); restFillEl = $("restFill"); restRpeEl = $("restRpe");
-    if (restRpeEl) restRpeEl.addEventListener("click", function (ev) {
-      var chip = ev.target.closest("[data-rpe]"); if (!chip) return;
-      var tgt = restState.rpeTarget; if (!tgt) return;
-      var ex = findEx(tgt.exId); if (!ex) return;
-      var w = writeLog(curSession(), ex), s = w.el.sets[tgt.setIdx]; if (!s) return;
-      var val = parseInt(chip.getAttribute("data-rpe"), 10);
-      s.actual_rpe = (s.actual_rpe === val) ? null : val;
-      saveSoon();
-      restRpeEl.querySelectorAll(".restrpe__chip").forEach(function (c) {
-        c.classList.toggle("is-set", c === chip && s.actual_rpe != null);
-      });
-      renderHead(); // keeps the "high effort logged" nudge live as RPE is rated
-    });
     try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     $("restSkip").addEventListener("click", hideRest);
     // Tapping the superset partner prompt jumps straight to that exercise and
@@ -11817,7 +11809,21 @@ function resolveSpec(request, state) {
       if (armed && !refreshing) doRefresh(); else setPull(0);
     }, { passive: true });
   }
-  initRest(); save(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
+  // Batch F: no unconditional save() at boot -- it serialized the whole
+  // state (program + logs + archive) on every launch just to re-write what
+  // load() already read. Migrations in coerceState are idempotent and cheap,
+  // and the state persists on the first real user write.
+  initRest(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
+  // Batch F: one-time install hint. Chrome/Android fire beforeinstallprompt
+  // when the PWA is installable -- surface it ONCE as an actionable toast
+  // (iOS never fires this event; its Share-sheet flow stays undisturbed).
+  window.addEventListener("beforeinstallprompt", function (e) {
+    var K = "tl:a2hsHinted";
+    try { if (localStorage.getItem(K)) return; } catch (err) {}
+    e.preventDefault();
+    try { localStorage.setItem(K, "1"); } catch (err) {}
+    toastUndo("Works best installed as an app", function () { try { e.prompt(); } catch (err) {} }, "Install");
+  });
   // Resume a LIVE run only if one was actually going (LIVE_KEY present) -- a day
   // reopened in preview mode stays a preview, no phantom clock. renderDayBar (via
   // renderAll above) already reflects sessionLive(); this just restarts the tick.
