@@ -2037,10 +2037,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     </div>
     <div class="sect">
       <div class="sect__label">Training level</div>
-      <div class="chips" id="expChips" role="group" aria-label="Experience level">
-        <button class="chip" data-exp="beginner" type="button">Beginner</button>
-        <button class="chip" data-exp="intermediate" type="button">Intermediate</button>
-        <button class="chip" data-exp="advanced" type="button">Advanced</button>
+      <!-- Batch E: same outlined segmented group the intro's experience step
+           uses (seg--goal) -- one control language for the same choice. -->
+      <div class="seg seg--full seg--goal" id="expChips" role="group" aria-label="Experience level">
+        <button data-exp="beginner" type="button">Beginner</button>
+        <button data-exp="intermediate" type="button">Intermediate</button>
+        <button data-exp="advanced" type="button">Advanced</button>
       </div>
       <p class="sect__hint" style="margin-top:8px">Sets how hard and how much the coach prescribes. Change it any time.</p>
     </div>
@@ -2321,7 +2323,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="finish-page__stamp" id="completeStamp">
         <svg class="finish-page__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
       </div>
-      <button class="finish-page__done" id="completeNext" type="button">Done.</button>
+      <button class="finish-page__done" id="completeNext" type="button">Back to the week</button>
     </div>
   </div>
   <!-- v136B: a brief, honest sign-off beat covers the already-populated,
@@ -10775,6 +10777,8 @@ function resolveSpec(request, state) {
     td = WEEKDAY_ORDER.filter(function (x) { return td.indexOf(x) >= 0; });
     if (td.length) state.program.trainDays = td; else delete state.program.trainDays;
     save(); syncScheduleSect(); renderAll(false);
+    // Batch E: this tap silently re-maps every session's weekday -- say so.
+    toast(td.length ? "Schedule updated" : "Schedule cleared · train at your own pace");
   });
   $("unitSeg").addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-unit-val]"); if (!b) return;
@@ -11003,7 +11007,10 @@ function resolveSpec(request, state) {
       beep(); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]); } catch (e) {}
       return;
     }
-    if (!host) return;
+    // Batch E: the host card was re-rendered/removed -- stop the orphaned
+    // 250ms interval (the persisted stamp survives; resumeDensityTimer
+    // re-arms it when the block is back on screen).
+    if (!host) { clearInterval(densityTimerState.timer); densityTimerState.timer = null; return; }
     if (densityTimerState.mode === "emom") {
       var cycleMs = elapsed % 60000, cycleRem = Math.ceil((60000 - cycleMs) / 1000);
       // A fresh minute just started (cycleMs just wrapped to ~0) -- signal the switch.
@@ -11178,9 +11185,10 @@ function resolveSpec(request, state) {
       var anD = $("restAnnounce"); if (anD) anD.textContent = "Rest complete";
       // Hold the "rest over" state until the user acts (logs the next set,
       // which starts a fresh rest, or taps Done) instead of auto-dismissing
-      // after 4s -- a face-up phone on a bench would miss a 4s flash. +15s is
-      // meaningless once rest is over, so the row collapses to a single Done.
-      var rp = $("restPlus"); if (rp) rp.hidden = true;
+      // after 4s -- a face-up phone on a bench would miss a 4s flash.
+      // Batch E: +15s STAYS usable after 0:00 -- "not quite ready" right as
+      // the timer expires is the moment it's most wanted; it restarts a
+      // fresh 15s countdown (see the restPlus handler).
       var rsk = $("restSkip"); if (rsk) rsk.textContent = "Done";
       return;
     }
@@ -11193,6 +11201,38 @@ function resolveSpec(request, state) {
   // the countdown; re-entering the live session resumes it via resumeRest()
   // (the same restore path a lock-screen/reload already uses).
   function hideRestView() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); hideSuperNext(); hideRestRpe(); document.body.classList.remove("has-rest"); }
+  // Batch E: awareness across hide/show.
+  // 1. A hidden page stops the 250ms rest/density ticks (the browser
+  //    throttles them to ~1s anyway and the endAt/startAt stamps are the
+  //    source of truth) and recomputes from the stamps on return.
+  // 2. If the rest expired while the phone was away, the late beep already
+  //    fires -- now the bar also SAYS how late ("Rest ended 40s ago"), so
+  //    a glance explains what happened.
+  // 3. Midnight rollover: returning to a page rendered yesterday re-renders
+  //    so "Today" markers, the hero, and due-day logic aren't stale.
+  var hiddenPausedRest = false, hiddenPausedDensity = false, lastSeenDay = todayStr();
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") {
+      if (restState.timer) { clearInterval(restState.timer); restState.timer = null; hiddenPausedRest = true; }
+      if (densityTimerState.timer) { clearInterval(densityTimerState.timer); densityTimerState.timer = null; hiddenPausedDensity = true; }
+      return;
+    }
+    if (todayStr() !== lastSeenDay) { lastSeenDay = todayStr(); renderAll(false); }
+    if (hiddenPausedRest) {
+      hiddenPausedRest = false;
+      var overdueMs = Date.now() - restState.endAt;
+      tickRest(); // recompute from endAt -- paints the countdown, or fires the done state
+      if (overdueMs < 0) restState.timer = setInterval(tickRest, 250);
+      else if (overdueMs > 3000) toast("Rest ended " + Math.round(overdueMs / 1000) + "s ago");
+    }
+    if (hiddenPausedDensity) {
+      hiddenPausedDensity = false;
+      tickDensityTimer(); // completes (beep + rounds prompt) or repaints
+      if (densityTimerState.timer === null && (Date.now() - densityTimerState.startAt) < densityTimerState.minutes * 60000) {
+        densityTimerState.timer = setInterval(tickDensityTimer, 250);
+      }
+    }
+  });
   // The one-shot moment a finished session used to skip entirely -- the cards
   // just faded and, worse, the rest timer kept counting down for a set that no
   // longer exists. Fires once, right when the session's last exercise becomes
@@ -11541,12 +11581,21 @@ function resolveSpec(request, state) {
       var id = superNextTargetId; hideRest();
       if (id) selectExercise(id);
     });
-    // +15s only extends a RUNNING countdown; once it's hit 0:00 the moment has
-    // passed and extending a finished rest would be inventing time.
+    // +15s extends a RUNNING countdown; Batch E: after 0:00 it now restarts
+    // a fresh 15s instead of dying -- tapping "+15s" at the buzzer is the
+    // single most natural "not quite ready yet" gesture.
     $("restPlus").addEventListener("click", function () {
-      if (!restState.timer) return;
-      restState.endAt += 15000; restState.total += 15;
-      persistRest(); tickRest();
+      if (restState.timer) {
+        restState.endAt += 15000; restState.total += 15;
+        persistRest(); tickRest();
+        return;
+      }
+      if (!restEl || restEl.hidden || !restEl.classList.contains("is-done")) return;
+      restState.total = 15; restState.endAt = Date.now() + 15000;
+      persistRest();
+      restEl.classList.remove("is-done");
+      var rsk2 = $("restSkip"); if (rsk2) rsk2.textContent = "Skip";
+      tickRest(); restState.timer = setInterval(tickRest, 250);
     });
     var fd = $("fillerDone"); if (fd) fd.addEventListener("click", function () { var on = !fd.classList.contains("is-done"); fd.classList.toggle("is-done", on); fd.setAttribute("aria-pressed", on ? "true" : "false"); });
     var fsw = $("fillerSwap"); if (fsw) fsw.addEventListener("click", function () { if (currentFillerEx) showFiller(currentFillerEx); });
