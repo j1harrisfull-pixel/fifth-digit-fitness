@@ -83,7 +83,8 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // ---------- 5. Progress screen reuses existing history-rendering (no duplicate fn) ----------
 {
   ok(/function openProgress\(\)/.test(SRC), 'openProgress() exists');
-  ok(/function closeProgress\(\)/.test(SRC), 'closeProgress() exists');
+  // Batch C gave closeProgress a fromPop param (hardware-back layer plumbing).
+  ok(/function closeProgress\(fromPop\)/.test(SRC), 'closeProgress() exists');
   const openProgressSrc = SRC.slice(SRC.indexOf('function openProgress('), SRC.indexOf('\n}', SRC.indexOf('function openProgress(')));
   ok(/renderHistoryOverview\(\$\("progressBody"\)\)/.test(openProgressSrc), 'openProgress() calls the existing renderHistoryOverview() targeting #progressBody -- no duplicate render path');
   const renderHistoryOverviewDefs = (SRC.match(/function renderHistoryOverview\(/g) || []).length;

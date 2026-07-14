@@ -1403,6 +1403,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    future/other session gets the quieter ghost treatment so re-planning
    the week never reads as loud as starting today's work. */
 #previewView .preview__cta { display: block; width: 100%; padding: 14px 18px; background: var(--ink); color: var(--bg); border: 0; border-radius: var(--radius); font-family: var(--font-body); font-weight: 700; font-size: 15px; cursor: pointer; margin: 24px 0 0; }
+/* Batch C: the primary CTA stays reachable while reading a long preview --
+   sticky above the nav bar instead of only existing below the last block.
+   A soft top shadow lifts it off the content it floats over. */
+#previewView .preview__cta:not(.preview__cta--ghost) { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 -8px 20px -8px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35); }
 #previewView .preview__cta--ghost { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
 #previewView .preview__blocks { display: flex; flex-direction: column; gap: 18px; }
 /* v1.12.1: each block is now its own quiet card -- background/border/
@@ -9130,6 +9134,9 @@ function resolveSpec(request, state) {
     // scrollToCurrent() smooth-scroll to the current exercise is no longer
     // overridden by a later instant jump (the old order meant top always won
     // and the user hunted for their exercise on every entry).
+    // Batch C: remember where the week list was + give the day view its own
+    // history entry so hardware back returns to the week, not out of the app.
+    if (state.view !== "day") { rememberScroll(); pushLayer("day"); }
     window.scrollTo(0, 0);
     state.activeSession = i; state.view = "day"; save(); renderAll(true);
     if (liveTarget) { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
@@ -9146,6 +9153,10 @@ function resolveSpec(request, state) {
   function shouldPromptReadiness(ses) {
     if (!ses || !Array.isArray(ses.exercises) || !ses.exercises.length) return false;
     if (getReadinessToday(state) != null) return false;
+    // Batch C: Skip/Escape/backdrop now stamp "asked today" -- declining the
+    // question once means it stays declined for the day, instead of
+    // re-prompting on every single entry into an untouched session.
+    if (state.readinessPromptAsked === todayStr()) return false;
     return sessionProgress(sessionItemsFor(ses)).done === 0;
   }
   function maybeOpenDayWithReadiness(i) {
@@ -9167,16 +9178,48 @@ function resolveSpec(request, state) {
   // buildCard/buildDensityCard/renderList/applyGlance/computeNextUpcomingId
   // are not read here and are not modified.
   var previewIdx = null;
+  // ---- Batch C: layered navigation plumbing ----
+  // 1. Scroll memory: entering an overlay (day / preview / progress)
+  //    remembers where the underlying screen was; returning restores it,
+  //    instead of dumping the user back at the top of the week every time.
+  // 2. Hardware/gesture back: each overlay pushes one history entry, so
+  //    Android back (and the iOS edge swipe) closes the layer instead of
+  //    exiting the PWA mid-workout. UI closes consume their own entry so
+  //    the two exits stay in sync; a lone stale entry after a reload is a
+  //    harmless no-op pop.
+  var savedScrollY = 0;
+  function rememberScroll() { savedScrollY = window.scrollY || 0; }
+  function restoreScroll() { window.scrollTo(0, savedScrollY); }
+  var layerDepth = 0, layerSuppress = false;
+  function pushLayer(name) { layerDepth++; try { history.pushState({ tl: name }, ""); } catch (e) {} }
+  function consumeLayer() { if (layerDepth > 0) { layerDepth--; layerSuppress = true; try { history.back(); } catch (e) {} } }
+  window.addEventListener("popstate", function () {
+    if (layerSuppress) { layerSuppress = false; return; }
+    layerDepth = Math.max(0, layerDepth - 1);
+    var mode = appEl.getAttribute("data-mode");
+    if (mode === "preview") closePreview(true);
+    else if (mode === "progress") closeProgress(true);
+    else if (state.view === "day") backToWeek(true);
+  });
   function openPreview(i) {
+    // Batch C: overlays are exclusive -- opening Preview over the Progress
+    // tab (or vice versa) closes the other instead of clobbering data-mode
+    // and leaving its close path dangling.
+    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     previewIdx = i;
+    rememberScroll();
     appEl.setAttribute("data-mode", "preview");
     renderPreview();
     window.scrollTo(0, 0);
+    pushLayer("preview");
   }
-  function closePreview() {
+  function closePreview(fromPop) {
+    // fromPop must be strictly true -- this is also a direct click handler,
+    // where the first argument is the click event.
+    if (fromPop !== true) consumeLayer();
     previewIdx = null;
     appEl.removeAttribute("data-mode");
-    window.scrollTo(0, 0);
+    restoreScroll();
     applySwReload(); // v1.14: release a deferred SW reload held while previewing
     syncNavBar();
   }
@@ -9186,14 +9229,19 @@ function resolveSpec(request, state) {
   // has always used, just targeting #progressBody instead of the modal's
   // #historyBody. No new history-building logic.
   function openProgress() {
+    if (appEl.getAttribute("data-mode") === "preview") closePreview(); // Batch C: exclusive overlays
+    if (appEl.getAttribute("data-mode") === "progress") return; // already open (nav re-tap)
+    rememberScroll();
     appEl.setAttribute("data-mode", "progress");
     renderHistoryOverview($("progressBody"));
     window.scrollTo(0, 0);
     syncNavBar();
+    pushLayer("progress");
   }
-  function closeProgress() {
+  function closeProgress(fromPop) {
+    if (fromPop !== true) consumeLayer(); // strict: see closePreview
     appEl.removeAttribute("data-mode");
-    window.scrollTo(0, 0);
+    restoreScroll();
     applySwReload();
     syncNavBar();
   }
@@ -9297,7 +9345,8 @@ function resolveSpec(request, state) {
     // longer starts the timer -- Home enters, the workout screen's own
     // Start action begins it (see renderDayBar's liveBarStart wiring).
   }
-  function backToWeek() {
+  function backToWeek(fromPop) {
+    if (fromPop !== true) consumeLayer(); // Batch C: UI back consumes the day's history entry
     // Batch A (13 July 2026 UX audit): was hideRest() + stopLiveTimer() --
     // leaving the day view destroyed the running rest countdown AND deleted
     // the live-session key, so the Home round-trip reset the clock and
@@ -9315,7 +9364,8 @@ function resolveSpec(request, state) {
     // and a real log bar, with no stale "All sets logged" cue. The openDay/
     // switchSession guards stay as harmless defense in depth.
     if (state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
-    state.view = "week"; save(); renderAll(false); window.scrollTo(0, 0); applySwReload();
+    // Batch C: return to where the week list was, not its top.
+    state.view = "week"; save(); renderAll(false); restoreScroll(); applySwReload();
   }
   function switchWeek(delta) {
     var ni = state.activeWeek + delta;
@@ -10596,11 +10646,17 @@ function resolveSpec(request, state) {
       setReadiness(v);
       if (v === 0) swapTodayForRecovery(dayIdx); else openDay(dayIdx);
     });
-    $("readinessPromptSkip").addEventListener("click", function () {
-      var dayIdx = readinessPromptDayIdx; readinessPromptDayIdx = null; closeDlg();
+    // Batch C: every decline path (Skip button, Escape, backdrop tap) does
+    // the same thing -- stamp "asked today" so the prompt doesn't nag on the
+    // next entry, and still open the day the user was heading into.
+    function declinePrompt() {
+      var dayIdx = readinessPromptDayIdx; readinessPromptDayIdx = null;
+      state.readinessPromptAsked = todayStr(); save();
       if (dayIdx != null) openDay(dayIdx);
-    });
-    dlg.addEventListener("cancel", function () { readinessPromptDayIdx = null; }); // Escape
+    }
+    $("readinessPromptSkip").addEventListener("click", function () { closeDlg(); declinePrompt(); });
+    dlg.addEventListener("cancel", declinePrompt); // Escape -- dialog closes itself
+    dlg.addEventListener("click", function (ev) { if (ev.target === dlg) { closeDlg(); declinePrompt(); } }); // backdrop tap
   })();
   $("buildBtn").addEventListener("click", function () { onBuild(true); });
   $("todayBtn").addEventListener("click", onBuildToday);
