@@ -83,7 +83,7 @@ function extractFn(name) {
 // ---------- 8. No new localStorage key -- the strip is a pure re-render of existing session/program data ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 9, 'localStorage.setItem call count unchanged at 9 (Batch A added tl:liveSid; Batch D added the quarantine-recovery restore write) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Priority 5 (week-as-rhythm strip): ${pass} passed, ${fail} failed`);

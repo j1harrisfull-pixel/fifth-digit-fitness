@@ -69,7 +69,7 @@ function extractFn(name) {
 // ---------- 6. No new localStorage key -- pure display-layer change ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 9, 'localStorage.setItem call count unchanged at 9 (Batch A added tl:liveSid; Batch D added the quarantine-recovery restore write) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Build item 2 (finish-moment PR callout): ${pass} passed, ${fail} failed`);

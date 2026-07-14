@@ -2098,6 +2098,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
         <button class="btn" id="exportBtn" type="button">Export backup</button>
         <button class="btn" id="importBtn" type="button">Import backup</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button class="btn" id="recoverQuarantineBtn" type="button" hidden>Recover previous data</button>
       </div>
       <!-- v1.3: a plain feedback hint, right where a tester would already be
            looking to grab their data -- no form, no accounts, no cloud implied. -->
@@ -6281,8 +6282,18 @@ function resolveSpec(request, state) {
       state.savedAt = Date.now();
       lastSavedStamp = state.savedAt;
       localStorage.setItem(STORE, JSON.stringify(state));
-    } catch (e) { toast("Couldn't save (storage may be full)"); }
+    } catch (e) {
+      // Batch D: a second consecutive failure means this is real, not a
+      // blip -- every set logged from here on is silently lost. Escalate
+      // from a passing toast to an actionable export offer.
+      saveFailCount++;
+      if (saveFailCount >= 2) toastUndo("Storage is full · changes are NOT saving", function () { exportBackup(); }, "Export backup");
+      else toast("Couldn't save (storage may be full)");
+      return;
+    }
+    saveFailCount = 0;
   }
+  var saveFailCount = 0;
   var saveTimer;
   function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); }
   // The 400ms debounce means a swipe-kill right after a weight/reps/RPE edit
@@ -8863,7 +8874,14 @@ function resolveSpec(request, state) {
       // Skipping the last unresolved exercise can complete the session -- flip
       // the bar to "Finish" rather than auto-firing the receipt.
       renderDayBar(); applyGlance();
-      toast(e.name + " skipped today");
+      // Batch D: skipping is one tap on a small control -- give it the same
+      // undo the other destructive taps get, and revert the learned-preference
+      // nudge too so a mis-tap teaches the ranker nothing.
+      toastUndo(e.name + " skipped today", function () {
+        var wRe = writeLog(ses, e); wRe.el.skipped = false;
+        bumpPref(state.athlete, canonicalExName(e.name), 1);
+        save(); renderHead(); renderList(true); renderDayBar(); applyGlance();
+      });
     } else if (act === "unskipex") {
       var wUn = writeLog(ses, e); wUn.el.skipped = false; save();
       renderHead(); renderList(true); selectExercise(e.id); applyGlance();
@@ -8896,10 +8914,19 @@ function resolveSpec(request, state) {
       var newName = btn.getAttribute("data-name");
       var alt = LIBRARY.filter(function (x) { return x.type === "conditioning" && x.name === newName; })[0];
       if (alt) {
+        // Batch D: snapshot for undo -- reverting must also unwind BOTH
+        // learned-preference writes, or a mis-tap permanently biases the ranker.
+        var prevSwap = { name: e.name, equipment: e.equipment, notes: e.notes };
         bumpPref(state.athlete, canonicalExName(e.name), -1); // swapped away from
         e.name = alt.name; e.equipment = alt.equipment; e.notes = alt.cue; e.swapOpen = false;
         bumpPref(state.athlete, canonicalExName(e.name), 1); // deliberately swapped to
         save(); renderList(false);
+        toastUndo("Swapped to " + alt.name, function () {
+          bumpPref(state.athlete, canonicalExName(e.name), -1);
+          e.name = prevSwap.name; e.equipment = prevSwap.equipment; e.notes = prevSwap.notes;
+          bumpPref(state.athlete, canonicalExName(e.name), 1);
+          save(); renderList(false);
+        });
       }
     } else if (act === "sets-" || act === "sets+") {
       var ns = clampInt(e.sets + (act === "sets+" ? 1 : -1), SETS_MIN, SETS_MAX, e.sets);
@@ -9509,8 +9536,14 @@ function resolveSpec(request, state) {
     listEl.addEventListener("touchend", function (e) {
       if (!tracking) return; tracking = false;
       var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) {
+      // Batch D: raised from 60px/1.8x -- a sloppy vertical scroll was too
+      // easy to read as a day switch, silently teleporting the user to a
+      // different session mid-workout. A deliberate horizontal swipe still
+      // clears 100px/3x easily; the toast names where you landed so an
+      // accidental one is at least self-explaining.
+      if (Math.abs(dx) > 100 && Math.abs(dx) > Math.abs(dy) * 3) {
         swipeSuppress = switchSession(state.activeSession + (dx < 0 ? 1 : -1));
+        if (swipeSuppress) toast("Switched to " + curSession().name);
       }
     }, { passive: true });
   })();
@@ -9949,10 +9982,19 @@ function resolveSpec(request, state) {
       renderPreview();
     }
   }
+  // Batch D: the 12-slot archive used to prune its oldest entry SILENTLY --
+  // the one place the app permanently discards logged training without a
+  // word. Same push+prune, but the drop is announced with an export nudge.
+  function archiveWithPruneWarning() {
+    var willDrop = state.archive.length >= 12 ? state.archive[0] : null;
+    state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() });
+    state.archive = pruneArchive(state.archive, 12);
+    if (willDrop) toast('Oldest archive ("' + (willDrop.title || "Untitled") + '") was removed · 12 kept. Export a backup in Settings to keep everything');
+  }
   function confirmBuild() {
     if (!pendingBuild) return;
     hideRest();
-    if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
+    if (hasProgram()) { archiveWithPruneWarning(); }
     state.program = pendingBuild; state.unit = pendingBuild.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
     // Carry the opt-in training-day schedule onto the built program, ordered
     // Mon-first so session 0 lands on the earliest chosen weekday.
@@ -10543,7 +10585,7 @@ function resolveSpec(request, state) {
   function confirmLoad() {
     if (!pending) return;
     hideRest();
-    if (hasProgram()) { state.archive.push({ title: state.program.title, program: state.program, log: compactLog(state.log), archivedAt: new Date().toISOString() }); state.archive = pruneArchive(state.archive, 12); }
+    if (hasProgram()) { archiveWithPruneWarning(); }
     state.program = pending; state.unit = pending.unit; state.activeWeek = 0; state.activeSession = 0; state.log = {}; state.activeExerciseId = null;
     pending = null; save(); applyTheme(); refreshWelcome(); renderAll(true); closePlan(); toast(state.program.title + " loaded.");
   }
@@ -10570,7 +10612,14 @@ function resolveSpec(request, state) {
     openExerciseHistory(row.getAttribute("data-lift"), true); // from the Progress list -> offer a way back
   });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
-  $("historySheet").addEventListener("click", function (ev) { var hs = $("historySheet"); if (ev.target === hs) { if (hs.close) hs.close(); else hs.removeAttribute("open"); } });
+  $("historySheet").addEventListener("click", function (ev) {
+    var hs = $("historySheet"); if (ev.target !== hs) return;
+    // Batch D: inside a lift drill-down (it renders a histback control),
+    // the backdrop goes back ONE level to the lift list -- matching what the
+    // visible ‹ control does -- instead of dumping the whole sheet.
+    if ($("historyBody").querySelector('[data-act="histback"]')) { openHistory(); return; }
+    if (hs.close) hs.close(); else hs.removeAttribute("open");
+  });
   // Master Ticket P2 (2026-07-13): Home returns from Preview/Progress
   // (closePreview/closeProgress are each a no-op if not open) and closes
   // Settings if it happens to be open; Progress opens the Progress screen;
@@ -10782,8 +10831,14 @@ function resolveSpec(request, state) {
     });
     if (wrap) wrap.addEventListener("click", function (ev) {
       var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
-      removeAthleteInjury(cat, b.getAttribute("data-target"));
+      var delTarget = b.getAttribute("data-target");
+      removeAthleteInjury(cat, delTarget);
       save(); renderAthleteSettings();
+      // Batch D: an injury entry protects the user from being programmed
+      // into it -- a mis-tapped delete silently removes that protection.
+      toastUndo('Removed "' + delTarget + '"', function () {
+        if (addAthleteInjury(cat, delTarget)) { save(); renderAthleteSettings(); }
+      });
     });
   });
   // Product Polish Phase 1 (item 2): the simplified front door. Always writes
@@ -10797,11 +10852,42 @@ function resolveSpec(request, state) {
   if (injQuickInput) injQuickInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); injQuickAddBtn.click(); } });
   if (injQuickWrap) injQuickWrap.addEventListener("click", function (ev) {
     var b = ev.target.closest('[data-act="inj-del"]'); if (!b) return;
-    removeAthleteInjury(b.getAttribute("data-cat"), b.getAttribute("data-target"));
+    var qCat = b.getAttribute("data-cat"), qTarget = b.getAttribute("data-target");
+    removeAthleteInjury(qCat, qTarget);
     save(); renderAthleteSettings();
+    toastUndo('Removed "' + qTarget + '"', function () { // Batch D: see category chips above
+      if (addAthleteInjury(qCat, qTarget)) { save(); renderAthleteSettings(); }
+    });
   });
 
   /* ===================== Backup ===================== */
+  // Batch D: the quarantine blob (saved data that failed to parse at boot)
+  // was kept on device but had NO way back in -- recovery meant DevTools.
+  // The Settings button appears only when a blob exists; recovering runs the
+  // same coerceState() gate a normal load uses, so a truly corrupt blob is
+  // refused with a toast rather than swapped in blind.
+  (function () {
+    var rq = $("recoverQuarantineBtn"); if (!rq) return;
+    var qRaw = null;
+    try { qRaw = localStorage.getItem(STORE + ":quarantine"); } catch (e) {}
+    if (!qRaw) return;
+    rq.hidden = false;
+    rq.addEventListener("click", function () {
+      askConfirm({
+        title: "Recover previous data?",
+        message: "This replaces what's currently in the app with the recovery copy kept when your saved data couldn't be read. Export a backup of the current data first if you want both.",
+        confirmLabel: "Recover",
+        onConfirm: function () {
+          var recovered = null;
+          try { recovered = coerceState(JSON.parse(qRaw)); } catch (e) {}
+          if (!recovered) { toast("The recovery copy couldn't be read either · it stays kept on this device"); return; }
+          try { localStorage.setItem(STORE, JSON.stringify(recovered)); localStorage.removeItem(STORE + ":quarantine"); } catch (e) {}
+          toast("Previous data restored · restarting");
+          setTimeout(function () { location.reload(); }, 600);
+        }
+      });
+    });
+  })();
   function exportBackup() {
     var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob), a = document.createElement("a");
@@ -11475,11 +11561,11 @@ function resolveSpec(request, state) {
   function initPersistence() { if (navigator.storage && navigator.storage.persist) { navigator.storage.persisted().then(function (p) { if (!p) return navigator.storage.persist(); }).catch(function () {}); } }
   var toastTimer;
   function toast(msg) { var t = $("toast"); t.classList.remove("has-action"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2300); }
-  function toastUndo(msg, onUndo) {
+  function toastUndo(msg, onUndo, actionLabel) {
     var t = $("toast");
     t.textContent = "";
     var span = document.createElement("span"); span.textContent = msg;
-    var btn = document.createElement("button"); btn.type = "button"; btn.className = "toast__action"; btn.textContent = "Undo";
+    var btn = document.createElement("button"); btn.type = "button"; btn.className = "toast__action"; btn.textContent = actionLabel || "Undo";
     t.appendChild(span); t.appendChild(btn);
     t.classList.add("show", "has-action");
     clearTimeout(toastTimer);
@@ -11506,7 +11592,11 @@ function resolveSpec(request, state) {
     if (titleEl) titleEl.classList.toggle("is-calm", !danger);
     var icon = titleEl && titleEl.querySelector(".confirm__icon");
     if (icon) icon.style.display = danger ? "" : "none";
-    function cleanup() { yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); dlg.removeEventListener("close", onClose); }
+    function cleanup() { yes.removeEventListener("click", onYes); no.removeEventListener("click", onNo); dlg.removeEventListener("close", onClose); dlg.removeEventListener("click", onBackdrop); }
+    // Batch D: for a calm (danger:false) confirm, tapping the backdrop is
+    // Cancel -- the same convention every other sheet follows. Destructive
+    // confirms still require an explicit button press.
+    function onBackdrop(ev) { if (ev.target === dlg && opts.danger === false) onNo(); }
     function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); cleanup(); }
     function onYes() { closeDlg(); if (opts.onConfirm) opts.onConfirm(); }
     function onNo() { closeDlg(); }
@@ -11514,7 +11604,7 @@ function resolveSpec(request, state) {
     // through a button -- tear the handlers down there too, or a stale onYes
     // stays armed on the shared #confirmYes and fires on the NEXT confirm.
     function onClose() { cleanup(); }
-    yes.addEventListener("click", onYes); no.addEventListener("click", onNo); dlg.addEventListener("close", onClose);
+    yes.addEventListener("click", onYes); no.addEventListener("click", onNo); dlg.addEventListener("close", onClose); dlg.addEventListener("click", onBackdrop);
     openSheetNoKb(dlg);
   }
 

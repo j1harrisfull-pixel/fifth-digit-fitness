@@ -66,7 +66,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // ---------- 6. No new localStorage key -- goal is still just a field on the existing buildPrefs object ----------
 {
   const setItemCalls = SRC_FULL.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 9, 'localStorage.setItem call count unchanged at 9 (Batch A added tl:liveSid; Batch D added the quarantine-recovery restore write) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Build item 3 (goal picker): ${pass} passed, ${fail} failed`);

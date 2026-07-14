@@ -124,7 +124,7 @@ const saveSrc = extractFn('save');
   // the total count of distinct setItem KEY EXPRESSIONS is unchanged at 7,
   // matching the pre-ticket count (verified by hand before this fix).
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 8, `localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ${setItemCalls.length}) -- no new persisted key introduced`);
+  ok(setItemCalls.length === 9, `localStorage.setItem call count unchanged at 9 (Batch A added tl:liveSid; Batch D added the quarantine-recovery restore write) (got ${setItemCalls.length}) -- no new persisted key introduced`);
 }
 
 console.log(`${pass} passed, ${fail} failed`);
