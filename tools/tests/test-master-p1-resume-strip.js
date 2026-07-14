@@ -82,7 +82,7 @@ function extractFn(name) {
 // ---------- 7. No new localStorage key introduced -- this reads only what's already persisted ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 7, 'localStorage.setItem call count unchanged at 7 (got ' + setItemCalls.length + ') -- the resume strip reads existing state.log, it does not persist anything new');
+  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ') -- the resume strip reads existing state.log, it does not persist anything new');
 }
 
 console.log(`Master Ticket P1 (resume strip): ${pass} passed, ${fail} failed`);

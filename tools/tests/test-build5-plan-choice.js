@@ -93,7 +93,7 @@ function extractFn(name) {
 // ---------- 9. No new localStorage key -- plan choice reuses the existing buildPrefs.weeks field ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 7, 'localStorage.setItem call count unchanged at 7 (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Build 5 (plan-choice merge): ${pass} passed, ${fail} failed`);

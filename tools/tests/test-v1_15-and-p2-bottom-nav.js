@@ -124,7 +124,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // ---------- 9. No new localStorage key introduced (setItem count unchanged at 7) ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 7, 'localStorage.setItem call count unchanged at 7 (got ' + setItemCalls.length + ') -- no new persisted key introduced');
+  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ') -- no new persisted key introduced');
 }
 
 console.log(`${pass} passed, ${fail} failed`);

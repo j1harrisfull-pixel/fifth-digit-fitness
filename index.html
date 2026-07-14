@@ -7710,13 +7710,22 @@ function resolveSpec(request, state) {
   // suspend or PWA reload mid-session resumes the real elapsed time instead
   // of lying with a fresh 0:00.
   var LIVE_KEY = "tl:liveStart";
+  // Batch A (13 July 2026 UX audit): which session the live run belongs to.
+  // LIVE_KEY alone is just a start stamp; without a session id, letting the
+  // live state survive Home round-trips would leak "live" onto a DIFFERENT
+  // day the user then opens. The sid makes survival safe and targeted.
+  var LIVE_SID_KEY = "tl:liveSid";
   var liveTimerHandle = null, liveTimerStart = 0;
   function startLiveTimer(resume) {
     var stored = 0;
     if (resume) { try { stored = parseInt(localStorage.getItem(LIVE_KEY), 10) || 0; } catch (e) {} }
     stopLiveTimer();
     liveTimerStart = (stored > 0 && stored <= Date.now()) ? stored : Date.now();
-    try { localStorage.setItem(LIVE_KEY, String(liveTimerStart)); } catch (e) {}
+    try {
+      localStorage.setItem(LIVE_KEY, String(liveTimerStart));
+      var lses = curWeek().sessions[state.activeSession];
+      if (lses) localStorage.setItem(LIVE_SID_KEY, lses.id);
+    } catch (e) {}
     var el = $("liveBarTimer"); if (!el) return;
     // Gate 3 (Final Sprint): past ~4h a session has plainly been left open,
     // not actively timed -- painting a growing clock would be dishonest, so
@@ -7734,7 +7743,24 @@ function resolveSpec(request, state) {
   }
   function stopLiveTimer() {
     if (liveTimerHandle) { clearInterval(liveTimerHandle); liveTimerHandle = null; }
-    try { localStorage.removeItem(LIVE_KEY); } catch (e) {}
+    try { localStorage.removeItem(LIVE_KEY); localStorage.removeItem(LIVE_SID_KEY); } catch (e) {}
+  }
+  // Batch A: stop the visual tick WITHOUT deleting the live keys -- used by
+  // backToWeek so the most natural habit in the app (pop Home to glance at
+  // the week, tap Resume to come back) no longer resets the session clock.
+  // Before this, the reload/lock-screen resume path survived suspends but
+  // in-app navigation destroyed the run it was built to protect.
+  function pauseLiveTimer() {
+    if (liveTimerHandle) { clearInterval(liveTimerHandle); liveTimerHandle = null; }
+  }
+  // Is week-index i's session the one the live run belongs to?
+  function isLiveSession(i) {
+    try {
+      if (!localStorage.getItem(LIVE_KEY)) return false;
+      var sid = localStorage.getItem(LIVE_SID_KEY);
+      var ses = curWeek().sessions[i];
+      return !!(ses && sid && sid === ses.id);
+    } catch (e) { return false; }
   }
   // A live run exists once the timer has been started (its start stamp is in
   // LIVE_KEY). Opening a day is a preview; the FIRST logged working set promotes
@@ -8752,7 +8778,7 @@ function resolveSpec(request, state) {
       // v135 (A1): pin the logged exercise as the explicitly-open one so
       // completing it can't let currentId() drift to the next (see setdone).
       state.activeExerciseId = e.id;
-      save();
+      saveSoon(); // Batch A: debounced -- the synchronous full-state stringify per tap was the felt latency
       var on = sset.completed;
       // Same visual grammar as the strength setdone path: the ROW carries the
       // done/pulse state and the circle-tick carries the pressed state.
@@ -8783,7 +8809,7 @@ function resolveSpec(request, state) {
       applyGlance();
     } else if (act === "w-" || act === "w+") {
       var wl = writeLog(ses, e);
-      wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); save();
+      wl.el.weight = roundW(Math.max(0, wl.el.weight + (act === "w+" ? STEP : -STEP))); saveSoon(); // Batch A: debounced
       var wcard = btn.closest(".card"); wcard.querySelector(".weight__input").value = wl.el.weight;
       refreshStartWeightLabel(wcard, wl.el.weight);
       var wpl = wcard.querySelector(".plates"); if (wpl && e.equipment === "barbell") wpl.textContent = platesText(wl.el.weight, state.program.unit);
@@ -8809,7 +8835,7 @@ function resolveSpec(request, state) {
     } else if (act === "warm") {
       var wi = parseInt(btn.getAttribute("data-warm"), 10), wwl = writeLog(ses, e);
       if (!wwl.el.warm) wwl.el.warm = [];
-      wwl.el.warm[wi] = !wwl.el.warm[wi]; save();
+      wwl.el.warm[wi] = !wwl.el.warm[wi]; saveSoon(); // Batch A: debounced
       btn.classList.toggle("is-done", wwl.el.warm[wi]); btn.setAttribute("aria-pressed", wwl.el.warm[wi]);
     } else if (act === "skipex") {
       // Set the exercise aside for today so the session can finish without it.
@@ -8875,7 +8901,7 @@ function resolveSpec(request, state) {
           undoSnapshot = JSON.parse(JSON.stringify(elBefore));
         }
       }
-      e.sets = ns; writeLog(ses, e); save();
+      e.sets = ns; writeLog(ses, e); saveSoon(); // Batch A: debounced
       var card2 = btn.closest(".card"), lg2 = readLog(ses, e), dc2 = lg2.sets.filter(function (s) { return s.completed; }).length;
       if (e.type === "strength") { var ut2 = refreshTargetLine(card2, lg2, state.program.unit); card2.querySelector(".setlist").innerHTML = setRowsInner(e, lg2, !!ut2); refreshFoot(card2, e, ses); }
       else card2.querySelector(".setlist--simple").innerHTML = pillsHtml(e, lg2.sets.map(function (s) { return s.completed; }));
@@ -8913,7 +8939,7 @@ function resolveSpec(request, state) {
       // this one completes: the finished exercise stays open until the user
       // closes it (header tap -> sentinel) or opens another. No auto-advance.
       state.activeExerciseId = e.id;
-      save();
+      saveSoon(); // Batch A: debounced
       var drow = btn.closest(".setrow"); drow.classList.toggle("is-done", on2); btn.setAttribute("aria-pressed", on2);
       btn.setAttribute("aria-label", "Complete set " + (di + 1) + " of " + e.sets + (on2 ? ", done" : ""));
       drow.classList.remove("pulse"); void drow.offsetWidth; drow.classList.add("pulse");
@@ -9053,21 +9079,36 @@ function resolveSpec(request, state) {
     // i !== state.activeSession is already guaranteed by the guard above.
     if (state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
     state.activeSession = i; save();
-    renderDayBar(); renderHead(); renderList(true); window.scrollTo(0, 0);
+    // Batch A: scroll first so renderList's scrollToCurrent isn't overridden.
+    window.scrollTo(0, 0);
+    renderDayBar(); renderHead(); renderList(true);
     return true;
   }
   // Opening a day no longer starts a live session -- it's a preview you can read.
   // The timer + wake lock start on your first logged set (ensureSessionLive). If
   // the day already has a live run going (resumed after reload), it stays live.
   function openDay(i) {
-    justOpened = false; hideRest();
+    justOpened = false;
+    // Batch A: opening the session the live run belongs to must RESUME the
+    // run (rest countdown + session clock), not destroy it -- the same
+    // restore path a reload already uses. Opening any OTHER session ends
+    // the previous run outright (old behaviour, now explicit).
+    var liveTarget = isLiveSession(i);
+    if (liveTarget) hideRestView(); else { hideRest(); stopLiveTimer(); }
     // Pass 2 completion-sentinel session-scope fix: "__collapsed__" only means
     // "nothing chosen on purpose in THIS session" (set on finishing an
     // exercise's last set) -- it must not survive into a DIFFERENT session, or
     // currentId() stays collapsed there too: no first-incomplete auto-focus,
     // and a stale "All sets logged" cue for a session that's actually untouched.
     if (i !== state.activeSession && state.activeExerciseId === "__collapsed__") state.activeExerciseId = null;
-    state.activeSession = i; state.view = "day"; save(); renderAll(true); window.scrollTo(0, 0); if (sessionLive()) acquireWakeLock();
+    // Batch A scroll fix: scroll to top BEFORE the render, so renderAll's own
+    // scrollToCurrent() smooth-scroll to the current exercise is no longer
+    // overridden by a later instant jump (the old order meant top always won
+    // and the user hunted for their exercise on every entry).
+    window.scrollTo(0, 0);
+    state.activeSession = i; state.view = "day"; save(); renderAll(true);
+    if (liveTarget) { startLiveTimer(true); acquireWakeLock(); resumeRest(); }
+    else if (sessionLive()) acquireWakeLock();
   }
   // Product Polish Phase 1 (item 5, J5): a light-touch readiness check
   // before an un-started SCHEDULED session -- only when nothing's been
@@ -9232,7 +9273,14 @@ function resolveSpec(request, state) {
     // Start action begins it (see renderDayBar's liveBarStart wiring).
   }
   function backToWeek() {
-    hideRest(); stopLiveTimer(); releaseWakeLock();
+    // Batch A (13 July 2026 UX audit): was hideRest() + stopLiveTimer() --
+    // leaving the day view destroyed the running rest countdown AND deleted
+    // the live-session key, so the Home round-trip reset the clock and
+    // re-showed Start. Now the tick intervals pause but the persisted
+    // endAt/start-stamp survive; openDay resumes them for the live session.
+    // The live run itself only ends at finish/endSession (which still call
+    // hideRest()/stopLiveTimer()).
+    hideRestView(); pauseLiveTimer(); releaseWakeLock();
     // Pass 2 completion-sentinel: leaving the day view ends the context the
     // "__collapsed__" sentinel belongs to (it means "nothing chosen on purpose
     // right after finishing an exercise in THIS session"). Clearing it here --
@@ -10913,6 +10961,11 @@ function resolveSpec(request, state) {
     if (restFillEl && !reduceMotion) restFillEl.style.transform = "scaleX(" + Math.max(0, remMs / (restState.total * 1000)) + ")";
   }
   function hideRest() { clearInterval(restState.timer); restState.timer = null; clearRestPersist(); if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); hideSuperNext(); hideRestRpe(); document.body.classList.remove("has-rest"); }
+  // Batch A: hide the rest bar's UI and stop its tick WITHOUT clearing the
+  // persisted endAt -- so leaving the day view mid-rest no longer cancels
+  // the countdown; re-entering the live session resumes it via resumeRest()
+  // (the same restore path a lock-screen/reload already uses).
+  function hideRestView() { clearInterval(restState.timer); restState.timer = null; if (restEl) { restEl.hidden = true; restEl.classList.remove("is-done"); } hideFiller(); hideSuperNext(); hideRestRpe(); document.body.classList.remove("has-rest"); }
   // The one-shot moment a finished session used to skip entirely -- the cards
   // just faded and, worse, the rest timer kept counting down for a set that no
   // longer exists. Fires once, right when the session's last exercise becomes
@@ -10970,7 +11023,12 @@ function resolveSpec(request, state) {
   function showSessionComplete(ses, opts) {
     opts = opts || {};
     var ended = !!opts.ended;
-    hideRest();
+    // Batch A: finishing ENDS the live run outright. This used to be
+    // backToWeek()'s job implicitly; now that backToWeek only pauses (so a
+    // Home round-trip can't destroy an in-progress session), the finish
+    // path must clear the live keys itself or reopening the day would
+    // "resume" a finished session's clock.
+    hideRest(); stopLiveTimer();
     var setsDone = 0, readyCount = 0, unit = state.program.unit;
     // Phase 3: computed once per completion, not per exercise -- exposure
     // recording below only reads state.athlete.metrics.anchors and the

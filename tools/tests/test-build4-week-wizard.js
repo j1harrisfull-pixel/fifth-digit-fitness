@@ -112,7 +112,7 @@ function extractFn(name) {
 // ---------- 10. No new localStorage key -- wizard step is transient UI state, not persisted ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 7, 'localStorage.setItem call count unchanged at 7 (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Build 4 (week-build wizard): ${pass} passed, ${fail} failed`);

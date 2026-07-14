@@ -64,7 +64,7 @@ function extractFn(name) {
 // ---------- 5. No new localStorage key introduced -- pure display-layer cut ----------
 {
   const setItemCalls = SRC.match(/localStorage\.setItem\([^,]+,/g) || [];
-  ok(setItemCalls.length === 7, 'localStorage.setItem call count unchanged at 7 (got ' + setItemCalls.length + ')');
+  ok(setItemCalls.length === 8, 'localStorage.setItem call count unchanged at 8 (Batch A added tl:liveSid, the live-run session id) (got ' + setItemCalls.length + ')');
 }
 
 console.log(`Master Ticket P3 (Build doors dedupe): ${pass} passed, ${fail} failed`);

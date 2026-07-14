@@ -55,6 +55,7 @@ const harness = `
   // guard. Every case here exercises the armed (loggable) session.
   function isPreviewSession() { return false; }
   function hideRest() {}
+  function stopLiveTimer() {} // Batch A: showSessionComplete now ends the live run itself
   function ensureSessionLive() {}
   function unlockAudio() {}
   function computeFatigueState() { return null; }

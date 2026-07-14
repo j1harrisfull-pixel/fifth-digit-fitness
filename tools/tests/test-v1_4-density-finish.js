@@ -58,6 +58,7 @@ const harness = `
   function isPreviewSession() { return false; }
   function toast(msg) { _toastMsgs.push(msg); }
   function hideRest() { _hideRestCount++; }
+  function stopLiveTimer() {} // Batch A: showSessionComplete now ends the live run itself
   function ensureSessionLive() { _ensureLiveCount++; }
   function unlockAudio() {}
   function computeFatigueState() { return null; }
