@@ -170,18 +170,23 @@ input, textarea { font: inherit; color: inherit; }
 body.has-bottomnav { padding-bottom: 0; }
 .bottomnav[hidden] { display: none; }
 
-/* P1 resume strip -- the one loud element in the app. Full-width tap target,
-   accent-bordered, sits above everything on Home and Preview until the
-   in-progress session is finished or ended. */
-.resumestrip { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 5px; color: var(--ink); text-align: left; cursor: pointer; }
+/* P1 resume strip. 13 July 2026 audit (Tier 1, James-approved): this used
+   to stack FOUR accent treatments at once (accent border, pulsing accent
+   dot, uppercase tracked accent label, filled accent pill) above the hero
+   on the most-seen screen -- the exact "alert wash" every other pass
+   removed, permanently outshouting the one primary CTA. Calmed to a normal
+   surface card: the small pulse dot is the SINGLE live signal, the label is
+   plain ink sentence case, and Resume is quiet accent text. The whole strip
+   is still the tap target, same handler, same visibility rules. */
+.resumestrip { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-align: left; cursor: pointer; }
 .resumestrip[hidden] { display: none; }
-.resumestrip__pulse { width: 9px; height: 9px; flex: none; border-radius: 999px; background: var(--accent); animation: resumepulse 1.6s ease-in-out infinite; }
+.resumestrip__pulse { width: 7px; height: 7px; flex: none; border-radius: 999px; background: var(--accent); animation: resumepulse 1.6s ease-in-out infinite; }
 @keyframes resumepulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .resumestrip__pulse { animation: none; } }
 .resumestrip__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.resumestrip__label { font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
-.resumestrip__detail { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.resumestrip__cta { flex: none; font-family: "Spline Sans Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 8px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); }
+.resumestrip__label { font-size: 13px; font-weight: 600; color: var(--ink); }
+.resumestrip__detail { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resumestrip__cta { flex: none; font-size: 13px; font-weight: 700; color: var(--accent-ink); background: none; padding: 0; }
 
 /* week bar */
 .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 18px 12px; }
@@ -1513,15 +1518,24 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .complete__title { font-family: var(--font-display); font-weight: 800; font-size: 24px; letter-spacing: -.01em; margin: 0 0 10px; color: var(--paper-ink); }
 .complete__earned { font-family: var(--font-display); font-weight: 800; font-size: 15px; color: var(--accent-ink); margin: 0 0 8px; }
 .complete__summary { font-size: 14px; line-height: 1.55; color: var(--paper-dim); margin: 0 0 16px; }
-/* The PR moment: promoted out of the honest-read sentence into its own line
-   -- the one place on this one screen the accent is allowed a second job,
-   because a genuine all-time best is exactly the kind of moment this brand's
-   "spend the accent once" rule exists to protect, not suppress. */
-.complete__pr-banner { display: inline-block; font-family: var(--font-display); font-weight: 800; font-size: 13px; letter-spacing: .01em; color: var(--accent-ink); background: var(--accent-tint); border: 1px solid var(--accent-ink); padding: 6px 10px; margin: 0 0 16px; }
-/* display:inline-block overrides [hidden], so a no-PR session showed an empty
-   accent box (the element is re-used and .hidden=true never took). */
+/* The PR moment: promoted out of the honest-read sentence into its own line.
+   13 July 2026 audit (Tier 1, James-approved): this used the DARK theme's
+   accent tokens (--accent-ink brass text + --accent-tint wash) on the light
+   paper receipt -- roughly 1.9:1 contrast, nearly invisible at the one
+   moment worth reading, plus a filled banner + decorative star, the exact
+   "filled block as mark" shape the standard bans. Restyled in the paper's
+   own record grammar: ink text between hairline rules, with a small
+   bordered NEW BEST badge carrying the emphasis instead of a color wash. */
+.complete__pr-banner { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; color: var(--tempo-bone-ink); border-top: 1px solid var(--tempo-bone-line); border-bottom: 1px solid var(--tempo-bone-line); padding: 10px 2px; margin: 0 0 16px; }
+/* display:flex overrides [hidden], so a no-PR session showed an empty
+   box (the element is re-used and .hidden=true never took). */
 .complete__pr-banner[hidden] { display: none; }
-.complete__pr-badge { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent-ink); border: 1px solid var(--accent-ink); padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+/* The inner span exists only as the JS-populated text target; display:
+   contents lets the badge + text participate directly in the banner's flex
+   row (gap included) without restructuring the markup or its tests. */
+#completePrCalloutText { display: contents; }
+.complete__pr-banner b { flex: none; font-family: "Spline Sans Mono", monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tempo-bone-ink); border: 1px solid var(--tempo-bone-ink); border-radius: 4px; padding: 2px 7px; }
+.complete__pr-badge { display: inline-block; font-family: "Spline Sans Mono", monospace; font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--tempo-bone-ink); border: 1px solid var(--tempo-bone-ink); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
 .complete__read-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--paper-dim); font-weight: 700; margin: 0 0 10px; }
 .complete__read-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px dashed var(--paper-line); }
 .complete__read-row:first-of-type { border-top: 0; }
@@ -1719,10 +1733,10 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <button type="button" class="resumestrip" id="resumeStrip" hidden>
       <span class="resumestrip__pulse" aria-hidden="true"></span>
       <span class="resumestrip__text">
-        <span class="resumestrip__label">Workout in progress</span>
+        <span class="resumestrip__label">Session in progress</span>
         <span class="resumestrip__detail" id="resumeStripDetail"></span>
       </span>
-      <span class="resumestrip__cta">Resume</span>
+      <span class="resumestrip__cta">Resume ›</span>
     </button>
     <div class="home-hero view-week" id="homeHero"></div>
     <p class="consistency-label view-week" id="consistencyLabel"></p>
@@ -2239,7 +2253,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
            but had no markup wired to it -- and honestRead.prs, the same PR
            data the ledger's inline "best yet" tags already use. No new PR
            logic, no new CSS; hidden entirely when there's no real PR. -->
-      <p class="complete__pr-banner" id="completePrCallout" hidden>★ <span id="completePrCalloutText"></span></p>
+      <p class="complete__pr-banner" id="completePrCallout" hidden><span id="completePrCalloutText"></span></p>
       <p class="finish-page__close" id="completeClose"></p>
       <div class="finish-page__stamp" id="completeStamp">
         <svg class="finish-page__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit"><path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/></svg>
@@ -7119,7 +7133,10 @@ function resolveSpec(request, state) {
     var recapHtml = "";
     if (weekDone) {
       var recap = computeWeekRecap(wk), runit = state.program.unit;
-      var recapSentence = recap.sessionsDone + " of " + recap.sessionsTotal + (recap.sessionsTotal === 1 ? " session" : " sessions") + " closed. " +
+      // 13 July 2026 audit (Tier 1): "closed" is the banned ledger word --
+      // cut from the week rows earlier today, this recap sentence was the
+      // last rendered survivor. "done" matches the rest of the app's voice.
+      var recapSentence = recap.sessionsDone + " of " + recap.sessionsTotal + (recap.sessionsTotal === 1 ? " session" : " sessions") + " done. " +
         recap.totalSets + (recap.totalSets === 1 ? " set" : " sets") + " kept." +
         (recap.totalVolume > 0 ? " " + recap.totalVolume.toLocaleString() + runit + " lifted." : "");
       recapHtml = '<p class="today-card__recap mono">' + esc(recapSentence) + '</p>' +
@@ -7130,8 +7147,10 @@ function resolveSpec(request, state) {
     // v1.12.2: the hero no longer starts training directly (v1.12 sent it
     // to Today Preview instead) -- "Start the session" on the hero itself
     // was therefore a false promise (tapping it opens a read-only screen,
-    // not a live session). "View the workout" honestly describes what the
-    // tap actually does; "Start the session" is now reserved for Preview's
+    // not a live session). "View the session" honestly describes what the
+    // tap actually does (13 July 2026 audit: was "View the workout" --
+    // "workout" contradicted the committed Program/Week/Session vocabulary
+    // on the app's highest-traffic button); "Start the session" is Preview's
     // own bottom CTA, the one tap that genuinely triggers readiness/live.
     // "Continue" (already resumed) keeps its existing, already-honest
     // meaning, untouched. Master Ticket P3 (2026-07-13): weekDone no longer
@@ -7141,7 +7160,7 @@ function resolveSpec(request, state) {
     // doing the exact same thing. The Build row is the one quiet door once
     // a program exists; the hero goes CTA-less here and just states the
     // week's recap.
-    var ctaLabel = started ? "Continue" : "View the workout";
+    var ctaLabel = started ? "Continue" : "View the session";
     // A standing "build something else" door, not a per-day apology. Offered
     // whenever an un-started session remains this week -- it targets the first
     // un-started day, so a session you're mid-way through is never clobbered.
@@ -7499,7 +7518,7 @@ function resolveSpec(request, state) {
       // what's next/undone stays full-strength (the hierarchy James asked
       // for, done visually instead of with more words).
       var statHtml;
-      if (st.key === "done") statHtml = '<span class="weekrow__anno weekrow__anno--done" aria-label="closed">' + checkIcon + '</span>';
+      if (st.key === "done") statHtml = '<span class="weekrow__anno weekrow__anno--done" aria-label="done">' + checkIcon + '</span>';
       // v136A: finished-early is its own honest annotation -- no check icon
       // (the check is reserved for genuine completion), so it can never be
       // mistaken for a full close. v1.8 TEMPO Ticket 2 fix-up: the unit in
@@ -8519,7 +8538,7 @@ function resolveSpec(request, state) {
     var detail = hit.pr.done > 0
       ? (hit.pr.done + " of " + hit.pr.total + " exercises done")
       : (hit.setsDone + (hit.setsDone === 1 ? " set logged" : " sets logged"));
-    $("resumeStripDetail").textContent = name + " — " + detail;
+    $("resumeStripDetail").textContent = name + " · " + detail;
     el.setAttribute("data-resume-idx", String(hit.idx));
   }
   function renderAll(animate) {
@@ -10999,8 +11018,12 @@ function resolveSpec(request, state) {
     if (prCalloutEl && prCalloutTextEl) {
       if (honestRead.prs.length) {
         var prLabel = honestRead.prs.length === 1 ? "New best" : "New bests";
-        var prList = honestRead.prs.map(function (p) { return esc(p.name) + " " + p.orm + esc(unit); }).join(", ");
-        prCalloutTextEl.innerHTML = "<b>" + prLabel + "</b> — " + prList;
+        // 13 July 2026 audit (Tier 1): the <b> is now the bordered NEW BEST
+        // badge (see .complete__pr-banner b); the list gains "est." (these
+        // are est-1RM figures, honesty over brevity) and middots per the
+        // app's punctuation habit -- no more em dash.
+        var prList = honestRead.prs.map(function (p) { return esc(p.name) + " · est. " + p.orm + esc(unit); }).join(", ");
+        prCalloutTextEl.innerHTML = "<b>" + prLabel + "</b><span>" + prList + "</span>";
         prCalloutEl.hidden = false;
       } else {
         prCalloutEl.hidden = true;
@@ -11077,6 +11100,12 @@ function resolveSpec(request, state) {
     else if (blockDoneZeroRounds) closeParts.push("conditioning done"); // real work asserted, no fake round count
     if (mins != null) closeParts.push(mins + " min");
     if (volume > 0) closeParts.push(Math.round(volume).toLocaleString() + " " + unit);
+    // 13 July 2026 audit (Tier 1): the old dark receipt promised Just-Today
+    // finishes an explicit "off plan, no progression read" line; the finish-
+    // page rebuild silently dropped it (buildHonestRead still computed it,
+    // nothing rendered it) -- an honesty regression, restored here as one
+    // quiet close-register clause.
+    if (ses.origin === "alternate") closeParts.push("off plan · no progression read");
     var closeEl = $("completeClose");
     if (closeEl) { closeEl.textContent = closeParts.join(" · "); closeEl.hidden = !closeParts.length; }
     // The stamp settle is pure CSS (restarted by re-triggering the

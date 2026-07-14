@@ -93,7 +93,7 @@ APPROVED_LITERALS.forEach(function (s) {
 // 13 July 2026: dropped the "closed" word (research found no real training
 // app labels a done day with a status word -- see test-copy-guard.js for the
 // full assertion). The checkmark badge itself is still present.
-ok(/weekrow__anno weekrow__anno--done" aria-label="closed">/.test(SRC), 'week-row done-state checkmark badge present');
+ok(/weekrow__anno weekrow__anno--done" aria-label="done">/.test(SRC), 'week-row done-state checkmark badge present');
 // v1.8 TEMPO Ticket 2 fix-up (approved): the banked label now reads a true
 // completed-set count (bk.setsDone) instead of pr.done (which counts
 // completed EXERCISES, a different unit) -- see test-v1_8-tempo-finish.js

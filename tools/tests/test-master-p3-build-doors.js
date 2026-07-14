@@ -34,7 +34,7 @@ function extractFn(name) {
 
 // ---------- 1. ctaLabel no longer has a weekDone branch ----------
 {
-  ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(SRC),
+  ok(/var ctaLabel = started \? "Continue" : "View the session";/.test(SRC),
      'ctaLabel is computed from started/not-started only -- no weekDone branch (was: weekDone ? "Build next week" : ...)');
   // Scoped to code, not comments -- "Build next week" only survives now in
   // explanatory prose describing what was removed and why.

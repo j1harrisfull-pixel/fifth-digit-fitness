@@ -40,8 +40,8 @@ function extractFn(name) {
 // ---------- 2. renderWeekList: done state renders a badge with no visible text, aria-label carries the meaning for a11y ----------
 {
   const fn = extractFn('renderWeekList');
-  ok(/statHtml = '<span class="weekrow__anno weekrow__anno--done" aria-label="closed">' \+ checkIcon \+ '<\/span>'/.test(fn),
-    'done state renders just the checkmark icon, no visible word -- aria-label="closed" preserves the meaning for screen readers');
+  ok(/statHtml = '<span class="weekrow__anno weekrow__anno--done" aria-label="done">' \+ checkIcon \+ '<\/span>'/.test(fn),
+    'done state renders just the checkmark icon, no visible word -- aria-label="done" preserves the meaning for screen readers');
 }
 
 // ---------- 3. renderWeekList: default/future state renders nothing ----------

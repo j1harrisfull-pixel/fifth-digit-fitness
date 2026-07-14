@@ -200,13 +200,13 @@ ok(/<details class="preview__ex-formnotes"><summary>Form notes<\/summary>/.test(
    'Form notes remain an unopened <details>/<summary> disclosure, unchanged');
 
 // ---------- v1.12.2 Home Hero CTA Copy + In-Workout Build Removal ----------
-// The hero's own label is now "View the workout" (it opens Preview, not a
+// The hero's own label is now "View the session" (it opens Preview, not a
 // live session) -- "Start the session" moved entirely to Preview's own
 // bottom CTA. Build is hidden (not removed) from #app whenever
 // data-mode="preview" or data-view="day", so Home/plan-setup keeps it
 // working exactly as before.
-ok(/var ctaLabel = started \? "Continue" : "View the workout";/.test(SRC),
-   'Home hero CTA reads "View the workout" for a not-yet-started session (Preview\'s own CTA keeps "Start the session")');
+ok(/var ctaLabel = started \? "Continue" : "View the session";/.test(SRC),
+   'Home hero CTA reads "View the session" for a not-yet-started session (Preview\'s own CTA keeps "Start the session")');
 ok(!/var ctaLabel = weekDone \? "Build next week" : started \? "Continue" : "Start the session";/.test(SRC),
    'the old "Start the session" hero-CTA assignment is gone -- no longer a false promise of a live session');
 ok(/var ctaLabel = isToday \? "Start the session" : "Train this today";/.test(extractFn('renderPreview')),
