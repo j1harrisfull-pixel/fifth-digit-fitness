@@ -56,10 +56,14 @@ const openingCss = SRC.slice(openStart, openEnd);
 
 ok(/#bootSplash, \.intro, #planSheet\.sheet \{ background: var\(--tempo-bg\); \}/.test(openingCss),
    '#bootSplash/.intro/#planSheet share the TEMPO graphite background');
-ok(/\.intro \.btn--primary \{ background: var\(--tempo-clay-deep\)/.test(openingCss),
-   'intro primary actions use the contrast-safe clay-deep fill, not brass');
-ok(/#planSheet \.btn--primary \{ background: var\(--tempo-clay-deep\)/.test(openingCss),
-   'plan sheet primary actions use the contrast-safe clay-deep fill, not brass');
+// Home audit (15 July 2026, James): clay was the odd accent out against the
+// app's brass identity -- opening-flow primaries are now the receipt's
+// ink-on-bone voice inverted for dark ground (bone pill, ink text). Clay is
+// reserved for the day view's LOG action only.
+ok(/\.intro \.btn--primary \{ background: var\(--tempo-bone\); border-color: transparent; color: var\(--tempo-bone-ink\)/.test(openingCss),
+   'intro primary actions are the bone pill with ink text (no clay, no brass fill)');
+ok(/#planSheet \.btn--primary \{ background: var\(--tempo-bone\); border-color: transparent; color: var\(--tempo-bone-ink\)/.test(openingCss),
+   'plan sheet primary actions are the bone pill with ink text (no clay, no brass fill)');
 // Tier 2 audit (13 July 2026): the brass title is gone entirely -- the
 // prompt now has its own eyebrow+hero pair (quiet "Before you start" label
 // over an ink --fs-h1 question), no borrowed .confirm__title class, no

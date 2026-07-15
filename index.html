@@ -383,7 +383,11 @@ body.has-bottomnav { padding-bottom: 0; }
 .app[data-view="week"] .today-card__lift-meta { color: var(--tempo-bone-dim); }
 .app[data-view="week"] .today-card__lift--more { color: var(--tempo-bone-dim); }
 .app[data-view="week"] .today-card__recap { position: relative; z-index: 1; color: var(--tempo-bone-dim); border-top-color: var(--tempo-bone-line); }
-.app[data-view="week"] .today-card__cta { position: relative; z-index: 1; background: var(--tempo-clay-deep); color: var(--tempo-bone); border-radius: 999px; }
+/* Home audit (15 July 2026, James): the clay pill was the only red on a
+   screen that otherwise speaks brass -- two accents fighting. The CTA is now
+   ink-on-bone, the finish receipt's voice; brass stays Home's one accent.
+   Clay remains ONLY as the day view's in-workout action colour (LOG). */
+.app[data-view="week"] .today-card__cta { position: relative; z-index: 1; background: var(--tempo-bone-ink); color: var(--tempo-bone); border-radius: 999px; }
 .app[data-view="week"] .today-card__sub { position: relative; z-index: 1; color: var(--tempo-bone-dim); }
 .app[data-view="week"] .today-card__sub:hover { color: var(--tempo-bone-ink); }
 /* 14-day rhythm strip: the one place chevrons appear on Home, per the
@@ -522,9 +526,11 @@ body.has-bottomnav { padding-bottom: 0; }
    specificity regardless of source order, the same way #planSheet.sheet and
    #readinessPromptTitle already win their own base rules in this file. */
 #intro::before { content: "FD"; background: none; width: auto; aspect-ratio: auto; top: auto; left: auto; bottom: -6%; right: -4%; transform: none; font-family: var(--font-display); font-weight: 700; font-size: 42vw; line-height: 1; color: var(--tempo-ink); opacity: .045; }
-/* Primary intro actions: clay action fill (was brass), matching the exact
-   contrast-safe pairing already test-enforced in Tickets 2/3. */
-.intro .btn--primary { background: var(--tempo-clay-deep); border-color: transparent; color: var(--tempo-bone); }
+/* Home audit (15 July 2026, James): primaries here were the clay leftover --
+   on these dark surfaces the ink-on-bone voice inverts to a bone pill with
+   ink text (same receipt language, correct ground). Clay is reserved for the
+   day view's LOG action only. */
+.intro .btn--primary { background: var(--tempo-bone); border-color: transparent; color: var(--tempo-bone-ink); }
 /* Plan sheet (Build Week / Just Today / goal-days-time-equipment): graphite
    base, clay primary actions. Chip/segment UNSELECTED fill was still the
    old warm --surface-2, which read as a leftover warm-brown pill against
@@ -532,7 +538,7 @@ body.has-bottomnav { padding-bottom: 0; }
    language (ink ring, no fill swap) was already quiet/contrast-safe and
    carries over unchanged. */
 #planSheet.sheet { border-top-color: var(--tempo-line); color: var(--tempo-ink); }
-#planSheet .btn--primary { background: var(--tempo-clay-deep); border-color: transparent; color: var(--tempo-bone); }
+#planSheet .btn--primary { background: var(--tempo-bone); border-color: transparent; color: var(--tempo-bone-ink); }
 #planSheet .seg { background: var(--tempo-surface); border-color: var(--tempo-line); }
 #planSheet .seg button { color: var(--tempo-dim); }
 #planSheet .seg button[aria-pressed="true"] { background: var(--tempo-bg); color: var(--tempo-ink); box-shadow: inset 0 0 0 1.5px var(--tempo-ink); }
