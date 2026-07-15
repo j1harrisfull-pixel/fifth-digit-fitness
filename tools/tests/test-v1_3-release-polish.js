@@ -12,23 +12,27 @@ let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- Test 1: onboarding product line ----------
+// Opening-flow rebuild (15 July 2026): the intro collapsed from 4 near-
+// identical wizard screens to ONE brand beat (James: "lots of pages of the
+// same thing... not very intuitive"). This test's original claims -- product
+// line inside step 1, exactly 4 onboarding steps -- describe the retired
+// structure. The product line and privacy line survive on the single screen;
+// re-asserted against the new shape rather than the old 4-step count.
 {
-  // v1.5: the opening-screen upgrade splits this line across two lines with
-  // <br> (matching the ticket's given copy block) -- the words themselves
-  // are unchanged, only the line break was added.
   ok(/<p class="intro__product">Training built for you\.<br>Logged on your phone\.<\/p>/.test(SRC),
-     'the exact product line appears on the first onboarding screen (test 1)');
+     'the exact product line appears on the single onboarding screen (test 1)');
   const introIdx = SRC.indexOf('id="introStep1"');
   const productIdx = SRC.indexOf('intro__product', introIdx);
-  const titleIdx = SRC.indexOf('intro__title">Let\'s make this yours.', introIdx);
-  const step2Idx = SRC.indexOf('id="introStep2"', introIdx);
-  ok(introIdx >= 0 && productIdx > introIdx && productIdx < titleIdx && titleIdx < step2Idx,
-     'the product line sits before "Let\'s make this yours." inside step 1, not a new screen');
+  const titleIdx = SRC.indexOf('id="introTitle"', introIdx);
+  ok(introIdx >= 0 && productIdx > introIdx && productIdx < titleIdx,
+     'the product line sits before the heading inside the single intro screen');
   ok(/Stays on your phone\. Always\./.test(SRC), 'the existing privacy line is preserved');
-  // The existing 4 onboarding steps (name, how-it-works, injury, experience) are untouched --
-  // no new step was added for the product line, it was folded into step 1.
+  // Opening-flow rebuild: the 4-step wizard (name/how-it-works/injury/
+  // experience) is gone -- exactly ONE intro__step now; injuries and
+  // experience live inline in the build wizard instead (see
+  // test-audit-opening-flow.js).
   const stepCount = (SRC.match(/class="intro__step"/g) || []).length;
-  ok(stepCount === 4, 'no extra onboarding screen was added -- still exactly the 4 pre-existing intro steps, found ' + stepCount);
+  ok(stepCount === 1, 'the intro is a single beat, not a multi-step wizard, found ' + stepCount + ' step(s)');
 }
 
 // ---------- Test 2/3: user-facing version ----------

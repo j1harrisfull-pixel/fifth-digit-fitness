@@ -64,14 +64,13 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 }
 
 // ---------- 6. Intro steps ----------
+// Opening-flow rebuild (15 July 2026) retired the 4-step intro wizard this
+// section originally guarded (name/how-it-works/injury/experience screens).
+// Superseded by test-audit-intro-flow.js, which covers the single-beat
+// intro plus experience/injuries folded into the build wizard's own goal
+// and kit steps. Kept as a pointer, not a duplicate assertion set.
 {
-  ok(/<p class="intro__how" id="introHowLabel" hidden>Here's how it works<\/p>\s*<h1 class="intro__title" id="introStep2Title">/.test(SRC),
-    'step 2 eyebrow renders ABOVE the hero heading (was inverted)');
-  ok(/<p class="intro__how">Step 3 of 4<\/p>\s*<h1 class="intro__title">Anything we should avoid\?<\/h1>/.test(SRC), 'step 3 has a step-count eyebrow');
-  ok(/<p class="intro__how">Step 4 of 4<\/p>\s*<h1 class="intro__title">How long have you been training\?<\/h1>/.test(SRC),
-    'step 4 has a step-count eyebrow and asks a question instead of the field-label "Training experience"');
-  ok(/<div class="seg seg--full seg--goal" id="introExpChips"/.test(SRC), 'experience options use the segmented outlined group');
-  ok(/id="introExpChips"[\s\S]{0,300}data-exp="beginner"/.test(SRC), 'the same data-exp buttons remain (handler + aria-pressed sync unchanged)');
+  ok(true, 'intro-step assertions superseded by test-audit-intro-flow.js (single-beat intro rebuild)');
 }
 
 // ---------- 7. Coach-span untouched -- all Tier 2 items are presentation/copy ----------

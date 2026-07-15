@@ -34,12 +34,17 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
 ok(spanMd5 === 'ce6452b369d4d1d14fd0bf8560208ce7', 'coach-span md5 unchanged (ce6452b369d4d1d14fd0bf8560208ce7), got ' + spanMd5);
 
-// ---------- 2. No onboarding logic / step-order / behavior change ----------
-ok((SRC.match(/class="intro__step"/g) || []).length === 4, 'still exactly 4 intro steps (no step added/removed)');
+// ---------- 2. Onboarding structure ----------
+// Opening-flow rebuild (15 July 2026, James: "lots of pages of the same
+// thing, not very intuitive") intentionally retired the 4-step intro wizard
+// this section originally pinned as unchanged -- see test-audit-intro-flow.js
+// for the full rebuild coverage (single-beat intro, experience/injuries
+// folded into the build wizard, first-build auto-accept). Re-pinned here to
+// the new intentional shape so a future accidental step-count regression
+// still gets caught.
+ok((SRC.match(/class="intro__step"/g) || []).length === 1, 'the intro is a single beat, not a multi-step wizard');
 const showWelcomeBody = extractFn('showWelcome');
-ok(/introShowStep\(building && !state\.userName \? 1 : 2\);/.test(showWelcomeBody),
-   'showWelcome() step-routing logic unchanged verbatim');
-ok(/go\.textContent = "Build my first week";/.test(showWelcomeBody), 'showWelcome() CTA text logic unchanged verbatim');
+ok(/go\.textContent = building \? "Build my first week" : "Got it";/.test(showWelcomeBody), 'showWelcome() sets the CTA for building vs info mode');
 const openPlanBody = extractFn('openPlan');
 ok(/openSheetNoKb\(planSheet\);/.test(openPlanBody), 'openPlan() still opens planSheet via the existing openSheetNoKb path, unchanged');
 ok(/pending = null; pendingBuild = null; pendingToday = null; pendingSubstituteIdx = null;/.test(openPlanBody),
@@ -102,11 +107,11 @@ ok(/^\.empty \{ position: relative; text-align: center; padding: 48px 24px; over
 ok(/Fifth Digit Coach · v1\.9 · works fully offline/.test(SRC), 'footer version string updated to v1.9');
 ok(!/Fifth Digit Coach · v1\.3 · works fully offline/.test(SRC), 'stale v1.3 footer string is gone');
 
-// ---------- 8. No copy change beyond the approved footer string ----------
-ok(/Let's make this yours\./.test(SRC), 'intro step 1 headline copy unchanged');
-ok(/Here's how it works/.test(SRC), 'intro step 2 headline copy unchanged');
-ok(/Anything we should avoid\?/.test(SRC), 'intro step 3 headline copy unchanged');
-ok(/Training experience/.test(SRC), 'intro step 4 headline copy unchanged');
+// ---------- 8. No copy change beyond the approved footer string + the ----------
+// intentional opening-flow rebuild (15 July 2026) -- headline checks below
+// point at the single intro screen's new copy instead of the retired steps.
+ok(/Let's build your first week\./.test(SRC), 'intro headline states the actual next action');
+ok(/Here's how it works\./.test(SRC), 'info-mode reopen headline unchanged');
 ok(/How are you feeling today\?/.test(SRC), 'readiness prompt copy unchanged');
 
 // ---------- 9. Rejected-copy guard (scoped to the new/changed opening code) ----------
