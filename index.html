@@ -311,9 +311,16 @@ body.has-bottomnav { padding-bottom: 0; }
 .rhythm { display: flex; align-items: flex-end; gap: 6px; padding: 4px 14px 14px; }
 .rhythm__col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; min-width: 0; }
 .rhythm__track { width: 100%; height: 34px; display: flex; align-items: flex-end; }
-.rhythm__bar { width: 100%; border-radius: 3px; background: color-mix(in srgb, var(--accent) 55%, var(--surface-2)); }
-.rhythm__col--rest .rhythm__bar { height: 3px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
-.rhythm__col.is-done .rhythm__bar { background: color-mix(in srgb, var(--ready) 55%, var(--surface-2)); }
+/* Home audit #3 (15 July 2026): a fresh week rendered as solid brass blocks
+   (equal-length sessions -> every bar at 100%), which read as "trained" right
+   under the Last-14-days strip. PLANNED sessions are now quiet graphite bars
+   on a faint track; brass is earned -- a bar turns brass only when its
+   session is finished. (is-done was --ready green; green means ready/
+   recovered elsewhere -- one event, one colour, same call as the PR badge.) */
+.rhythm__track { background: color-mix(in srgb, var(--surface-2) 45%, transparent); border-radius: 3px; }
+.rhythm__bar { width: 100%; border-radius: 3px; background: var(--surface-3, var(--surface-2)); border: 1px solid var(--line-strong); }
+.rhythm__col--rest .rhythm__bar { height: 3px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); border: 0; }
+.rhythm__col.is-done .rhythm__bar { background: color-mix(in srgb, var(--accent) 55%, var(--surface-2)); border-color: transparent; }
 .rhythm__lbl { font-size: 10px; font-weight: 600; letter-spacing: .04em; color: var(--faint); text-transform: uppercase; }
 /* The fatigue reading, demoted from a percentage donut to one honest line:
    semantic dot + sentence, silent when there's no data yet. Phase 3: a touch
@@ -396,7 +403,9 @@ body.has-bottomnav { padding-bottom: 0; }
    and colour only. */
 .app[data-view="week"] .consistency-label { color: var(--tempo-faint); }
 .app[data-view="week"] .consistency-cell { background: var(--tempo-line); border-radius: 0; clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%); }
-.app[data-view="week"] .consistency-cell.is-trained { background: var(--tempo-clay); }
+/* Home audit #3: trained cells were the other clay-red holdout on Home --
+   brass is the identity, and it now matches the rhythm strip's earned-brass. */
+.app[data-view="week"] .consistency-cell.is-trained { background: var(--tempo-brass); }
 .app[data-view="week"] .consistency-cell.is-today { box-shadow: 0 0 0 1px var(--tempo-dim); }
 .app[data-view="week"] .weekrow { border-top-color: var(--tempo-line); }
 .app[data-view="week"] .weeklist .weekrow:last-child { border-bottom-color: var(--tempo-line); }
@@ -654,6 +663,11 @@ body.has-bottomnav { padding-bottom: 0; }
 .weekbar__title { min-width: 0; flex: 1 1 auto; font-family: var(--font-body); font-weight: 600; font-size: 14px; color: var(--ink-dim); letter-spacing: 0; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weekbar__goal { font-size: 12px; color: var(--ink-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 56vw; }
 .weeknav { display: inline-flex; align-items: center; gap: 4px; flex: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; }
+/* Home audit #3 (15 July 2026): renderHead already sets weekNav[hidden] on
+   one-week programs, but inline-flex was overriding the hidden attribute --
+   the same banner[hidden] bug class fixed in v1.10. A dead "Week 1 of 1"
+   pager with two no-op chevrons rendered anyway. */
+.weeknav[hidden] { display: none; }
 .weeknav__btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; border-radius: var(--radius); font-size: 22px; line-height: 1; color: var(--ink); }
 .weeknav__btn:disabled { opacity: .3; cursor: default; }
 .weeknav__btn:not(:disabled):active { transform: scale(.9); }
@@ -1794,6 +1808,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="home-hero view-week" id="homeHero"></div>
     <p class="consistency-label view-week" id="consistencyLabel"></p>
     <div class="consistency view-week" id="consistencyStrip"></div>
+    <p class="consistency-label view-week" id="weekRhythmLabel" hidden>This week · tap a session</p>
     <div class="rhythm view-week" id="weekRhythm" hidden></div>
     <div class="weeklist view-week" id="weekList"></div>
     <div class="session view-day" id="sessionHead"></div>
@@ -7561,7 +7576,11 @@ function resolveSpec(request, state) {
   }
   function renderWeekRhythm(sessions) {
     var host = $("weekRhythm"); if (!host) return;
-    if (!sessions.length) { host.hidden = true; host.innerHTML = ""; return; }
+    // Home audit #3: the strip sat unlabelled directly under "Last 14 days",
+    // so its blocks read as consistency cells. It gets its own quiet label.
+    var lbl = $("weekRhythmLabel");
+    if (!sessions.length) { host.hidden = true; host.innerHTML = ""; if (lbl) lbl.hidden = true; return; }
+    if (lbl) lbl.hidden = false;
     var mins = sessions.map(sessionMinutes);
     var maxMin = Math.max.apply(null, mins.concat([1]));
     var td = programTrainDays();
