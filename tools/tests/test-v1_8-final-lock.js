@@ -241,7 +241,10 @@ ok(/"Enough for today\."/.test(SRC), 'partial finish spoken line is "Enough for 
 // FIX 3: em dash copy replaced
 // ==================================================================
 ok(SRC.indexOf('Optional — change it anytime in Settings.') === -1, 'old em dash string "Optional — change it anytime in Settings." is gone');
-ok(SRC.indexOf('Optional. Change it anytime in Settings.') !== -1, 'replacement string "Optional. Change it anytime in Settings." is present');
+// Intro audit (15 July 2026): the intro step-4 copy of this string became
+// "Optional. Skip it and the coach assumes intermediate." (the honest-default
+// fix). The lock's intent -- no em dash form anywhere -- is unchanged.
+ok(SRC.indexOf('Optional. Skip it and the coach assumes intermediate.') !== -1, 'intro step-4 fine print carries the honest-default copy (no em dash)');
 ok(SRC.indexOf('Every session warms up and cools down &mdash; always.') === -1, 'old em dash string "Every session warms up and cools down &mdash; always." is gone');
 ok(SRC.indexOf('Every session warms up and cools down. Always.') !== -1, 'replacement string "Every session warms up and cools down. Always." is present');
 

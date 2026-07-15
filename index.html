@@ -1280,6 +1280,10 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .intro__row { display: flex; align-items: center; gap: 14px; }
 .intro__row .intro__go { flex: 1; width: auto; margin: 0; }
 .intro__skip { flex: none; background: none; border: 0; color: var(--ink-dim); font-size: 14px; font-weight: 600; padding: 8px 4px; cursor: pointer; }
+/* Intro audit (15 July 2026): quiet in-flow Back on steps 2-4 -- same ghost
+   voice as Skip, sitting above the step eyebrow. */
+.intro__back { display: block; background: none; border: 0; padding: 0 4px 10px 0; margin-left: -4px; color: var(--tempo-dim); font-size: 14px; font-weight: 600; cursor: pointer; }
+.intro__back:hover { color: var(--tempo-ink); }
 .intro__skip:hover { color: var(--ink); }
 .intro__fine { font-size: 12px; color: var(--faint); margin: 16px 0 0; }
 /* Step 2's overline -- shown only when the heading greets you by name, so the
@@ -1335,7 +1339,7 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 0 18px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink-dim); transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease; }
 /* Same quiet-selected language as .seg: ink ring + bright text, no white slab. */
-.chip[aria-pressed="true"] { background: var(--surface); border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); color: var(--ink); }
+.chip[aria-pressed="true"], .chip.is-on { background: var(--surface); border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); color: var(--ink); }
 /* Bodyweight-only is an either/or against the kit above, not another item in
    the row -- drop it onto its own line with a hairline divider so the choice
    reads as "a kit, OR nothing but my body". */
@@ -2180,7 +2184,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 </div>
 
-<div class="intro" id="intro" hidden>
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="Welcome" hidden>
   <div class="intro__card">
     <svg class="intro__mark" viewBox="0 0 1725 1210" fill="currentColor" role="img" aria-label="Fifth Digit">
       <path fill-rule="evenodd" d="M0 0L820 0L820 215L246 215L246 515L577 515L577 730L246 730L246 1210L0 1210Z M945 0L1095 0A630 605 0 0 1 1095 1210L702 1210L702 515L945 515L945 0Z M945 215L1095 215A385 390 0 0 1 1095 995L945 995L945 215Z"/>
@@ -2189,9 +2193,13 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div class="intro__step" id="introStep1">
       <div class="intro__hero">
         <p class="intro__wordmark">FIFTH DIGIT Coach</p>
+        <!-- Intro audit (15 July 2026): the mission line ("Build the plan.
+             Train when ready...") did the same job as the product line right
+             above it -- five text blocks stacked before the first input.
+             One supporting line stays; the flow itself is the mission. -->
         <p class="intro__product">Training built for you.<br>Logged on your phone.</p>
-        <p class="intro__mission">Build the plan. Train when ready.<br>Keep the work honest.</p>
       </div>
+      <p class="intro__how">Step 1 of 4</p>
       <h1 class="intro__title">Let's make this yours.</h1>
       <label class="intro__ask" for="introName">What should we call you?</label>
       <input class="intro__name" id="introName" type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" enterkeyhint="go">
@@ -2207,6 +2215,14 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
            h1, inverting the app's eyebrow-over-hero pattern. Same elements,
            same show/hide logic (the eyebrow only appears when a name
            personalises the heading), just the right way up. -->
+      <!-- Intro audit (15 July 2026): steps 3 and 4 said "of 4" but steps 1
+           and 2 never did -- the count materialised mid-flow. During the
+           build flow every step now carries its number; the personalised
+           greeting stays in the h1. Info-mode reopens (from Settings) keep
+           the old "Here's how it works" label instead -- there's no flow to
+           count there. A quiet Back control on steps 2-4 makes the name /
+           injuries recoverable without knowing about Settings yet. -->
+      <button class="intro__back" type="button" data-introback="1" id="introBack2">‹ Back</button>
       <p class="intro__how" id="introHowLabel" hidden>Here's how it works</p>
       <h1 class="intro__title" id="introStep2Title">Here's how it works</h1>
       <ul class="intro__list">
@@ -2224,6 +2240,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
          addAthleteInjury("pain", ...) is the one shared write path. Only
          shown when actually building a first program (see showWelcome). -->
     <div class="intro__step" id="introStep3" hidden>
+      <button class="intro__back" type="button" data-introback="2">‹ Back</button>
       <p class="intro__how">Step 3 of 4</p>
       <h1 class="intro__title">Anything we should avoid?</h1>
       <label class="intro__ask" for="introInjInput">Add injuries, painful movements, restricted joints, or anything you don't want programmed.</label>
@@ -2248,6 +2265,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
            one now does too. Chips become the outlined-but-flush segmented
            treatment the Build sheet's choice groups use; same data-exp
            buttons, same handler, same aria-pressed sync. -->
+      <button class="intro__back" type="button" data-introback="3">‹ Back</button>
       <p class="intro__how">Step 4 of 4</p>
       <h1 class="intro__title">How long have you been training?</h1>
       <p class="intro__ask">This helps the coach set the right amount of work.</p>
@@ -2259,7 +2277,12 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <div class="intro__row" style="margin-top:18px">
         <button class="btn btn--primary intro__go" id="introGo" type="button" data-build="1">Build my first week</button>
       </div>
-      <p class="intro__fine">Optional. Change it anytime in Settings.</p>
+      <!-- Intro audit (15 July 2026): "Optional" used to sit under a control
+           that arrived with Intermediate silently preselected (the athlete
+           default) -- a never-touched "choice" that set a beginner's dosing.
+           First run now shows NO selection; the default still applies
+           invisibly if untouched, and the fine print says so. -->
+      <p class="intro__fine">Optional. Skip it and the coach assumes intermediate.</p>
     </div>
   </div>
 </div>
@@ -9731,7 +9754,9 @@ function resolveSpec(request, state) {
       var wrap = $("injChips-" + cat); if (!wrap) return;
       var items = inj.filter(function (i) { return i.category === cat; });
       wrap.innerHTML = items.length
-        ? items.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + cat + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+        // Intro audit (15 July 2026): delete buttons, not toggles -- same
+        // is-on/aria-label treatment as the other two injury-chip renderers.
+        ? items.map(function (i) { return '<button class="chip is-on" data-act="inj-del" data-cat="' + cat + '" data-target="' + esc(i.target) + '" aria-label="Remove ' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
         : '<span class="sect__hint">None yet.</span>';
     });
     // Product Polish Phase 1 (item 2): the simplified quick-add list shows
@@ -9741,7 +9766,10 @@ function resolveSpec(request, state) {
     var quickWrap = $("injChips-quick");
     if (quickWrap) {
       quickWrap.innerHTML = inj.length
-        ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+        // Intro audit (15 July 2026): these chips are DELETE buttons, not
+      // toggles -- aria-pressed said "pressed toggle" to screen readers. The
+      // is-on class keeps the same filled look; the label says what a tap does.
+      ? inj.map(function (i) { return '<button class="chip is-on" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" aria-label="Remove ' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
         : '<span class="sect__hint">None yet.</span>';
     }
   }
@@ -9919,6 +9947,22 @@ function resolveSpec(request, state) {
     var firstBuild = !hasProgram(), ta = $("todayAdjust");
     if (ta) ta.open = firstBuild;
     openSheetNoKb(planSheet);
+  }
+  // Intro audit fix 1 (15 July 2026): the intro's "Build my first week" CTA
+  // lands DIRECTLY on the wizard's goal step. The old path dropped a brand-new
+  // user on the "How much do you want to plan?" chooser -- a scope question
+  // the intro never set up, with a "Done" button that dismissed the sheet
+  // having built nothing (straight back to intro step 4, a dead-end loop).
+  // Scope choice still exists for every later build; first run just presets
+  // one week. Deliberately does NOT set planChoiceMade -- that flag means
+  // "the user chose on the chooser control", and they didn't (James's
+  // 13 July rule: that screen must never look pre-decided).
+  function openPlanForFirstBuild() {
+    openPlan();
+    $("planChoiceStep").hidden = true;
+    buildPrefs().weeks = 1;
+    setPlanMode("week");
+    showWeekStep(1);
   }
   // Entry point for the home hero's "Can't do X today? Substitute with Just
   // Today" link -- opens straight into Just-Today with the target day
@@ -11662,12 +11706,19 @@ function resolveSpec(request, state) {
     if (s3) s3.hidden = n !== 3;
     if (s4) s4.hidden = n !== 4;
     if (n === 2) {
-      // Greet by name in the heading, and only then show the "how it works"
-      // overline -- otherwise the two would say the same thing twice.
+      // Greet by name in the heading. During the build flow the overline is
+      // the step count (every step now carries its number -- intro audit,
+      // 15 July 2026); on an info-mode reopen from Settings there's no flow
+      // to count, so the old rule stands: "Here's how it works" appears only
+      // when a name has personalised the heading away from saying the same.
       var t = $("introStep2Title"), lbl = $("introHowLabel"), nm = state.userName;
       if (t) t.textContent = nm ? "Good to meet you, " + nm + "." : "Here's how it works";
-      if (lbl) lbl.hidden = !nm;
+      if (lbl) {
+        lbl.textContent = introBuilding ? "Step 2 of 4" : "Here's how it works";
+        lbl.hidden = introBuilding ? false : !nm;
+      }
       var s2go = $("introStep2Go"); if (s2go) s2go.textContent = introBuilding ? "Continue" : "Got it";
+      var bk2 = $("introBack2"); if (bk2) bk2.hidden = !introBuilding;
     }
     if (n === 3) renderIntroInjChips();
     if (n === 4) syncIntroExpChips();
@@ -11678,11 +11729,20 @@ function resolveSpec(request, state) {
     var wrap = $("introInjChips"); if (!wrap) return;
     var inj = (state.athlete && Array.isArray(state.athlete.injuries)) ? state.athlete.injuries : [];
     wrap.innerHTML = inj.length
-      ? inj.map(function (i) { return '<button class="chip" aria-pressed="true" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
+      // Intro audit (15 July 2026): these chips are DELETE buttons, not
+      // toggles -- aria-pressed said "pressed toggle" to screen readers. The
+      // is-on class keeps the same filled look; the label says what a tap does.
+      ? inj.map(function (i) { return '<button class="chip is-on" data-act="inj-del" data-cat="' + esc(i.category) + '" data-target="' + esc(i.target) + '" aria-label="Remove ' + esc(i.target) + '" type="button">' + esc(i.target) + ' ✕</button>'; }).join("")
       : "";
   }
+  // Intro audit fix 3 (15 July 2026): normalizeAthlete defaults experience to
+  // "intermediate", which used to arrive on step 4 as a preselected button
+  // under fine print reading "Optional" -- a never-touched "choice" that set
+  // a beginner's dosing. The default still applies invisibly if the step is
+  // skipped; the control only lights up once the user actually taps it.
+  var introExpChosen = false;
   function syncIntroExpChips() {
-    var exp = (state.athlete && state.athlete.experience) || "";
+    var exp = introExpChosen ? ((state.athlete && state.athlete.experience) || "") : "";
     document.querySelectorAll("#introExpChips button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-exp") === exp); });
   }
   function showWelcome(building) {
@@ -11736,13 +11796,27 @@ function resolveSpec(request, state) {
       removeAthleteInjury(b.getAttribute("data-cat"), b.getAttribute("data-target"));
       save(); renderIntroInjChips(); renderAthleteSettings();
     });
-    var s3go = $("introStep3Go"); if (s3go) s3go.addEventListener("click", function () { introShowStep(4); });
+    // Intro audit fix 2 (15 July 2026): Continue used to silently drop text
+    // typed into the injury field but never Add-ed ("left knee" -> Continue ->
+    // gone, no warning). Continue now commits pending input through the same
+    // shared write path first. Skip keeps its explicit "proceed without
+    // adding" meaning, unchanged.
+    var s3go = $("introStep3Go"); if (s3go) s3go.addEventListener("click", function () {
+      if (injInput && injInput.value.trim() && addAthleteInjury("pain", injInput.value)) { injInput.value = ""; save(); renderIntroInjChips(); renderAthleteSettings(); }
+      introShowStep(4);
+    });
     var s3skip = $("introStep3Skip"); if (s3skip) s3skip.addEventListener("click", function () { introShowStep(4); });
+    // Intro audit fix 4: quiet Back on steps 2-4 -- a typo'd name or missed
+    // injury is recoverable in-flow, not only via Settings later.
+    document.querySelectorAll("#intro [data-introback]").forEach(function (b) {
+      b.addEventListener("click", function () { introShowStep(parseInt(b.getAttribute("data-introback"), 10)); });
+    });
     // Step 4 (experience, item 1): same data write as Settings' expChips.
     var expWrap = $("introExpChips");
     if (expWrap) expWrap.addEventListener("click", function (ev) {
       var b = ev.target.closest("[data-exp]"); if (!b) return;
       if (!state.athlete) state.athlete = normalizeAthlete(null);
+      introExpChosen = true; // fix 3: only a real tap lights the control
       state.athlete.experience = b.getAttribute("data-exp"); save(); syncIntroExpChips(); renderAthleteSettings();
     });
     var go = $("introGo");
@@ -11750,7 +11824,9 @@ function resolveSpec(request, state) {
       var building = go.getAttribute("data-build") === "1";
       // Building: leave the welcome up behind the build sheet, so cancelling
       // returns to it (at step 2). Info mode ("Got it"): just dismiss.
-      if (building) openPlan();
+      // Intro audit fix 1: first build goes straight to the wizard's goal
+      // step (openPlanForFirstBuild), never the scope chooser.
+      if (building) openPlanForFirstBuild();
       else { var el = $("intro"); if (el) el.hidden = true; }
     });
     var ib = $("introBtn"); if (ib) ib.addEventListener("click", function () { closeSheet(); showWelcome(!hasProgram()); });
