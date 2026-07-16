@@ -103,9 +103,14 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 15/16. Build my week calls the existing generator once, with the chosen values ----------
 {
-  ok(/function obCommitAndBuild\(\) \{\s*var p = buildPrefs\(\);\s*p\.goal = OB\.goal; p\.days = OB\.days; p\.minutes = OB\.minutes;\s*p\.equipment = obEquipMap\(\)\[OB\.equip\]\.slice\(\);/.test(SRC),
+  ok(/function obCommitAndBuild\(\) \{\s*var p = buildPrefs\(\);\s*p\.goal = OB\.goal; p\.days = OB\.days; p\.minutes = OB\.minutes;[\s\S]{0,700}p\.equipment = obEquipMap\(\)\[OB\.equip\]\.slice\(\);/.test(SRC),
     'Build my week writes the 4 chosen answers into the EXISTING buildPrefs() fields (test 16)');
   ok(/p\.weeks = 1; p\.planChoiceMade = false;/.test(SRC), 'first build is always a single week, same convention as the old first-build path');
+  // James's live audit (16 July 2026): an onboarding Strength build shipped a
+  // cardio block because the goal's include side-effects only lived in the
+  // OLD wizard's click handlers. obCommitAndBuild must mirror that mapping.
+  ok(/if \(p\.goal === "hybrid"\) \{ p\.conditioning = true; p\.mobility = true; \}\s*else \{ p\.conditioning = false; \}/.test(SRC),
+    'goal include side-effects mirror the old wizard: hybrid (Fat loss) -> cardio+mobility on; strength/hypertrophy/general -> cardio off');
   ok(/onboardBuildActive = true;[\s\S]{0,600}onBuild\(true\);/.test(SRC),
     'obCommitAndBuild calls the EXISTING onBuild() exactly once -- no second/duplicated generator call (test 15)');
   ok((SRC.match(/function generateProgram\(/g) || []).length === 1, 'generateProgram itself is still defined exactly once -- not duplicated for onboarding');

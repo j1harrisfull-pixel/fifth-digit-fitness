@@ -12061,6 +12061,15 @@ function resolveSpec(request, state) {
   function obCommitAndBuild() {
     var p = buildPrefs();
     p.goal = OB.goal; p.days = OB.days; p.minutes = OB.minutes;
+    // James's live audit (16 July 2026): the goal's include side-effects were
+    // only applied by the OLD wizard's bGoal/bGoalUnsure click handlers, so an
+    // onboarding Strength build kept conditioning=true (buildPrefs computes
+    // the default off the fallback goal BEFORE the chosen one is written) and
+    // shipped a cardio block inside a strength week. Mirror the old wizard's
+    // mapping exactly: hybrid (Fat loss) turns cardio+mobility on; strength/
+    // hypertrophy/general turn cardio off.
+    if (p.goal === "hybrid") { p.conditioning = true; p.mobility = true; }
+    else { p.conditioning = false; }
     p.equipment = obEquipMap()[OB.equip].slice();
     p.weeks = 1; p.planChoiceMade = false; // first build is always a single week, same as the old first-build path
     save();
