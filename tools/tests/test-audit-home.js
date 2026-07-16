@@ -26,9 +26,24 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 // ---------- 2. Rhythm strip ----------
 {
   ok(/<p class="consistency-label view-week" id="weekRhythmLabel" hidden>This week · tap a session<\/p>/.test(SRC),
-    'the rhythm strip has its own quiet label above it');
-  ok(/var lbl = \$\("weekRhythmLabel"\);[\s\S]{0,200}if \(lbl\) lbl\.hidden = true; return; \}\s*if \(lbl\) lbl\.hidden = false;/.test(SRC),
-    'the label shows/hides with the strip itself');
+    'the rhythm strip has its own quiet label above it (static markup is the pre-render fallback)');
+  // Gold-standard audit (16 July 2026): the label is now a live JOURNEY line
+  // ("2 of 3 banked · 1 to go", phase-prefixed on multi-week blocks) derived
+  // entirely from existing data -- isSessionFinished counts and the engine's
+  // own wk.focus phase text. Never invented numbers.
+  ok(/function weekJourneyLine\(sessions\) \{\s*var total = sessions\.length;\s*var done = sessions\.filter\(isSessionFinished\)\.length;/.test(SRC),
+    'the journey line counts REAL finished sessions via isSessionFinished, not a stored/invented number');
+  ok(/base = total \+ \(total === 1 \? " session" : " sessions"\) \+ " this week · tap one to start";/.test(SRC),
+    'fresh week: states the session count and teaches the tap once');
+  ok(/base = "All " \+ total \+ " banked this week";/.test(SRC), 'completed week reads as banked, not a percentage');
+  ok(/base = done \+ " of " \+ total \+ " banked · " \+ \(total - done\) \+ " to go";/.test(SRC),
+    'mid-week: X of N banked · remaining to go');
+  ok(/if \(state\.program\.weeks\.length > 1\) \{\s*var wk = curWeek\(\);\s*var phase = \(wk\.focus \|\| ""\)\.split\(":"\)\[0\]\.trim\(\);/.test(SRC),
+    'multi-week blocks prefix the engine\'s own phase word (from phaseLabel via wk.focus) -- single-week programs skip it');
+  ok(/lbl\.hidden = false; lbl\.textContent = weekJourneyLine\(sessions\);/.test(SRC),
+    'renderWeekRhythm writes the live journey line into the existing label element');
+  ok(/var lbl = \$\("weekRhythmLabel"\);[\s\S]{0,200}if \(lbl\) lbl\.hidden = true; return; \}\s*if \(lbl\) \{ lbl\.hidden = false; lbl\.textContent = weekJourneyLine\(sessions\); \}/.test(SRC),
+    'the label shows/hides with the strip itself (and now carries the live journey line)');
   ok(/\.rhythm__bar \{ width: 100%; border-radius: 3px; background: var\(--surface-3, var\(--surface-2\)\); border: 1px solid var\(--line-strong\); \}/.test(SRC),
     'planned bars are quiet graphite, not brass fills');
   ok(/\.rhythm__col\.is-done \.rhythm__bar \{ background: color-mix\(in srgb, var\(--accent\) 55%, var\(--surface-2\)\); border-color: transparent; \}/.test(SRC),

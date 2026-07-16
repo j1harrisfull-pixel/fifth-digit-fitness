@@ -7700,13 +7700,39 @@ function resolveSpec(request, state) {
     if (ses && Array.isArray(ses.blocks)) ses.blocks.forEach(function (b) { if (typeof b.minutes === "number") m += b.minutes; });
     return m;
   }
+  // Gold-standard Week-view audit (16 July 2026, James): the strip's label
+  // was a static caption ("This week · tap a session") where the category
+  // leaders tell you WHERE YOU ARE in one line. This derives that journey
+  // line from data that already exists -- isSessionFinished() per session,
+  // and the engine's own per-week phase text (wk.focus, written by
+  // phaseLabel()) for multi-week blocks. Nothing is invented: counts are the
+  // real finished-session count, the phase word is the label's own leading
+  // word ("Accumulation" / "Intensification" / "Deload").
+  function weekJourneyLine(sessions) {
+    var total = sessions.length;
+    var done = sessions.filter(isSessionFinished).length;
+    var base;
+    if (done === 0) base = total + (total === 1 ? " session" : " sessions") + " this week · tap one to start";
+    else if (done === total) base = "All " + total + " banked this week";
+    else base = done + " of " + total + " banked · " + (total - done) + " to go";
+    // Multi-week blocks: prefix the engine's phase word so the line reads
+    // "Accumulation · 1 of 3 banked · 2 to go". Single-week programs skip it
+    // (their wk.focus is empty and there's no block arc to narrate).
+    if (state.program.weeks.length > 1) {
+      var wk = curWeek();
+      var phase = (wk.focus || "").split(":")[0].trim();
+      if (phase) base = phase + " · " + base;
+    }
+    return base;
+  }
   function renderWeekRhythm(sessions) {
     var host = $("weekRhythm"); if (!host) return;
     // Home audit #3: the strip sat unlabelled directly under "Last 14 days",
-    // so its blocks read as consistency cells. It gets its own quiet label.
+    // so its blocks read as consistency cells. It gets its own quiet label --
+    // now the live journey line rather than a static caption.
     var lbl = $("weekRhythmLabel");
     if (!sessions.length) { host.hidden = true; host.innerHTML = ""; if (lbl) lbl.hidden = true; return; }
-    if (lbl) lbl.hidden = false;
+    if (lbl) { lbl.hidden = false; lbl.textContent = weekJourneyLine(sessions); }
     var mins = sessions.map(sessionMinutes);
     var maxMin = Math.max.apply(null, mins.concat([1]));
     var td = programTrainDays();
