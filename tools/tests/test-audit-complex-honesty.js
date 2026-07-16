@@ -101,7 +101,7 @@ const LIB = engineMod.exports.LIBRARY, libraryIntegrity = engineMod.exports.libr
 {
   const { execFileSync } = require('child_process');
   const spanMd5 = execFileSync('sh', ['-c', "sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5"]).toString().trim();
-  ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 matches the new approved baseline (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
+  ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 matches the new approved baseline (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 }
 
 console.log(`Complex/circuit honesty (structured movements, never-again rule): ${pass} passed, ${fail} failed`);

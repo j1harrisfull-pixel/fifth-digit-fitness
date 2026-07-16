@@ -40,7 +40,11 @@ ok(S.some(e => e.name === 'Barbell Shrug'), 'trap work exists');
 
 // ---------- 3. Wide generation sweep ----------
 function roleFamily(role) { const u = {}; (ROLES[role] || []).forEach(s => (s.patterns || []).forEach(p => u[p] = 1)); return u; }
-const PRIM = { push: ["hpush","vpush","triceps"], upper: ["hpush","vpush","hpull","vpull"], pull: ["hpull","vpull","biceps"], lower: ["squat","hinge","lunge"], legs: ["squat","hinge","lunge"], full: ["squat","hinge","hpush","hpull"] };
+// 16 July 2026: full includes "lunge" -- ROLES.full's own lead slot is
+// ["squat","lunge"], so a lunge-led Full Body day is on-role by the engine's
+// real definition (the old name-regex fallback was silently doing this job
+// for the two lunge names that existed before the library-depth batch).
+const PRIM = { push: ["hpush","vpush","triceps"], upper: ["hpush","vpush","hpull","vpull"], pull: ["hpull","vpull","biceps"], lower: ["squat","hinge","lunge"], legs: ["squat","hinge","lunge"], full: ["squat","hinge","lunge","hpush","hpull"] };
 const kits = [null, ["barbell","bodyweight"], ["dumbbell","bodyweight"], ["bodyweight"], ["kettlebell","bodyweight"], ["barbell","dumbbell","cable","machine","pullup-bar","bodyweight"], ["band","bodyweight"], ["dumbbell","pullup-bar","bodyweight"]];
 const goals = ["strength", "hybrid", "hypertrophy", "general"];
 let sessions = 0, crashes = 0, emptySessions = 0, badReps = 0, offFam = 0, bad35 = 0, hollow = 0, dupes = 0, badSets = 0;

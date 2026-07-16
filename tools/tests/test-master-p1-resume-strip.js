@@ -76,7 +76,7 @@ function extractFn(name) {
 // ---------- 6. Coach-span untouched (this work is entirely outside the span) ----------
 {
   const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-  ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 unchanged (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
+  ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 unchanged (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 }
 
 // ---------- 7. No new localStorage key introduced -- this reads only what's already persisted ----------

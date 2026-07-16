@@ -60,7 +60,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 {
   const { execSync } = require('child_process');
   const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-  ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 unchanged (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
+  ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 unchanged (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 }
 
 // ---------- 6. No new localStorage key -- goal is still just a field on the existing buildPrefs object ----------

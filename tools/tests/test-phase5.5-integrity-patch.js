@@ -41,7 +41,11 @@ const ALL_FLOOR_UNSAFE_INJ = [
   const filtered = roleFloorMoves("upper", SHOULDER_INJ);
   ok(!filtered.some(e => e.name === "Push-Up"), "a shoulder injury excludes Push-Up (joint_stress includes shoulder) from role floor moves");
   ok(!filtered.some(e => e.name === "Table Row"), "a shoulder injury excludes Table Row (joint_stress includes shoulder) from role floor moves");
-  ok(filtered.some(e => e.name === "Bench Dip"), "Bench Dip (elbow only) still offered -- filtering is per-exercise, not all-or-nothing for the role");
+  // 16 July 2026 safety audit: Bench Dip's tagging was CORRECTED to include
+  // shoulder (deep extension under load) + wrist -- so it must now be
+  // EXCLUDED for a shoulder injury. Plank (next line) keeps proving the
+  // original point: filtering is per-exercise, not all-or-nothing.
+  ok(!filtered.some(e => e.name === "Bench Dip"), "Bench Dip (now shoulder-tagged) is excluded for a shoulder injury");
   ok(filtered.some(e => e.name === "Plank"), "Plank (spine only) still offered under a shoulder injury");
 }
 

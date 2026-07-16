@@ -40,7 +40,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 0. Coach-span untouched ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 unchanged (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
+ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 unchanged (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 const spanEnd = SRC.indexOf('/*__COACH_END__*/');
 ['openPreview', 'closePreview', 'previewPrimaryAction', 'previewExRow', 'renderPreview'].forEach(function (name) {
   const at = SRC.indexOf('function ' + name + '(');

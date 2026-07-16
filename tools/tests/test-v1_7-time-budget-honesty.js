@@ -305,8 +305,12 @@ profiles.forEach(p => {
   const UNCHANGED_FNS = [
     'parseIntake', 'splitLabel', 'kitSupportsPPL', 'splitForDays',
     'isHeavyLowerRole', 'pickHardConditioningDay', 'equipOk', 'poolTierOf', 'skillAllowed',
-    'pickStrength', 'wasSlotEmptiedBySafety', 'seededJitter', 'weakPointMuscles',
-    'anchorIsAvailable', 'mostRecentByPattern', 'selectComplementary', 'pickByType',
+    // 16 July 2026: pickStrength + selectComplementary removed from the frozen
+    // list -- both changed BY DESIGN this pass (band-vs-bodyweight load
+    // demotion fix; injury safety backfill). Covered by the library-depth
+    // audit tests, not frozen-baseline drift.
+    'wasSlotEmptiedBySafety', 'seededJitter', 'weakPointMuscles',
+    'anchorIsAvailable', 'mostRecentByPattern', 'pickByType',
     'pickMobilityByPatterns', 'pickPulseRaiser', 'pickFunctional',
     'ririForWeek', 'ririTargetString', 'trimSetsForVolumeLandmark', 'pickConditioning',
     'conditioningAlternatives', 'curveFor', 'buildSetPlan', 'defaultWhy', 'getExPattern',

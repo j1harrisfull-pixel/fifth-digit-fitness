@@ -26,7 +26,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 0. Coach-span md5 (this ticket is the first-ever approved change) ----------
 const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 is the new v1.13 value (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
+ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 is the new v1.13 value (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 
 function freshWeeklyVolume(overrides) {
   const wv = {};

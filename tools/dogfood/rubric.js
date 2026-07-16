@@ -253,6 +253,11 @@ function assertSessionCoherence(exercises, byName, role, ROLES) {
   var picks = strengthExercises(exercises, byName);
   picks.forEach(function (p) {
     var mp = p.lib.pattern; // ROLES is expressed in the short slot-vocabulary (hpush/vpush/...)
+    // 16 July 2026 safety-backfill exemption: when injury filtering empties a
+    // slot, the engine deliberately substitutes a safe OFF-family pattern
+    // (core/carry/arms) rather than shipping a thin day -- those picks carry
+    // an explicit "Swapped in" why and are coherent BY DESIGN, not a drift.
+    if (/^Swapped in/.test((p.built && p.built.why) || "")) return;
     if (mp && family.indexOf(mp) < 0) {
       violations.push({
         dimension: 'session-coherence',
