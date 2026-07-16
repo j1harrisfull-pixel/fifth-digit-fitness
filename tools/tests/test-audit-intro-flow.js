@@ -83,10 +83,18 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 }
 
 // ---------- 6. First build auto-accepts, no double confirm ----------
+// v1.13 First Run Onboarding (16 July 2026) supersedes this section's
+// original claim: the first-ever build used to land directly on the built
+// day (openDay(0)). The new light-stone onboarding shell now owns that
+// moment instead -- Arrival must NOT open live workout mode (its own
+// explicit rule) -- so isFirstBuild's branch hands off to the onboarding's
+// own arrival renderer, falling back to the old openDay(0) only if that
+// renderer somehow isn't armed. See test-audit-v1_13-onboarding.js for the
+// full new-flow coverage.
 {
   ok(/var isFirstBuild = !hasProgram\(\);/.test(SRC), 'onBuild captures first-build status BEFORE generation (confirmBuild changes hasProgram)');
-  ok(/if \(isFirstBuild\) \{ confirmBuild\(\); openDay\(0\); return; \}/.test(SRC),
-    'the first-ever build auto-accepts and opens the built day directly -- no "Use this week" tap');
+  ok(/if \(isFirstBuild\) \{\s*confirmBuild\(\);[\s\S]{0,700}if \(onboardBuildActive\) \{ onboardBuildActive = false; renderObArrival\(\); return; \}\s*openDay\(0\); return;\s*\}/.test(SRC),
+    'the first-ever build hands off to the onboarding arrival screen (falls back to openDay(0) only if onboarding never armed the build)');
   // The review step must still exist for every LATER build (a returning user
   // replacing their program) -- the auto-accept branch returns early, so the
   // "Use this week"/"Try again" markup below it is only reachable when

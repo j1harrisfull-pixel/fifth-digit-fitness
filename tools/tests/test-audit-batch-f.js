@@ -60,7 +60,9 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 5. Boot save removed ----------
 {
-  ok(/initRest\(\); applyTheme\(\); renderAll\(true\); initPersistence\(\); initIntro\(\); initPullRefresh\(\);/.test(SRC),
+  // v1.13 onboarding added initOnboard() to this line (wires the new
+  // first-run shell) -- same boot sequence, no save() reintroduced.
+  ok(/initRest\(\); applyTheme\(\); renderAll\(true\); initPersistence\(\); initIntro\(\); initOnboard\(\); initPullRefresh\(\);/.test(SRC),
     'the boot sequence no longer serializes the whole state unconditionally');
   ok(!/initRest\(\); save\(\);/.test(SRC), 'the old boot-time save() call is gone');
 }

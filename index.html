@@ -1317,6 +1317,81 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .intro__how { font-family: "Spline Sans Mono", monospace; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin: 0 0 14px; }
 .intro__step[hidden] { display: none; }
 .intro__go { width: 100%; }
+/* ==================== v1.13 First Run Onboarding ====================
+   Deliberately its own light-stone visual world, scoped entirely under
+   .onboard/.ob-* -- no shared tokens with the dark app (--bg/--ink/etc. are
+   untouched; every colour here is a literal hex per the approved palette).
+   Fully separate from .intro/.wstep/.sheet so the existing dark wizard (used
+   by returning users re-opening Build) cannot be affected by anything below. */
+.onboard { position: fixed; inset: 0; z-index: 60; background: #F3F0EA; color: #22201D; overflow-y: auto; -webkit-font-smoothing: antialiased; }
+.onboard[hidden] { display: none; }
+.onboard .ob-screen { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 64px 24px 40px; max-width: 480px; margin: 0 auto; }
+.onboard .ob-screen[hidden] { display: none; }
+#obIntro, #obBuilding, #obArrival { text-align: center; align-items: center; }
+.ob-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #A67C52; margin: 0 0 14px; }
+.ob-h { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1.15; letter-spacing: -.01em; margin: 0 0 14px; text-wrap: balance; color: #22201D; }
+.ob-sub { font-size: 15.5px; color: #756D64; line-height: 1.55; margin: 0 0 40px; }
+.ob-cta { width: 100%; background: #22201D; color: #FCFBF8; border: 0; border-radius: 999px; padding: 16px; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 28px; }
+.ob-cta[hidden] { display: none; }
+.ob-fine { font-size: 12px; color: #9A9186; margin-top: 16px; }
+/* Quiet 4-segment progress -- questions only, no numeric label, no percent. */
+.ob-seg { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+.ob-seg span { width: 24px; height: 3px; border-radius: 2px; background: #DDD5CB; }
+.ob-seg span.is-done { background: #A67C52; }
+/* Browser QA (16 July 2026): #obSeg sits BEFORE the .ob-screen divs in the
+   DOM, so a `~` sibling-after selector from #obIntro/#obBuilding/#obArrival
+   can never match (it only selects LATER siblings) -- the dots were showing
+   on every screen including Intro/Arrival, which the ticket says may omit
+   them. :has() (already this app's established pattern, see .intro__mark)
+   reads the state correctly regardless of sibling order. */
+.onboard:has(#obIntro:not([hidden])) .ob-seg,
+.onboard:has(#obBuilding:not([hidden])) .ob-seg,
+.onboard:has(#obArrival:not([hidden])) .ob-seg { display: none; }
+.ob-q { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1.16; letter-spacing: -.01em; margin: 0 0 24px; text-wrap: balance; color: #22201D; }
+.ob-back { align-self: flex-start; background: none; border: 0; padding: 0 0 20px; margin: -8px 0 0; color: #756D64; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.ob-opts { display: flex; flex-direction: column; gap: 10px; }
+.ob-opts button { text-align: left; background: #FCFBF8; border: 1px solid #DDD5CB; border-radius: 14px; padding: 16px; color: #22201D; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; position: relative; transition: border-color .2s ease; }
+.ob-opts button.is-picked { border-color: #A67C52; }
+.ob-opts button.is-picked::after { content: "✓"; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #A67C52; font-weight: 700; }
+.ob-opts--row { flex-direction: row; }
+.ob-opts--row button { flex: 1; text-align: center; padding: 18px 4px; }
+/* Browser QA (16 July 2026): the centre-right checkmark placement worked for
+   the single-column Goal/Equipment screens but overlapped the "days"/"min"
+   label on the narrow 4-wide Days/Time rows at 320px -- corner-pin it there
+   instead, small enough to stay quiet rather than a badge. */
+.ob-opts--row button.is-picked::after { top: 8px; right: 8px; transform: none; font-size: 13px; }
+.ob-suggest { display: block; font-size: 10.5px; font-weight: 600; color: #A67C52; margin-top: 4px; }
+.ob-coach { min-height: 40px; font-size: 15px; line-height: 1.4; color: #22201D; margin: 20px 0 0; opacity: 0; transform: translateY(8px); transition: opacity .22s ease, transform .22s ease; }
+.ob-coach:empty { margin: 0; }
+.ob-coach.is-in { opacity: 1; transform: none; }
+.ob-coach b { color: #A67C52; font-weight: 700; }
+.ob-avoid-label { display: block; font-size: 13px; font-weight: 600; color: #756D64; margin: 22px 0 8px; }
+.ob-avoid { width: 100%; background: #FCFBF8; border: 1px solid #DDD5CB; border-radius: 12px; padding: 13px 14px; font-size: 15px; color: #22201D; font-family: inherit; }
+.ob-avoid:focus { outline: none; border-color: #A67C52; }
+.ob-spin { width: 26px; height: 26px; border: 2.5px solid #DDD5CB; border-top-color: #A67C52; border-radius: 50%; animation: ob-spin .8s linear infinite; margin: 0 auto 20px; }
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+#obBuildTxt { font-size: 15.5px; font-weight: 600; color: #756D64; }
+.ob-preview { text-align: left; background: #FCFBF8; border: 1px solid #DDD5CB; border-radius: 14px; padding: 4px 16px; margin: 8px 0 8px; }
+/* Browser QA (16 July 2026): a long value (e.g. "Chest · shoulders ·
+   triceps") sat flush against its label with no gap -- space-between only
+   separates them when the row has slack left over. gap forces a minimum
+   separation regardless of content length; the value gets text-align:right
+   so it still reads as a right-aligned column when short. */
+.ob-prevrow { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 13px 0; border-top: 1px solid #DDD5CB; font-size: 14.5px; }
+.ob-prevrow span { flex: none; }
+.ob-prevrow b { text-align: right; }
+.ob-prevrow:first-child { border-top: 0; }
+.ob-prevrow span { color: #756D64; }
+.ob-prevrow b { font-weight: 700; color: #22201D; font-family: var(--mono); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .ob-coach { transition: none; transform: none; }
+  .ob-opts button { transition: none; }
+}
+@media (max-width: 340px) {
+  .ob-seg { display: none; }
+  .ob-screen { padding: 44px 18px 32px; }
+  .ob-q { font-size: 26px; }
+}
 .adv { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
 .adv > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-dim); padding: 8px 2px; list-style: none; }
 .adv > summary::-webkit-details-marker { display: none; }
@@ -2236,6 +2311,90 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
       <button class="filler__swap" id="fillerSwap" type="button" aria-label="Swap for another move"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="filler__done" id="fillerDone" type="button" aria-pressed="false" aria-label="Mark filler done"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 6"/></svg></button>
     </div>
+  </div>
+</div>
+
+<!-- v1.13 First Run Onboarding. Light-stone, full-screen, one question per
+     screen with a reacting coach line -- replaces the old dark #intro/wizard
+     chain for the TRUE first run only (no programme exists yet). Returning
+     users building again still get the existing dark wizard-in-sheet
+     (unchanged, below). Feeds the SAME buildPrefs()/onBuild()/confirmBuild()
+     pipeline the old wizard used -- no second generator, no duplicated
+     selection logic. See initOnboard() near the bottom of the script. -->
+<div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="Set up your first week" hidden>
+  <div class="ob-seg" id="obSeg" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
+  <div class="ob-screen" id="obIntro">
+    <p class="ob-eyebrow">Fifth Digit Coach</p>
+    <h1 class="ob-h">Let's build your first week.</h1>
+    <p class="ob-sub">A few quick choices.<br>Then we train.</p>
+    <button class="ob-cta" id="obBegin" type="button">Begin</button>
+  </div>
+
+  <div class="ob-screen" id="obGoal" hidden>
+    <button class="ob-back" data-obback="intro" type="button">‹ Back</button>
+    <h2 class="ob-q">What are we training for?</h2>
+    <div class="ob-opts" id="obGoalOpts" role="group" aria-label="Training goal">
+      <button data-val="strength" type="button">Strength</button>
+      <button data-val="hypertrophy" type="button">Muscle</button>
+      <button data-val="hybrid" type="button">Fat loss</button>
+      <button data-val="general" type="button">General fitness</button>
+    </div>
+    <p class="ob-coach" id="obGoalCoach"></p>
+    <button class="ob-cta" id="obGoalNext" type="button" hidden>Continue</button>
+  </div>
+
+  <div class="ob-screen" id="obDays" hidden>
+    <button class="ob-back" data-obback="goal" type="button">‹ Back</button>
+    <h2 class="ob-q">How many days can you train?</h2>
+    <div class="ob-opts ob-opts--row" id="obDaysOpts" role="group" aria-label="Training days per week">
+      <button data-val="2" type="button">2 days</button>
+      <button data-val="3" type="button">3 days<span class="ob-suggest">Most start here</span></button>
+      <button data-val="4" type="button">4 days</button>
+      <button data-val="5" type="button">5+ days</button>
+    </div>
+    <p class="ob-coach" id="obDaysCoach"></p>
+    <button class="ob-cta" id="obDaysNext" type="button" hidden>Continue</button>
+  </div>
+
+  <div class="ob-screen" id="obTime" hidden>
+    <button class="ob-back" data-obback="days" type="button">‹ Back</button>
+    <h2 class="ob-q">How much time per session?</h2>
+    <div class="ob-opts ob-opts--row" id="obTimeOpts" role="group" aria-label="Time per session">
+      <button data-val="30" type="button">30 min</button>
+      <button data-val="45" type="button">45 min</button>
+      <button data-val="60" type="button">60 min</button>
+      <button data-val="75" type="button">75+ min</button>
+    </div>
+    <p class="ob-coach" id="obTimeCoach"></p>
+    <button class="ob-cta" id="obTimeNext" type="button" hidden>Continue</button>
+  </div>
+
+  <div class="ob-screen" id="obEquip" hidden>
+    <button class="ob-back" data-obback="time" type="button">‹ Back</button>
+    <h2 class="ob-q">What equipment do you have?</h2>
+    <div class="ob-opts" id="obEquipOpts" role="group" aria-label="Equipment">
+      <button data-val="full" type="button">Full gym</button>
+      <button data-val="garage" type="button">Garage gym</button>
+      <button data-val="dumbbells" type="button">Dumbbells only</button>
+      <button data-val="minimal" type="button">Minimal or no equipment</button>
+    </div>
+    <p class="ob-coach" id="obEquipCoach"></p>
+    <label class="ob-avoid-label" for="obAvoid">Anything to avoid?</label>
+    <input class="ob-avoid" id="obAvoid" type="text" placeholder="e.g. Left shoulder" enterkeyhint="done">
+    <button class="ob-cta" id="obBuildGo" type="button" hidden>Build my week</button>
+  </div>
+
+  <div class="ob-screen" id="obBuilding" hidden>
+    <div class="ob-spin" aria-hidden="true"></div>
+    <p id="obBuildTxt">Building your week…</p>
+  </div>
+
+  <div class="ob-screen" id="obArrival" hidden>
+    <p class="ob-eyebrow">Your week is built</p>
+    <h1 class="ob-h">Your first week is ready.</h1>
+    <div class="ob-preview" id="obPreview"></div>
+    <button class="ob-cta" id="obViewWeek" type="button">View your week</button>
   </div>
 </div>
 
@@ -9788,7 +9947,11 @@ function resolveSpec(request, state) {
     state.buildPrefs = {
       goal: goal,
       days: clampInt(p.days, 1, 7, 4),
-      minutes: [30, 45, 60].indexOf(p.minutes) >= 0 ? p.minutes : 45,
+      // v1.13 onboarding: widened to include 75 (its "75+ minutes" option) --
+      // additive only, the existing dark wizard's 30/45/60 chips are
+      // untouched and makeRequest already clamped duration_min to 15-120,
+      // so this was the only place actually restricting the value.
+      minutes: [30, 45, 60, 75].indexOf(p.minutes) >= 0 ? p.minutes : 45,
       mobility: p.mobility === undefined ? true : !!p.mobility,
       conditioning: p.conditioning === undefined ? cardioGoal : !!p.conditioning,
       weeks: [1, 4].indexOf(parseInt(p.weeks, 10)) >= 0 ? parseInt(p.weeks, 10) : 4,
@@ -10012,7 +10175,19 @@ function resolveSpec(request, state) {
     var pv = $("buildPreview");
     function renderPreview() {
       pendingBuild = generateProgram(intake, buildWeightMap(state), buildSeed, buildLastLogs(state), unlockedSkillMap(), state.athlete, state.athlete ? computeFatigueState(state) : null, computeWeeklyDebt(state).byMuscleVolume, computeWeeklyDebt(state).byBalance);
-      if (isFirstBuild) { confirmBuild(); openDay(0); return; }
+      if (isFirstBuild) {
+        confirmBuild();
+        // v1.13 onboarding: the true first-ever build is now ALWAYS driven by
+        // the new onboarding shell (refreshWelcome no longer offers any other
+        // path to a program-less first run), so isFirstBuild and
+        // onboardBuildActive are equivalent in practice. The flag is kept as
+        // an explicit guard rather than assuming that equivalence silently --
+        // if onboardBuildActive is ever false here, fall back to the
+        // previous behaviour (open the built day directly) instead of
+        // stranding the user on a blank screen.
+        if (onboardBuildActive) { onboardBuildActive = false; renderObArrival(); return; }
+        openDay(0); return;
+      }
       var sessions = pendingBuild.weeks[0].sessions, days = sessions.length;
       // Pass 2 (Build preview clarity): name the real generated days, so "Use
       // this week" is a genuine review, not a leap of faith. Real output only
@@ -11760,7 +11935,193 @@ function resolveSpec(request, state) {
   }
   // The welcome is the first screen until a program exists; once one is built or
   // loaded it stays out of the way.
-  function refreshWelcome() { if (!hasProgram()) showWelcome(true); else { var el = $("intro"); if (el) el.hidden = true; } }
+  // v1.13 onboarding: the true first run (no programme yet) now opens the new
+  // light-stone onboarding shell instead of the old dark #intro. Settings'
+  // "show intro again" (info mode, always has a programme by definition)
+  // still uses the untouched showWelcome/#intro path below -- this only
+  // changes what a genuinely program-less launch shows.
+  function refreshWelcome() {
+    if (!hasProgram()) { var ob = $("onboard"); if (ob) { resetOnboard(); ob.hidden = false; } }
+    else { var el = $("intro"); if (el) el.hidden = true; var ob2 = $("onboard"); if (ob2) ob2.hidden = true; }
+  }
+  // ==================== v1.13 First Run Onboarding ====================
+  // One in-memory step index, one temporary answer object -- exactly the
+  // shape the ticket asked for. Nothing here is persisted as new state:
+  // OB.* is written straight into the EXISTING buildPrefs()/state.athlete
+  // fields at "Build my week" (see obCommitAndBuild), so a page reload
+  // mid-onboarding just re-opens onboarding at its intro screen with
+  // whatever buildPrefs defaults already existed -- no new persistence
+  // system, per the ticket's explicit "keep implementation small" rule.
+  var OB_STEPS = ["intro", "goal", "days", "time", "equip", "building", "arrival"];
+  var OB = { goal: null, days: null, minutes: null, equip: null };
+  var obStep = "intro";
+  var onboardBuildActive = false;
+  // Approved copy, verbatim. No praise/hype words per the ticket's explicit
+  // ban list -- every line is a plain acknowledgement of the choice made.
+  var OB_GOAL_COACH = {
+    strength: ["Strength it is.", "We’ll build around progressive overload."],
+    hypertrophy: ["More quality volume.", "We’ll keep the progression clear."],
+    hybrid: ["We’ll keep the work efficient.", "Strength stays in."],
+    general: ["Balanced work.", "Enough strength, conditioning and recovery."]
+  };
+  var OB_DAYS_COACH = {
+    2: ["Two days.", "We’ll make both count."],
+    3: ["Three days.", "Most people recover well here."],
+    4: ["Four days.", "Enough room to separate the work."],
+    5: ["Five days or more.", "We’ll manage the load carefully."]
+  };
+  var OB_TIME_COACH = {
+    30: ["Thirty minutes.", "We’ll keep it focused."],
+    45: ["Forty five minutes.", "Plenty of time for quality work."],
+    60: ["An hour.", "Enough room for the full session."],
+    75: ["More time available.", "We’ll use it without adding waste."]
+  };
+  var OB_EQUIP_COACH = {
+    full: ["Full gym.", "We have room to build properly."],
+    garage: ["Garage gym.", "We’ll build around the essentials."],
+    dumbbells: ["Dumbbells.", "Enough to train well."],
+    minimal: ["Minimal equipment.", "We’ll keep the work honest."]
+  };
+  // Translates the ticket's 4 named kit presets into the existing equipment
+  // vocabulary (EQUIP_ALL) the generator already understands -- no new
+  // equipment concept, no generator change. Bodyweight is always included
+  // by the generator itself, so it's never listed here explicitly.
+  function obEquipMap() {
+    return {
+      full: EQUIP_ALL.slice(),
+      garage: ["barbell", "dumbbell", "kettlebell", "pullup-bar", "band"],
+      dumbbells: ["dumbbell"],
+      minimal: []
+    };
+  }
+  function obShow(step) {
+    obStep = step;
+    OB_STEPS.forEach(function (s) { var el = $("ob" + s.charAt(0).toUpperCase() + s.slice(1)); if (el) el.hidden = s !== step; });
+    var seg = $("obSeg");
+    if (seg) {
+      var order = ["goal", "days", "time", "equip"], idx = order.indexOf(step);
+      Array.prototype.forEach.call(seg.children, function (dot, i) { dot.classList.toggle("is-done", idx >= 0 && i <= idx); });
+    }
+    // No auto-focus, no scroll hijack -- the user arrives at the top of a
+    // fresh full-height screen already (each .ob-screen is its own flex page).
+    var host = document.getElementById("onboard"); if (host) host.scrollTop = 0;
+  }
+  function resetOnboard() {
+    OB.goal = null; OB.days = null; OB.minutes = null; OB.equip = null;
+    document.querySelectorAll(".onboard .ob-opts button").forEach(function (b) { b.classList.remove("is-picked"); });
+    document.querySelectorAll(".onboard .ob-coach").forEach(function (c) { c.innerHTML = ""; c.classList.remove("is-in"); });
+    document.querySelectorAll(".onboard .ob-cta[id$='Next'], #obBuildGo").forEach(function (b) { b.hidden = true; });
+    var av = $("obAvoid"); if (av) av.value = "";
+    obShow("intro");
+  }
+  // Shared per-screen selection handler: marks the tapped option, writes the
+  // value, fades in the two-line coach response, reveals Continue. Never
+  // auto-advances -- the user chooses when to move on (ticket: "Do not
+  // automatically advance after selection").
+  function obPick(groupId, val, field, coachLines, nextBtnId) {
+    document.querySelectorAll("#" + groupId + " button").forEach(function (b) { b.classList.toggle("is-picked", b.getAttribute("data-val") === String(val)); });
+    OB[field] = val;
+    var coachEl = document.querySelector("#" + groupId).parentElement.querySelector(".ob-coach");
+    if (coachEl && coachLines) {
+      coachEl.innerHTML = "<b>" + esc(coachLines[0]) + "</b><br>" + esc(coachLines[1]);
+      coachEl.classList.add("is-in");
+    }
+    var nb = $(nextBtnId); if (nb) nb.hidden = false;
+  }
+  // Handle for obCommitAndBuild's own status-text rotation, so renderObArrival
+  // can always clear it -- a plain module-level variable instead of a
+  // self-reassigning function, which is simpler to reason about and to test.
+  var obBuildInterval = null;
+  function renderObArrival() {
+    if (obBuildInterval) { clearInterval(obBuildInterval); obBuildInterval = null; }
+    // Browser QA (16 July 2026): confirmBuild() calls refreshWelcome()
+    // internally, and hasProgram() is now true (confirmBuild just set
+    // state.program) -- refreshWelcome's OTHER branch runs and sets
+    // #onboard.hidden = true before this function gets a chance to show the
+    // arrival screen, leaving Home visible underneath with nothing to see.
+    // Force the overlay back open; obShow("arrival") below then picks the
+    // right inner screen.
+    var ob = $("onboard"); if (ob) ob.hidden = false;
+    var prog = state.program, wk = prog.weeks[0], sessions = wk.sessions, ses0 = sessions[0];
+    // UNIT HONESTY RULE: every number below is read from the actual generated
+    // programme, never echoed back from the user's chosen input.
+    var mins = sessionMinutes(ses0); // 0 if the session carries no block minutes -- shown honestly, not padded
+    var exCount = Array.isArray(ses0.exercises) ? ses0.exercises.length : 0;
+    var pv = $("obPreview");
+    if (pv) {
+      pv.innerHTML =
+        '<div class="ob-prevrow"><span>Sessions this week</span><b>' + sessions.length + '</b></div>' +
+        '<div class="ob-prevrow"><span>First session</span><b>' + esc(ses0.name || "") + '</b></div>' +
+        (ses0.focus ? '<div class="ob-prevrow"><span>Focus</span><b>' + esc(ses0.focus) + '</b></div>' : "") +
+        (mins > 0 ? '<div class="ob-prevrow"><span>Planned time</span><b>' + mins + ' min</b></div>' : "") +
+        '<div class="ob-prevrow"><span>Exercises</span><b>' + exCount + '</b></div>';
+    }
+    obShow("arrival");
+  }
+  function obCommitAndBuild() {
+    var p = buildPrefs();
+    p.goal = OB.goal; p.days = OB.days; p.minutes = OB.minutes;
+    p.equipment = obEquipMap()[OB.equip].slice();
+    p.weeks = 1; p.planChoiceMade = false; // first build is always a single week, same as the old first-build path
+    save();
+    var av = $("obAvoid");
+    if (av && av.value && av.value.trim()) { addAthleteInjury("pain", av.value); save(); }
+    obShow("building");
+    var lines = ["Building your week…", "Goal understood", "Choosing the work", "Balancing the week", "Setting progression"], li = 0;
+    var txt = $("obBuildTxt");
+    obBuildInterval = setInterval(function () { li++; if (txt && li < lines.length) txt.textContent = lines[li]; }, 260);
+    onboardBuildActive = true;
+    // Reuses the EXISTING generator pipeline verbatim (onBuild -> generateProgram
+    // -> confirmBuild) -- see the isFirstBuild branch inside onBuild for the
+    // arrival hand-off. showThinking=true caps the real delay at ~1150ms,
+    // already under the ticket's ~1200ms ceiling; obBuildInterval is purely
+    // this screen's own text rotation and is cleared inside renderObArrival
+    // the moment it runs.
+    onBuild(true);
+  }
+  function initOnboard() {
+    var begin = $("obBegin"); if (begin) begin.addEventListener("click", function () { obShow("goal"); });
+    var goalOpts = $("obGoalOpts");
+    if (goalOpts) goalOpts.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-val]"); if (!b) return;
+      obPick("obGoalOpts", b.getAttribute("data-val"), "goal", OB_GOAL_COACH[b.getAttribute("data-val")], "obGoalNext");
+    });
+    var goalNext = $("obGoalNext"); if (goalNext) goalNext.addEventListener("click", function () { obShow("days"); });
+    var daysOpts = $("obDaysOpts");
+    if (daysOpts) daysOpts.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-val]"); if (!b) return;
+      var v = parseInt(b.getAttribute("data-val"), 10);
+      obPick("obDaysOpts", v, "days", OB_DAYS_COACH[v], "obDaysNext");
+    });
+    var daysNext = $("obDaysNext"); if (daysNext) daysNext.addEventListener("click", function () { obShow("time"); });
+    var timeOpts = $("obTimeOpts");
+    if (timeOpts) timeOpts.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-val]"); if (!b) return;
+      var v = parseInt(b.getAttribute("data-val"), 10);
+      obPick("obTimeOpts", v, "minutes", OB_TIME_COACH[v], "obTimeNext");
+    });
+    var timeNext = $("obTimeNext"); if (timeNext) timeNext.addEventListener("click", function () { obShow("equip"); });
+    var equipOpts = $("obEquipOpts");
+    if (equipOpts) equipOpts.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-val]"); if (!b) return;
+      obPick("obEquipOpts", b.getAttribute("data-val"), "equip", OB_EQUIP_COACH[b.getAttribute("data-val")], "obBuildGo");
+    });
+    var buildGo = $("obBuildGo"); if (buildGo) buildGo.addEventListener("click", obCommitAndBuild);
+    // Back navigation preserves every selection made so far -- OB.* is never
+    // cleared by going back, only obShow() changes which screen is visible.
+    document.querySelectorAll(".onboard [data-obback]").forEach(function (b) {
+      b.addEventListener("click", function () { obShow(b.getAttribute("data-obback")); });
+    });
+    var viewWeek = $("obViewWeek");
+    if (viewWeek) viewWeek.addEventListener("click", function () {
+      var ob = $("onboard"); if (ob) ob.hidden = true;
+      // Home is already correct: confirmBuild() (called from onBuild's
+      // isFirstBuild branch before renderObArrival) already ran renderAll(true).
+      // No readiness, no live workout entry -- the existing hero -> Today
+      // Preview -> Start the session -> Readiness -> Live workout chain on
+      // Home is completely untouched by this screen.
+    });
+  }
   function initIntro() {
     var go = $("introGo");
     if (go) go.addEventListener("click", function () {
@@ -11831,7 +12192,7 @@ function resolveSpec(request, state) {
   // state (program + logs + archive) on every launch just to re-write what
   // load() already read. Migrations in coerceState are idempotent and cheap,
   // and the state persists on the first real user write.
-  initRest(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initPullRefresh();
+  initRest(); applyTheme(); renderAll(true); initPersistence(); initIntro(); initOnboard(); initPullRefresh();
   // Batch F: one-time install hint. Chrome/Android fire beforeinstallprompt
   // when the PWA is installable -- surface it ONCE as an actionable toast
   // (iOS never fires this event; its Share-sheet flow stays undisturbed).
