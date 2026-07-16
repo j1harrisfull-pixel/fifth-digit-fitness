@@ -297,8 +297,13 @@ profiles.forEach(p => {
   // matching the same cap applied to every user-facing est-1RM site
   // (strengthFoot/computeWeekRecap/buildHistoryData). Covered by
   // test-est1rm-rep-cap.js instead.
+  // 16 July 2026 (James-approved coach-span amendment): libraryIntegrity
+  // also removed -- it gained the complex/circuit honesty rules (movements[]
+  // schema validation + the never-again rule that a complex-named entry
+  // without structured movements fails the library). Covered by
+  // test-audit-complex-honesty.js instead.
   const UNCHANGED_FNS = [
-    'parseIntake', 'libraryIntegrity', 'splitLabel', 'kitSupportsPPL', 'splitForDays',
+    'parseIntake', 'splitLabel', 'kitSupportsPPL', 'splitForDays',
     'isHeavyLowerRole', 'pickHardConditioningDay', 'equipOk', 'poolTierOf', 'skillAllowed',
     'pickStrength', 'wasSlotEmptiedBySafety', 'seededJitter', 'weakPointMuscles',
     'anchorIsAvailable', 'mostRecentByPattern', 'selectComplementary', 'pickByType',

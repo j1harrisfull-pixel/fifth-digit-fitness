@@ -57,7 +57,7 @@ ok(/\.today-card__lead-go \{ color: var\(--accent\); \}/.test(SRC), '.today-card
 // ---------- 6. Coach-span untouched ----------
 {
   const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5`).toString().trim();
-  ok(spanMd5 === 'ce6452b369d4d1d14fd0bf8560208ce7', 'coach-span md5 unchanged (ce6452b369d4d1d14fd0bf8560208ce7), got ' + spanMd5);
+  ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 unchanged (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
 }
 
 // ---------- 7. No new localStorage key introduced -- pure display-layer change ----------

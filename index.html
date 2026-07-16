@@ -1529,6 +1529,8 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 #previewView .preview__ex:first-child { border-top: 0; }
 #previewView .preview__ex-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 #previewView .preview__ex-name { font-family: var(--font-body); font-weight: 600; font-size: 15px; color: var(--ink); }
+/* Complex/circuit honesty: the movements line inside a preview row. */
+.preview__ex-moves { font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; margin: 4px 0 0; }
 #previewView .preview__ex-meta { font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #previewView .preview__ex-formnotes { margin: 6px 0 0; }
 #previewView .preview__ex-formnotes summary { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); cursor: pointer; }
@@ -1541,6 +1543,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
 .dc__move:last-child { border-bottom: none; padding-bottom: 0; }
 .dc__name { font-size: 14px; font-weight: 600; }
 .dc__meta { font-size: 12px; color: var(--faint); flex: none; }
+/* Complex/circuit honesty (16 July 2026): the structured movement list of a
+   complex, shown wherever the exercise appears -- a full-width quiet line
+   under the name in the density card, and its own row under the card title. */
+.dc__submoves { flex-basis: 100%; font-size: 12.5px; color: var(--dim, var(--ink-dim)); line-height: 1.45; }
+.dc__move { flex-wrap: wrap; }
+.card__movements { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin: -4px 0 10px; }
 .dc__timerbtn { width: 100%; padding: 10px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; }
 .dc__timer { margin-bottom: 14px; text-align: center; padding: 14px; background: var(--surface-2); border: 1px solid var(--line-strong); }
 .dc__timerclock { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -.01em; }
@@ -3270,7 +3278,16 @@ const LIBRARY = [
   { id: "bike-intervals", name: "Bike Intervals", type: "conditioning", equipment: "cardio", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: seat level with the hip. Key: hard efforts with easy spins between, near-full recovery before the next. Fault: starting too hard and fading across the set." },
   { id: "row-intervals", name: "Rower Intervals", type: "conditioning", equipment: "cardio", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: strapped in, tall posture. Key: powerful legs-then-back-then-arms on the drive, controlled recovery. Fault: yanking with the arms first or rounding the back." },
   { id: "sled-push", name: "Sled Push", type: "conditioning", equipment: "sled", pattern: "conditioning", muscles: ["legs", "full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["legs"], secondary_muscles: ["full body"], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: low arms, lean into the sled. Key: drive with short powerful steps, full leg extension. Fault: standing too upright and stalling." },
-  { id: "kb-complex", name: "Kettlebell Complex", type: "conditioning", equipment: "kettlebell", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: one bell, clear space. Key: flow swing to clean to press without resting, brace throughout. Fault: letting form slip as fatigue sets in." },
+  // Complex/circuit honesty (16 July 2026, James): an expert coach never
+  // prescribes a "complex" whose contents are copy, not data. Every entry
+  // whose name says complex/circuit/medley/flow MUST carry a `movements`
+  // array (enforced by libraryIntegrity) -- the UI renders it as the real
+  // circuit list wherever the exercise appears.
+  { id: "kb-complex", name: "Kettlebell Complex", type: "conditioning", equipment: "kettlebell", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", movements: ["Kettlebell Swing", "Kettlebell Clean", "Kettlebell Overhead Press"], cue: "Setup: one bell, clear space. Key: flow swing to clean to press without resting, brace throughout. Fault: letting form slip as fatigue sets in." },
+  { id: "barbell-complex", name: "Barbell Complex", type: "conditioning", equipment: "barbell", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: ["lower back"], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", movements: ["Deadlift", "Bent-Over Row", "Hang Clean", "Front Squat", "Push Press"], cue: "Setup: one light bar, never let it rest on the floor mid-round. Key: move cleanly from lift to lift, 5-6 reps each, brace hard between transitions. Fault: choosing a load that breaks position on the last movement." },
+  { id: "db-complex", name: "Dumbbell Complex", type: "conditioning", equipment: "dumbbell", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", movements: ["Dumbbell Romanian Deadlift", "Dumbbell Row", "Dumbbell Hang Clean", "Dumbbell Push Press"], cue: "Setup: two moderate dumbbells, shoulder-width stance. Key: flow through all four lifts without setting the bells down, 6-8 reps each. Fault: rushing the hinge and turning every rep into a squat." },
+  { id: "bw-circuit", name: "Bodyweight Circuit", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", movements: ["Air Squat", "Push-Up", "Reverse Lunge", "Mountain Climbers"], cue: "Setup: clear floor space, no equipment needed. Key: move through all four with steady rhythm, 10-12 reps each, full range every rep. Fault: shortening the squat and lunge as the rounds add up." },
+  { id: "band-circuit", name: "Band Circuit", type: "conditioning", equipment: "band", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "med", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", movements: ["Band Row", "Band Chest Press", "Band Pull-Through", "Band Overhead Press"], cue: "Setup: one loop band, anchor at chest height where needed. Key: keep constant band tension through all four, 12-15 reps each, controlled on the way back. Fault: letting the band snap back instead of resisting it." },
   { id: "easy-jog", name: "Easy Jog / Brisk Walk", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["legs"], compound: false, goals: CON, unit: "sec", intensity: "z2", movement_pattern: "conditioning", primary_muscles: ["legs"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "low", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: relaxed posture, soft cadence. Key: hold a pace you could chat at, nose-breathe, stay even. Fault: drifting faster until you're out of Zone 2." },
   { id: "burpees", name: "Burpees", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["full body"], compound: true, goals: CON, unit: "reps", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["full body"], secondary_muscles: [], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: clear floor space. Key: chest to floor, drive up, jump and reach tall, repeat with rhythm. Fault: sagging hips on the floor or skipping full extension." },
   { id: "mountain-climbers", name: "Mountain Climbers", type: "conditioning", equipment: "bodyweight", pattern: "conditioning", muscles: ["core", "full body"], compound: true, goals: CON, unit: "sec", intensity: "interval", movement_pattern: "conditioning", primary_muscles: ["core"], secondary_muscles: ["full body"], plane: "sagittal", fatigue_cost: "high", joint_stress: [], is_unilateral: false, stability_demand: "free", variations: [], progression_policy: "pace_or_duration", cue: "Setup: strong plank, hands under shoulders. Key: drive the knees fast, hips low and level, brace the core. Fault: hips bouncing up or shoulders drifting back." },
@@ -3543,6 +3560,17 @@ function libraryIntegrity(lib) {
     if (!e.progression_policy || typeof e.progression_policy !== "string") errors.push(where + ": progression_policy");
     if (!Array.isArray(e.variations)) errors.push(where + ": variations[]");
     else e.variations.forEach(function (v) { if (!ids[v]) errors.push(where + ": variation '" + v + "' is not a library id"); });
+    // Complex/circuit honesty (16 July 2026, James): an expert never
+    // prescribes a multi-movement piece whose contents are copy, not data.
+    // Any entry NAMED as one must carry a structured movements list, and any
+    // movements list present must be real (2-6 non-empty movement names).
+    if (/complex|circuit|medley|flow/i.test(e.name || "") && !Array.isArray(e.movements)) {
+      errors.push(where + ": named as a complex/circuit but has no movements[] -- contents must be data, not copy");
+    }
+    if (e.movements !== undefined) {
+      if (!Array.isArray(e.movements) || e.movements.length < 2 || e.movements.length > 6) errors.push(where + ": movements[] must list 2-6 movements");
+      else e.movements.forEach(function (m) { if (typeof m !== "string" || !m.trim()) errors.push(where + ": movements[] entries must be non-empty names"); });
+    }
     if (e && e.id) { if (ids[e.id] === 2) errors.push(e.id + ": duplicate id"); ids[e.id] = 2; }
   });
   return { ok: errors.length === 0, errors: errors };
@@ -8313,6 +8341,14 @@ function resolveSpec(request, state) {
     for (var i = 0; i < LIBRARY.length; i++) { if (LIBRARY[i].name.toLowerCase() === n) return LIBRARY[i]; }
     return null;
   }
+  // Complex/circuit honesty (16 July 2026): the structured movements of a
+  // complex, looked up from the LIBRARY at render time by name -- persisted
+  // programmes are untouched (no schema change), the library stays the one
+  // source of truth for what a complex contains.
+  function libMovementsFor(name) {
+    var lib = libByName(name);
+    return (lib && Array.isArray(lib.movements) && lib.movements.length) ? lib.movements : null;
+  }
   var WARM_LOADED = ["barbell", "dumbbell", "smith", "machine", "cable", "kettlebell"];
   var warmFirstUsed = false;
   function warmupSets(e, weight, unit, full) {
@@ -8655,6 +8691,11 @@ function resolveSpec(request, state) {
       exOverline +
       exProgressHtml +
       '<header class="card__head">' + (badge ? '<span class="ex-badge">' + esc(badge) + '</span>' : '') + '<h3 class="card__name">' + esc(e.name) + '</h3></header>' +
+      // Complex/circuit honesty (16 July 2026, James): if this exercise is a
+      // structured complex, its movements render right under the name in
+      // EVERY card state (live and preview) -- the contents are data now,
+      // never just cue copy.
+      (libMovementsFor(e.name) ? '<p class="card__movements">' + libMovementsFor(e.name).map(esc).join(" → ") + '</p>' : '') +
       setPosHtml +
       subLine +
       statRow +
@@ -8721,7 +8762,13 @@ function resolveSpec(request, state) {
       var loadable = e.type === "strength" && WARM_LOADED.indexOf(e.equipment) >= 0;
       var loadTxt = loadable && lg.weight > 0 ? (roundW(lg.weight) + " " + unit + " · ") : "";
       var repsTxt = e.reps ? (e.reps + (exTimed(e.name) ? "s" : " reps")) : "";
-      return '<li class="dc__move"><span class="dc__name">' + esc(e.name) + '</span><span class="dc__meta mono">' + esc(loadTxt + repsTxt) + '</span></li>';
+      // Complex/circuit honesty: a "complex" is only honest if its actual
+      // movements are on screen. Rendered from the library's structured
+      // movements data (looked up by name at render time -- no change to
+      // what's persisted in the programme).
+      var mv = libMovementsFor(e.name);
+      var mvHtml = mv ? '<span class="dc__submoves">' + mv.map(esc).join(" → ") + '</span>' : "";
+      return '<li class="dc__move"><span class="dc__name">' + esc(e.name) + '</span><span class="dc__meta mono">' + esc(loadTxt + repsTxt) + '</span>' + mvHtml + '</li>';
     }).join("");
     var targetRounds = block.rounds || Math.max(1, Math.round(block.minutes / 2));
     var formatLine = mode === "emom"
@@ -9504,8 +9551,14 @@ function resolveSpec(request, state) {
   function previewExRow(e, isDensity) {
     var meta = e.reps ? (isDensity ? e.reps : (e.sets + " × " + e.reps)) : "";
     var formHtml = e.notes ? '<details class="preview__ex-formnotes"><summary>Form notes</summary><p>' + esc(e.notes) + '</p></details>' : "";
+    // Complex/circuit honesty (16 July 2026, James's live phone audit was on
+    // THIS renderer): a complex's movements render in the preview row too --
+    // this was the exact screen where "Kettlebell Complex · 2 min" showed
+    // with no exercise list.
+    var mv = libMovementsFor(e.name);
+    var mvHtml = mv ? '<p class="preview__ex-moves">' + mv.map(esc).join(" → ") + '</p>' : "";
     return '<li class="preview__ex"><div class="preview__ex-head"><span class="preview__ex-name">' + esc(e.name) + '</span>' +
-      (meta ? '<span class="preview__ex-meta mono">' + esc(meta) + '</span>' : "") + '</div>' + formHtml + '</li>';
+      (meta ? '<span class="preview__ex-meta mono">' + esc(meta) + '</span>' : "") + '</div>' + mvHtml + formHtml + '</li>';
   }
   function renderPreview() {
     var wk = curWeek(), i = previewIdx, ses = wk && wk.sessions[i];

@@ -64,7 +64,7 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 {
   const { execFileSync } = require('child_process');
   const spanMd5 = execFileSync('sh', ['-c', "sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jamesharris/Desktop/training-log-app/index.html | md5"]).toString().trim();
-  ok(spanMd5 === 'ce6452b369d4d1d14fd0bf8560208ce7', 'coach-span md5 unchanged (ce6452b369d4d1d14fd0bf8560208ce7), got ' + spanMd5);
+  ok(spanMd5 === '909fbc92112ba642ed56d6d88b114fb1', 'coach-span md5 unchanged (909fbc92112ba642ed56d6d88b114fb1), got ' + spanMd5);
 }
 
 console.log(`Home audit fixes (pager hide, labelled earned-brass rhythm, brass consistency): ${pass} passed, ${fail} failed`);
