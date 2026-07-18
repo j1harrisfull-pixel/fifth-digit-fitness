@@ -16,7 +16,11 @@ const spanMd5 = execSync(`sed -n '/__COACH_START__/,/__COACH_END__/p' /Users/jam
 ok(spanMd5 === '1081700e58396438a0b408febcfdc56b', 'coach-span md5 unchanged (1081700e58396438a0b408febcfdc56b), got ' + spanMd5);
 
 // ---------- 2. Sentence prescription: Effort appended from existing e.target only ----------
-ok(/var effortText = \(e\.type === "strength" && e\.target\) \? effortifyTarget\(e\.target\) : "";/.test(SRC),
+// 18 July 2026: a .replace() strips the " · ramp to top set" suffix here --
+// the ramp is explained once, in its own italic rampLine, so this sentence
+// no longer repeats it. Still e.target via the existing effortifyTarget(),
+// no new field.
+ok(/var effortText = \(e\.type === "strength" && e\.target\) \? effortifyTarget\(e\.target\)\.replace\(\/ · ramp to top set\$\/, ""\) : "";/.test(SRC),
    'Effort text is read from the existing e.target field via the existing effortifyTarget(), no new field');
 ok(/statCells\.length && effortText \? ' <span class="card__rx-sep">·<\/span> ' : ''/.test(SRC),
    'Effort is appended to the existing sets/reps/rest sentence, not a separate invented line');

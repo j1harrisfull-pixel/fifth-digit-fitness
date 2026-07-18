@@ -346,19 +346,18 @@ ok(SRC.indexOf('Planned for later. Nothing logs from here.') !== -1, 'preview ba
 ok(!/daypreview-banner[^{]*\{[^}]*(amber|warning|--danger)/i.test(SRC), 'preview banner CSS introduces no alert/warning colour');
 
 // ---------- 9. v1.10 Ticket 4 (live workout DONE/CURRENT/NEXT zone grammar) ----------
-// "Set N of M" -- built from the exact same doneCount/total buildCard
-// already computes for setshead/collapsedMeta, never a separate/fake count.
-// Strength-only, suppressed once complete.
-ok(/setPosHtml = \(e\.type === "strength" && total > 0 && !complete\)/.test(buildCardBody),
-   '"Set N of M" is strength-only and suppressed once the exercise is complete (never rendered for density/mobility)');
-ok(/'<p class="card__setpos">Set <b>' \+ \(doneCount \+ 1\) \+ '<\/b> of <b>' \+ total \+ '<\/b><\/p>'/.test(buildCardBody),
-   '"Set N of M" is built from the real doneCount/total, not a separate counter');
+// "Set N of M" was removed from the expanded card 18 July 2026 (James: "a
+// lot of information on these pages, can it be simplified?") -- the set-row
+// list right below the card already shows the identical count, so this was
+// a third restatement of one number. refreshSetPos (its live-sync twin,
+// which used to re-insert the line on every set toggle) was deleted with it.
+ok(/var setPosHtml = '';/.test(buildCardBody), '"Set N of M" is gone from the expanded card (was a restatement of the set-row list below it)');
+ok(SRC.indexOf('function refreshSetPos(') === -1, 'refreshSetPos (dead: its element no longer exists) is deleted, not left to silently re-insert the line');
 
 // DONE grammar: "N sets kept" -- same real doneCount, approved wording.
 ok(/collapsedMeta = complete \? \(doneCount \+ \(doneCount === 1 \? " set kept" : " sets kept"\)\) : planHint/.test(buildCardBody),
    'DONE-state collapsed row renders "N sets kept" (or "1 set kept"), built from the real completed-set count');
 ok(!/doneCount \+ "\/" \+ total \+ " sets"/.test(buildCardBody), 'old "N/total sets" collapsed-row grammar is gone from buildCard');
-ok(/refreshSetPos\(card, e, doneCount\)/.test(SRC), 'the live (non-full-render) set-toggle path keeps "Set N of M" in sync via refreshSetPos, never leaving it stale');
 
 // NEXT: exactly one exercise ever gets the up-next treatment, computed from
 // the same real sessionItems() doneCount/sets every other progress read uses.
@@ -388,8 +387,12 @@ ok(mossDeclarations === 2, '--tempo-moss is used in exactly 2 CSS declarations (
 // flags already asserted above; no separate/fake list, no cross-card state.
 ok(/var zoneWord = complete \? "Done" : isUpNext \? "Next" : "Then"/.test(buildCardBody),
    'buildCard computes the literal zone word (Done/Next/Then) from the exact same complete/isUpNext flags used elsewhere');
-ok(/'<p class="card__zonelabel card__zonelabel--current">Current<\/p>'/.test(buildCardBody),
-   'the expanded CURRENT card renders the literal word "Current"');
+// 18 July 2026: the literal "Current" label on the EXPANDED strength card
+// was removed (James: "a lot of information on these pages") -- the green
+// rim + the card simply being open already carry CURRENT, on every render.
+// The DONE/NEXT/THEN words (asserted just above/below) are untouched; this
+// was the one zone word that was purely redundant with an existing visual.
+ok(/var curZoneLabelHtml = '';/.test(buildCardBody), 'the expanded strength card no longer renders a separate literal "Current" label (redundant with the green rim)');
 ok(/var zoneWordD = done \? "Done" : isUpNextD \? "Next" : "Then"/.test(buildDensityCardBody),
    'buildDensityCard computes the same literal zone word from its own done/isUpNextD flags (density blocks get the same zone system as strength exercises)');
 ok(/'<p class="card__zonelabel card__zonelabel--current">Current<\/p>'/.test(buildDensityCardBody),

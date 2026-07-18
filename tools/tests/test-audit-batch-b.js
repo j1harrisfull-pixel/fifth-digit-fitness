@@ -33,7 +33,11 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   ok(/} else if \(act === "repset"\) \{[\s\S]{0,400}Math\.max\(0, Math\.min\(100, parseInt\(rawR, 10\) \|\| 0\)\)/.test(SRC),
     'the typed-reps input branch clamps to 0-100 and writes actual_reps');
   ok(/act === "repset"\) \{[\s\S]{0,500}if \(rawR === ""\) return;/.test(SRC), 'an emptied reps field is "still typing", not a 0-rep write');
-  ok(/input\.rval \{ border: 0; width: 56px; appearance: textfield/.test(SRC), 'the input keeps the chip look (no border, fixed width, no native spinners)');
+  // 18 July 2026: width tightened 56px -> 38px, then to 32px (reclaiming
+  // room the .setrow__wtinput decimal-clipping fix spent) as part of the
+  // horizontal weight+reps+Log single-line layout; the chip look this test
+  // guards (no border, fixed width, no native spinners) is unchanged.
+  ok(/input\.rval \{ border: 0; width: 32px; appearance: textfield/.test(SRC), 'the input keeps the chip look (no border, fixed width, no native spinners)');
 }
 
 // ---------- 2 + 3. Select-on-focus and Enter commits ----------

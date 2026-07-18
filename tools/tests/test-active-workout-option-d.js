@@ -27,14 +27,20 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 }
 
 // ---------- 3. Steppers softened from full pill to 7px (slightly tighter than the cluster, same family) ----------
+// 18 July 2026: size tightened 27x30 -> 21x26 to fit weight+reps+Log on one
+// line; the 7px radius this test guards is unchanged.
 {
-  ok(/\.rstep, \.wtstep \{ position: relative; width: 27px; height: 30px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 7px;/.test(SRC),
+  ok(/\.rstep, \.wtstep \{ position: relative; width: 21px; height: 26px; flex: none; display: grid; place-items: center; border: 0; background: none; border-radius: 7px;/.test(SRC),
     'weight/rep steppers softened from 999px to 7px');
 }
 
 // ---------- 4. Log button softened from full pill to 9px, same family as the pill clusters ----------
+// 18 July 2026: horizontal padding tightened 18px -> 6px (a second pass,
+// widening .setrow__wtinput to fix decimal-weight clipping ate back the
+// first round's savings) for the same one-line fit; the 9px radius this
+// test guards is unchanged.
 {
-  ok(/\.setrow__done \{ width: auto; height: auto; min-height: 40px; margin-left: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 18px; border-radius: 9px;/.test(SRC),
+  ok(/\.setrow__done \{ width: auto; height: auto; min-height: 40px; margin-left: auto; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 6px; border-radius: 9px;/.test(SRC),
     'the Log/Logged button is softened from 999px to 9px, matching the pill clusters and steppers');
 }
 
