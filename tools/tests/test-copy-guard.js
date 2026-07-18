@@ -202,7 +202,9 @@ ok(/var readingTxt = band === "red" \? "Recent sessions ran hard\. Keep today cl
    'all three fatigue bands (red/amber/clear) render three distinct approved sentences, not a collapsed pair');
 
 ok(SRC.indexOf('Best week streak') === -1, 'old "Best week streak" label is gone');
-ok(SRC.indexOf('Longest run of full weeks') !== -1, 'renamed streak stat present: "Longest run of full weeks"');
+// "Longest run of full weeks" (the renamed streak stat) lived in the
+// Progress tab's lifetime-stats block, removed 18 July 2026 along with the
+// tab itself -- both the label and computeLifetimeStats() are gone now.
 
 // 13 July 2026: "closed" (a generic status word) was cut -- research across
 // Hevy/Strong/Fitbod/Future found none of them label a done day with a

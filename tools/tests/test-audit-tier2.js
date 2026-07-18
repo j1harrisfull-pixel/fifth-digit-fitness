@@ -2,9 +2,9 @@
 // patterns already existed (eyebrow+hero, quiet stats, segmented outlined
 // choice groups, recessed number chips, brass-only celebration), these
 // surfaces just missed them. Six items, all presentation/copy:
-// 1. Progress tab: real hero heading under the eyebrow; the "‹ Week" back
-//    button removed (top-level nav destination, not a drill-down); the
-//    lifetime-stats quieting widened to cover the tab, not just the sheet.
+// (Item 1, the Progress tab's eyebrow+hero pair and lifetime-stats quieting,
+// was removed 18 July 2026 along with the Progress tab itself, James: "not
+// necessary to have".)
 // 2. History drill-down PR badge: --ready green -> brass (green means
 //    ready/recovered elsewhere; one event, one colour).
 // 3. Progress numbers that matter get the recessed chip (per-lift current
@@ -23,14 +23,7 @@ let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 1. Progress tab ----------
-{
-  ok(/<p class="preview__eyebrow">Your training<\/p>\s*<h2 class="history__title">Progress<\/h2>/.test(SRC),
-    'Progress tab has the eyebrow+hero pair (quiet "Your training" over the 21px Progress heading)');
-  ok(SRC.indexOf('id="progressBack"') === -1, 'the "‹ Week" back button is gone from the Progress tab');
-  ok(SRC.indexOf('$("progressBack")') === -1, 'no JS still binds the removed back button (would throw on boot)');
-  ok(/#historySheet \.recap-stat__num, #progressView \.recap-stat__num \{ font-size: 15px; font-weight: 700; \}/.test(SRC),
-    'the lifetime-stats quieting now covers the Progress tab too, not just the old sheet');
-}
+// (Removed 18 July 2026 along with the Progress tab itself.)
 
 // ---------- 2. PR badge unified on brass ----------
 {

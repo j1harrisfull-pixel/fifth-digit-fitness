@@ -1,16 +1,16 @@
-// v1.15 Bottom Navigation -- 3-tab persistent bar, Build moved onto Home as
-// page content. Entirely outside the coach-span. Reuses existing openPlan(),
-// the existing Preview mechanism (openPreview/renderPreview/closePreview),
-// and the existing History row-rendering (renderHistoryOverview).
+// v1.15 Bottom Navigation -- persistent bar, Build moved onto Home as page
+// content. Entirely outside the coach-span. Reuses existing openPlan() and
+// the existing Preview mechanism (openPreview/renderPreview/closePreview).
 //
 // Master Ticket P2 (2026-07-13) superseded the middle tab: "Train" turned
 // out to be an exact duplicate of the Home hero's own tap target (identical
 // heroInfo()/started/weekDone branching, identical three destinations), so
-// it's gone. Progress takes that tab instead -- history, records, trends
-// finally get a real front door (previously only reachable via a per-lift
-// drill-down's "back" link) via a new openProgress()/closeProgress() overlay,
-// same data-mode-attribute pattern as Preview, rendering the exact same
-// renderHistoryOverview() content the modal always used.
+// it's gone. Progress took that tab's place for a few days, giving history/
+// records/trends a real front door via an openProgress()/closeProgress()
+// overlay -- then was itself removed 18 July 2026 (James: "not necessary to
+// have"), leaving a plain 2-tab Home/Settings bar. Per-exercise history is
+// still reachable from an active session's cards (openExerciseHistory),
+// unaffected by either change.
 const fs = require('fs');
 const { execSync } = require('child_process');
 const SRC = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8');
@@ -32,19 +32,20 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   });
 }
 
-// ---------- 2. New nav bar has exactly 3 items: Home, Progress, Settings ----------
+// ---------- 2. Nav bar has exactly 2 items: Home, Settings (Progress removed 18 July 2026) ----------
 {
   const navStart = SRC.indexOf('<nav class="bottomnav"');
   ok(navStart > -1, 'bottomnav markup exists');
   const navEnd = SRC.indexOf('</nav>', navStart);
   const navSrc = SRC.slice(navStart, navEnd);
   const itemCount = (navSrc.match(/class="bottomnav__item"/g) || []).length;
-  ok(itemCount === 3, 'bottomnav has exactly 3 items (got ' + itemCount + ')');
+  ok(itemCount === 2, 'bottomnav has exactly 2 items (got ' + itemCount + ')');
   const labels = (navSrc.match(/<span class="bottomnav__label">([^<]+)<\/span>/g) || []).map(function (m) {
     return m.replace(/<[^>]+>/g, '');
   });
-  ok(JSON.stringify(labels) === JSON.stringify(['Home', 'Progress', 'Settings']), 'labels are exactly Home, Progress, Settings in order (got ' + JSON.stringify(labels) + ')');
+  ok(JSON.stringify(labels) === JSON.stringify(['Home', 'Settings']), 'labels are exactly Home, Settings in order (got ' + JSON.stringify(labels) + ')');
   ok(!/Train/.test(navSrc), 'no stray "Train" tab in the bottom nav -- Master Ticket P2 removed it');
+  ok(!/Progress/.test(navSrc), 'no stray "Progress" tab in the bottom nav -- removed 18 July 2026');
 }
 
 // ---------- 3. Bar hidden/hold condition includes state.view === "day" ----------
@@ -80,41 +81,17 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
   });
 }
 
-// ---------- 5. Progress screen reuses existing history-rendering (no duplicate fn) ----------
-{
-  ok(/function openProgress\(\)/.test(SRC), 'openProgress() exists');
-  // Batch C gave closeProgress a fromPop param (hardware-back layer plumbing).
-  ok(/function closeProgress\(fromPop\)/.test(SRC), 'closeProgress() exists');
-  const openProgressSrc = SRC.slice(SRC.indexOf('function openProgress('), SRC.indexOf('\n}', SRC.indexOf('function openProgress(')));
-  ok(/renderHistoryOverview\(\$\("progressBody"\)\)/.test(openProgressSrc), 'openProgress() calls the existing renderHistoryOverview() targeting #progressBody -- no duplicate render path');
-  const renderHistoryOverviewDefs = (SRC.match(/function renderHistoryOverview\(/g) || []).length;
-  ok(renderHistoryOverviewDefs === 1, 'exactly one renderHistoryOverview() definition exists (got ' + renderHistoryOverviewDefs + ') -- Progress is not a second implementation');
-  ok(/renderHistoryOverview\(\$\("historyBody"\)\)/.test(SRC), 'the History sheet (modal, still used for the per-lift back-link) also calls the SAME renderHistoryOverview()');
-}
-
-// ---------- 6. Progress's lift drill-down reuses the existing per-lift history view ----------
-{
-  const wireStart = SRC.indexOf('$("progressBody").addEventListener("click"');
-  ok(wireStart > -1, '#progressBody has a click handler wired');
-  const wireSrc = SRC.slice(wireStart, wireStart + 300);
-  ok(/openExerciseHistory\(/.test(wireSrc), 'tapping a lift in Progress calls the existing openExerciseHistory() -- no second inline drill-down implementation');
-}
-
-// ---------- 7. Fresh-install: Progress tab present with dimmed/disabled visual state ----------
-{
-  ok(/id="navProgress"/.test(SRC), 'navProgress button exists unconditionally (not removed on fresh install)');
-  ok(/is-dim/.test(SRC), 'a dimmed visual class (is-dim) is used for the fresh-install Progress tab state');
-  ok(/navProgress\.classList\.toggle\("is-dim", !hasProgram\(\)\)/.test(SRC), 'syncNavBar() toggles is-dim on #navProgress based on !hasProgram() -- dimmed but tappable, not hidden/disabled');
-  ok(!/navProgress\.disabled/.test(SRC), 'navProgress is never given the disabled attribute (still tappable, same convention as before)');
-}
-
-// ---------- 7b. swReloadShouldHold() covers the new Progress overlay ----------
-{
-  const fnStart = SRC.indexOf('function swReloadShouldHold(');
-  const fnEnd = SRC.indexOf('\n  }', fnStart);
-  const fnSrc = SRC.slice(fnStart, fnEnd);
-  ok(/data-mode"\)\s*===\s*"progress"/.test(fnSrc), 'swReloadShouldHold() defers a pending SW reload while the Progress overlay is open, same as Preview');
-}
+// ---------- 5/6/7/7b. Progress screen, its drill-down, and its nav state ----------
+// (Removed 18 July 2026 along with the Progress tab itself, James: "not
+// necessary to have". openProgress/closeProgress/renderHistoryOverview and
+// the #progressBody/#navProgress elements no longer exist. Per-exercise
+// history (openExerciseHistory) is unaffected -- still reachable from an
+// active session's cards, verified in test-audit-tier1/tier2.)
+ok(SRC.indexOf('function openProgress(') === -1, 'openProgress() is gone');
+ok(SRC.indexOf('function closeProgress(') === -1, 'closeProgress() is gone');
+ok(SRC.indexOf('function renderHistoryOverview(') === -1, 'renderHistoryOverview() is gone (its only callers were Progress and the dead History-sheet overview list)');
+ok(SRC.indexOf('id="navProgress"') === -1, 'navProgress button is gone');
+ok(SRC.indexOf('id="progressBody"') === -1, 'progressBody element is gone');
 
 // ---------- 8. Coach-span md5 unchanged ----------
 {

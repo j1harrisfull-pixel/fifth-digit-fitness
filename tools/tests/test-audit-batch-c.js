@@ -1,20 +1,20 @@
 // UX audit Batch C (13 July 2026, James: "do all") -- flow & navigation:
-// 1. Hardware/gesture back closes layers: day / preview / progress each
-//    push one history entry; popstate closes the top layer instead of
-//    exiting the PWA mid-workout. UI closes consume their own entry
-//    (strict fromPop === true guard, because the closers double as click
-//    handlers whose first argument is the event).
+// 1. Hardware/gesture back closes layers: day / preview each push one
+//    history entry; popstate closes the top layer instead of exiting the
+//    PWA mid-workout. UI closes consume their own entry (strict
+//    fromPop === true guard, because the closers double as click handlers
+//    whose first argument is the event).
 // 2. Scroll memory: entering an overlay remembers the underlying scroll
-//    position; returning restores it (backToWeek/closePreview/
-//    closeProgress no longer dump the user at the top).
+//    position; returning restores it (backToWeek/closePreview no longer
+//    dump the user at the top).
 // 3. Sticky preview CTA: the primary action stays reachable while
 //    reading a long preview.
 // 4. Readiness prompt: Skip/Escape/backdrop all stamp "asked today"
 //    (state.readinessPromptAsked) so declining once stops the re-prompt
 //    on every entry, and every decline path still opens the day.
-// 5. Exclusive overlays: openPreview closes Progress and vice versa --
-//    no more data-mode clobber leaving a stale previewIdx or dangling
-//    close path.
+// (Section 5, "exclusive overlays" against a Progress tab, was removed
+// 18 July 2026 along with the Progress tab itself -- James: "not
+// necessary to have". Preview is now the app's only overlay mode.)
 const fs = require('fs');
 const SRC = fs.readFileSync('/Users/jamesharris/Desktop/training-log-app/index.html', 'utf8');
 
@@ -46,21 +46,19 @@ function extractFn(name) {
     'pushLayer adds one history entry per overlay');
   ok(/function consumeLayer\(\) \{ if \(layerDepth > 0\) \{ layerDepth--; layerSuppress = true; try \{ history\.back\(\); \} catch \(e\) \{\} \} \}/.test(SRC),
     'consumeLayer pops the entry and suppresses its own popstate echo');
-  ok(/window\.addEventListener\("popstate", function \(\) \{[\s\S]{0,600}else if \(state\.view === "day"\) backToWeek\(true\);/.test(SRC),
-    'popstate closes the top layer: preview, then progress, then the day view');
+  // Progress tab removed 18 July 2026 (James: "not necessary to have") --
+  // popstate now only ever has preview or the day view to close.
+  ok(/window\.addEventListener\("popstate", function \(\) \{[\s\S]{0,300}else if \(state\.view === "day"\) backToWeek\(true\);/.test(SRC),
+    'popstate closes the top layer: preview, then the day view');
   const od = extractFn('openDay');
   ok(/if \(state\.view !== "day"\) \{ rememberScroll\(\); pushLayer\("day"\); \}/.test(od),
     'openDay pushes a layer (and remembers scroll) only on a real week->day transition');
   const op = extractFn('openPreview');
   ok(/pushLayer\("preview"\)/.test(op), 'openPreview pushes its layer');
-  const og = extractFn('openProgress');
-  ok(/pushLayer\("progress"\)/.test(og), 'openProgress pushes its layer');
   const btw = extractFn('backToWeek');
   ok(/if \(fromPop !== true\) consumeLayer\(\);/.test(btw), 'backToWeek consumes its entry on UI back (strict guard: it is also a click handler)');
   const cp = extractFn('closePreview');
   ok(/if \(fromPop !== true\) consumeLayer\(\);/.test(cp), 'closePreview consumes its entry with the same strict guard');
-  const cg = extractFn('closeProgress');
-  ok(/if \(fromPop !== true\) consumeLayer\(\);/.test(cg), 'closeProgress consumes its entry with the same strict guard');
 }
 
 // ---------- 2. Scroll memory ----------
@@ -70,8 +68,6 @@ function extractFn(name) {
   ok(/renderAll\(false\); restoreScroll\(\);/.test(btw), 'backToWeek restores the week scroll position (no more top-of-list dump)');
   const cp = extractFn('closePreview');
   ok(/restoreScroll\(\)/.test(cp) && !/window\.scrollTo\(0, 0\)/.test(cp), 'closePreview restores instead of scrolling to top');
-  const cg = extractFn('closeProgress');
-  ok(/restoreScroll\(\)/.test(cg) && !/window\.scrollTo\(0, 0\)/.test(cg), 'closeProgress restores instead of scrolling to top');
 }
 
 // ---------- 3. Sticky preview CTA ----------
@@ -94,13 +90,9 @@ function extractFn(name) {
 }
 
 // ---------- 5. Exclusive overlays ----------
-{
-  const op = extractFn('openPreview');
-  ok(/if \(appEl\.getAttribute\("data-mode"\) === "progress"\) closeProgress\(\);/.test(op), 'opening Preview over Progress closes Progress first');
-  const og = extractFn('openProgress');
-  ok(/if \(appEl\.getAttribute\("data-mode"\) === "preview"\) closePreview\(\);/.test(og), 'opening Progress over Preview closes Preview first');
-  ok(/if \(appEl\.getAttribute\("data-mode"\) === "progress"\) return;/.test(og), 're-tapping the Progress tab while open is a no-op, not a double-push');
-}
+// (Removed 18 July 2026: this covered openPreview<->openProgress mutual
+// exclusion. Progress no longer exists -- Preview is now the only overlay,
+// so there is nothing left for it to be exclusive WITH.)
 
 // ---------- 6. Coach-span untouched ----------
 {

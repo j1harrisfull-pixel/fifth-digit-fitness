@@ -1,6 +1,6 @@
 // UX audit Batch F (13 July 2026, James: "do all") -- leftovers:
-// 1. History/Progress "All lifts (N)" expander -- the top-8 cap silently
-//    hid the rest of a long training history.
+// (Item 1, the History/Progress "All lifts (N)" expander, was removed
+// 18 July 2026 along with the Progress tab itself.)
 // 2. Receipt .finish-page__kept gets ellipsis truncation instead of
 //    nowrap overflow off the bone page.
 // 3. One-time install hint via beforeinstallprompt (Chrome/Android),
@@ -27,14 +27,9 @@ let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 
 // ---------- 1. All-lifts expander ----------
-{
-  ok(/var historyLiftsExpanded = false;/.test(SRC), 'the expander is session-scoped in-memory state (never persisted)');
-  ok(/var liftNames = historyLiftsExpanded \? allLiftNames : allLiftNames\.slice\(0, 8\);/.test(SRC), 'collapsed view keeps the top-8 ranking');
-  ok(/'<button type="button" class="history__more" data-act="lifts-all">All lifts \(' \+ allLiftNames\.length \+ '\)<\/button>'/.test(SRC),
-    'the expander names the real total');
-  ok(/historyLiftsExpanded = true; renderHistoryOverview\(\$\("historyBody"\)\)/.test(SRC), 'wired in the History sheet');
-  ok(/historyLiftsExpanded = true; renderHistoryOverview\(\$\("progressBody"\)\)/.test(SRC), 'wired in the Progress tab');
-}
+// (Removed 18 July 2026 along with the Progress tab and its History-sheet
+// overview list, James: "not necessary to have" -- the expander only ever
+// existed to page through that list, which no longer exists.)
 
 // ---------- 2. Receipt kept-cell truncation ----------
 {

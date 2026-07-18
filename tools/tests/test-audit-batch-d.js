@@ -85,10 +85,10 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; fails.push(msg); } };
 }
 
 // ---------- 7. History drill-down backdrop ----------
-{
-  ok(/if \(\$\("historyBody"\)\.querySelector\('\[data-act="histback"\]'\)\) \{ openHistory\(\); return; \}/.test(SRC),
-    'inside a lift drill-down the backdrop goes back one level (matches the visible ‹ control)');
-}
+// (Removed 18 July 2026: this covered the histback "go back one level" path,
+// which only existed because the Progress tab's lift list could be drilled
+// into. Progress is gone -- openExerciseHistory is now a single-level dialog
+// with a plain backdrop-closes-everything handler, verified elsewhere.)
 
 // ---------- 8. Coach-span untouched ----------
 {

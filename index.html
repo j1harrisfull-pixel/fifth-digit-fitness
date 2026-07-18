@@ -1487,15 +1487,12 @@ dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2,.8,.2,1); }
    fixed by id-scoping instead of renaming, since the HTML/JS still emit
    the same class names and #buildPreview's own untouched rules keep
    working exactly as before. */
-#previewView, #progressView { display: none; padding: 4px 4px calc(env(safe-area-inset-bottom) + 96px); }
+#previewView { display: none; padding: 4px 4px calc(env(safe-area-inset-bottom) + 96px); }
 .app[data-mode="preview"] .view-week,
-.app[data-mode="preview"] .view-day,
-.app[data-mode="progress"] .view-week,
-.app[data-mode="progress"] .view-day { display: none !important; }
+.app[data-mode="preview"] .view-day { display: none !important; }
 .app[data-mode="preview"] #previewView { display: block; }
-.app[data-mode="progress"] #progressView { display: block; }
-#previewView .preview__back, #progressView .preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
-#previewView .preview__eyebrow, #progressView .preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
+#previewView .preview__back { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--ink-dim); font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin: 0 0 18px; border-radius: var(--radius); cursor: pointer; }
+#previewView .preview__eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 4px; }
 /* v1.12.1: the title is the screen's one big element -- "what is this
    workout" gets the most visual weight on the page, more than it had
    before (was var(--fs-h2), 18px) and more than the CTA beneath it. */
@@ -1698,19 +1695,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
    sections render in (see openHistory()) carries the hierarchy now, not one
    eyebrow being louder than another. */
 .history__section-title { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 600; margin: 0 0 10px; }
-/* Phase 5: "Training so far" is real, earned lifetime context -- not the
-   hero of the sheet. Scoped because .recap-stat* is shared with Home's
-   locked week-complete recap card (renderHomeHero); the bare class must
-   stay untouched so Home's card is unaffected. Smaller numbers, quieter
-   labels, tighter rhythm than the recap card's celebratory moment.
-   Tier 2 audit (13 July 2026): renderHistoryOverview also targets the
-   Progress TAB (#progressBody) now -- the same render was getting the loud
-   bare-class styling there (20px/800 numbers, uppercase tracked labels),
-   silently undoing this deliberate quieting on the newer surface. Widened
-   to cover both. */
-#historySheet .recap-stats, #progressView .recap-stats { gap: 16px; }
-#historySheet .recap-stat__num, #progressView .recap-stat__num { font-size: 15px; font-weight: 700; }
-#historySheet .recap-stat__label, #progressView .recap-stat__label { text-transform: none; letter-spacing: 0; font-size: 11px; }
 .history__lift { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .history__lift:first-child { border-top: 0; }
 .history__lift:hover .history__lift-name { color: var(--accent-ink); }
@@ -1918,25 +1902,6 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
     <div id="previewView" hidden>
       <button type="button" class="preview__back" id="previewBack" aria-label="Back to the week"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Week</button>
       <div class="preview__content" id="previewContent"></div>
-    </div>
-    <!-- Master Ticket P2 (2026-07-13): Progress replaces the Train tab as the
-         third bottom-nav destination -- history, records, trends, lifetime
-         milestones get one real front door instead of being reachable only
-         via a per-exercise drill-down's "back" link. Same overlay pattern as
-         Preview (a data-mode attribute on #app, not a state.view value), and
-         renders the exact same renderHistoryOverview() content the old
-         History sheet used -- no second implementation. -->
-    <!-- Site-wide audit Tier 2 (13 July 2026): Progress is a top-level
-         bottom-nav destination, a sibling of Home -- the old "‹ Week" back
-         chevron implied a drill-down and duplicated the Home tab one
-         thumb-length away, so it's gone (the nav bar is the exit; the
-         closeProgress mechanics are unchanged and still used by the nav).
-         And the tab only had the small eyebrow with no hero -- the
-         eyebrow+hero pair now matches the app's standard hierarchy. -->
-    <div id="progressView" hidden>
-      <p class="preview__eyebrow">Your training</p>
-      <h2 class="history__title">Progress</h2>
-      <div id="progressBody"></div>
     </div>
   </main>
   <div class="logbar view-day" id="logBar" hidden>
@@ -2273,22 +2238,16 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
   </div>
 </dialog>
 
-<!-- Master Ticket P2 (2026-07-13): persistent 3-tab bar, Home/Progress/
-     Settings -- the middle tab was "Train" in v1.15, but it turned out to be
-     an exact duplicate of the Home hero's own tap target (same selection
-     logic, same destination), while Progress/history had no real front door
-     at all. Progress replaces it. Body-level, position:fixed, same tier as
-     .resttimer/.toast below -- hidden only during a live workout
-     (state.view === "day"), visible on Home, on the Progress screen, and
-     while Settings is open. -->
+<!-- Persistent 2-tab bar, Home/Settings (Progress removed 18 July 2026, James:
+     "not necessary to have" -- it never earned its own nav slot over the
+     per-exercise history already reachable from an active session's cards).
+     Body-level, position:fixed, same tier as .resttimer/.toast below --
+     hidden only during a live workout (state.view === "day"), visible on
+     Home and while Settings is open. -->
 <nav class="bottomnav" id="bottomNav" aria-label="Primary">
   <button type="button" class="bottomnav__item" id="navHome" aria-label="Home">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
     <span class="bottomnav__label">Home</span>
-  </button>
-  <button type="button" class="bottomnav__item" id="navProgress" aria-label="Progress">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V10M11 19V5M18 19v-7"/></svg>
-    <span class="bottomnav__label">Progress</span>
   </button>
   <button type="button" class="bottomnav__item" id="navSettings" aria-label="Settings and backup">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -2519,7 +2478,7 @@ body.has-rest .toast { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 <dialog class="sheet" id="historySheet" aria-labelledby="historyTitle">
   <div class="sheet__grip"></div>
   <div class="sheet__body">
-    <h2 class="history__title" id="historyTitle">Progress</h2>
+    <h2 class="history__title" id="historyTitle">History</h2>
     <div id="historyBody"></div>
     <div class="btn-row"><button class="btn" id="historyDone" type="button">Done</button></div>
   </div>
@@ -7639,46 +7598,6 @@ function resolveSpec(request, state) {
     Object.keys(lifts).forEach(function (k) { lifts[k].sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }); });
     return { lifts: lifts, sessions: sessions };
   }
-  // Lifetime milestones: the numbers that only get bigger, across every
-  // program ever built (archived or current) -- never reset, never per-week.
-  // A "streak" here means consecutive WEEKS with every scheduled session
-  // completed, not consecutive calendar days: this app's programs are built
-  // WITH rest days, so a day-streak would just measure the split, not
-  // consistency. A week where every session landed is the honest unit.
-  function computeLifetimeStats() {
-    var totalSessions = 0, totalSets = 0, totalVolume = 0, weekResults = [];
-    function ingest(program, log) {
-      if (!program || !Array.isArray(program.weeks)) return;
-      program.weeks.forEach(function (wk) {
-        var sessions = wk.sessions || []; if (!sessions.length) return;
-        var weekFullyDone = true, weekHasAny = false;
-        sessions.forEach(function (ses) {
-          var sl = log && log[ses.id];
-          var setsDoneThisSession = 0, prescribedThisSession = 0;
-          (ses.exercises || []).forEach(function (ex) {
-            var el = sl && sl.ex ? sl.ex[ex.id] : null;
-            prescribedThisSession += ex.sets || 0;
-            if (!el || !Array.isArray(el.sets)) return;
-            el.sets.forEach(function (s) {
-              if (!s.completed) return;
-              setsDoneThisSession++; totalSets++;
-              var w = s.actual_weight != null ? s.actual_weight : (el.weight != null ? el.weight : 0);
-              var reps = s.actual_reps != null ? s.actual_reps : 0;
-              if (w > 0 && reps > 0) totalVolume += w * reps;
-            });
-          });
-          if (setsDoneThisSession > 0) { totalSessions++; weekHasAny = true; }
-          if (setsDoneThisSession < prescribedThisSession) weekFullyDone = false;
-        });
-        if (weekHasAny) weekResults.push(weekFullyDone);
-      });
-    }
-    if (Array.isArray(state.archive)) state.archive.forEach(function (a) { ingest(a.program, a.log); });
-    ingest(state.program, state.log);
-    var longestStreak = 0, cur = 0;
-    weekResults.forEach(function (done) { if (done) { cur++; if (cur > longestStreak) longestStreak = cur; } else cur = 0; });
-    return { totalSessions: totalSessions, totalSets: totalSets, totalVolume: Math.round(totalVolume), longestStreak: longestStreak };
-  }
   function sparklineSvg(values) {
     if (values.length < 2) return "";
     var w = 70, h = 24, pad = 2, min = Math.min.apply(null, values), max = Math.max.apply(null, values), range = max - min || 1;
@@ -7694,68 +7613,13 @@ function resolveSpec(request, state) {
     var d = new Date(iso); if (isNaN(d.getTime())) return "";
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  // v1.15: pure content-building extracted from openHistory() so the Train
-  // tab's inline History segment can reuse the exact same overview instead
-  // of a hand-duplicated copy. Behavior-preserving refactor -- computes and
-  // returns the identical html openHistory() always assigned to
-  // historyBody.innerHTML; openHistory() below simply targets that element.
-  var historyLiftsExpanded = false; // Batch F: session-scoped "All lifts" toggle
-  function renderHistoryOverview(targetEl) {
-    var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
-    // Ranked by most-recent activity, not lifetime frequency -- a once-a-week
-    // deadlift must never be pushed off this list by a thrice-a-week accessory.
-    function lastDate(k) { var p = data.lifts[k]; return p[p.length - 1].date || ""; }
-    var allLiftNames = Object.keys(data.lifts).filter(function (k) { return data.lifts[k].length >= 2; })
-      .sort(function (a, b) { return lastDate(b).localeCompare(lastDate(a)); });
-    // Batch F: the top-8 cap silently hid the rest of a long training
-    // history -- an "All lifts" expander shows the full list on demand.
-    var liftNames = historyLiftsExpanded ? allLiftNames : allLiftNames.slice(0, 8);
-    var liftsHtml = liftNames.length ? liftNames.map(function (name) {
-      var pts = data.lifts[name].slice(-8), values = pts.map(function (p) { return p.orm; }), last = values[values.length - 1];
-      return '<button type="button" class="history__lift" data-lift="' + esc(name) + '"><span class="history__lift-name">' + esc(name) + '</span>' + sparklineSvg(values) + '<span class="history__lift-val">' + last + esc(unit) + '</span></button>';
-    }).join("") : '<p class="history__empty">Log the same lift in another session and I’ll show how it’s moving.</p>';
-    var recentSessions = data.sessions.slice(0, 12);
-    var sessHtml = recentSessions.length ? recentSessions.map(function (s) {
-      return '<div class="history__session"><span><span class="history__session-name">' + esc(s.name) + '</span><span class="history__session-date">' + esc(fmtHistDate(s.date)) + '</span></span><span class="history__session-sets">' + s.setsDone + ' sets</span></div>';
-    }).join("") : '<p class="history__empty">Nothing logged yet — finish a set and it’ll show up here.</p>';
-    var life = computeLifetimeStats();
-    // Silent when there's genuinely nothing yet -- no "0 sessions" milestone
-    // block on a brand-new install.
-    var lifeHtml = life.totalSessions > 0
-      ? '<div class="history__section"><p class="history__section-title">Training so far</p><div class="recap-stats recap-stats--flush">' +
-        '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSessions + '</span><span class="recap-stat__label">Sessions</span></div>' +
-        '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalSets + '</span><span class="recap-stat__label">Sets</span></div>' +
-        (life.totalVolume > 0 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.totalVolume.toLocaleString() + '</span><span class="recap-stat__label">Volume ' + esc(unit) + '</span></div>' : '') +
-        (life.longestStreak > 1 ? '<div class="recap-stat"><span class="recap-stat__num mono">' + life.longestStreak + '</span><span class="recap-stat__label">Longest run of full weeks</span></div>' : '') +
-        '</div></div>'
-      : "";
-    // Phase 5: order is the hierarchy signal now, not eyebrow loudness (all
-    // three share the same quiet .history__section-title treatment). Real
-    // trend data present -> it leads, sessions carry the middle, lifetime
-    // totals close the sheet as quiet context. No trend data yet -> the log
-    // itself (recent sessions) leads, the trend section's honest empty note
-    // sits second, lifetime totals still close it out. No calculation change:
-    // liftNames/liftsHtml/sessHtml/lifeHtml are unchanged, only concatenation
-    // order differs.
-    var moreHtml = (!historyLiftsExpanded && allLiftNames.length > 8)
-      ? '<button type="button" class="history__more" data-act="lifts-all">All lifts (' + allLiftNames.length + ')</button>' : "";
-    var trendSection = '<div class="history__section"><p class="history__section-title">Strength trend</p>' + liftsHtml + moreHtml + '</div>';
-    var sessSection = '<div class="history__section"><p class="history__section-title">Recent sessions</p>' + sessHtml + '</div>';
-    targetEl.innerHTML = liftNames.length
-      ? (trendSection + sessSection + lifeHtml)
-      : (sessSection + trendSection + lifeHtml);
-  }
-  function openHistory() {
-    $("historyTitle").textContent = "Progress";
-    renderHistoryOverview($("historyBody"));
-    var dlg = $("historySheet");
-    openSheetNoKb(dlg);
-  }
   // Per-exercise history at the point of need: the lift's full dated est-1RM
   // series + its records, from the same buildHistoryData the History sheet
-  // uses -- one source of truth for "what did this lift do". Reuses the
-  // History sheet dialog; opening from an exercise card swaps its body.
-  function openExerciseHistory(name, fromList) {
+  // uses -- one source of truth for "what did this lift do". Opened from an
+  // exercise card during a live session; the Progress tab that used to also
+  // feed this dialog (with a "back to Progress" link) was removed 18 July
+  // 2026 (James: "not necessary to have") -- this is now the ONLY entry point.
+  function openExerciseHistory(name) {
     var data = buildHistoryData(state), unit = state.program ? state.program.unit : "kg";
     var pts = data.lifts[name] || [];
     var body;
@@ -7781,12 +7645,7 @@ function resolveSpec(request, state) {
       body = recordHtml + chart + '<div class="history__section"><p class="history__section-title">Sessions</p>' + rows + '</div>';
     }
     $("historyTitle").textContent = name;
-    // Opened from the Progress list, this view REPLACES the list in the same
-    // sheet -- so give it a way back to the overview it came from, instead of
-    // forcing a full close via Done. Opened from an exercise card's "History",
-    // there's no list to return to, so no back link.
-    var backHtml = fromList ? '<button type="button" class="history__back" data-act="histback"><span aria-hidden="true">‹</span> Progress</button>' : '';
-    $("historyBody").innerHTML = backHtml + body;
+    $("historyBody").innerHTML = body;
     var dlg = $("historySheet");
     if (!dlg.hasAttribute("open")) { openSheetNoKb(dlg); }
   }
@@ -9587,14 +9446,9 @@ function resolveSpec(request, state) {
     layerDepth = Math.max(0, layerDepth - 1);
     var mode = appEl.getAttribute("data-mode");
     if (mode === "preview") closePreview(true);
-    else if (mode === "progress") closeProgress(true);
     else if (state.view === "day") backToWeek(true);
   });
   function openPreview(i) {
-    // Batch C: overlays are exclusive -- opening Preview over the Progress
-    // tab (or vice versa) closes the other instead of clobbering data-mode
-    // and leaving its close path dangling.
-    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     previewIdx = i;
     rememberScroll();
     appEl.setAttribute("data-mode", "preview");
@@ -9610,28 +9464,6 @@ function resolveSpec(request, state) {
     appEl.removeAttribute("data-mode");
     restoreScroll();
     applySwReload(); // v1.14: release a deferred SW reload held while previewing
-    syncNavBar();
-  }
-  // Master Ticket P2 (2026-07-13): Progress tab entry point. Same overlay
-  // mechanism as Preview (a data-mode attribute, not a state.view value) --
-  // renders the identical renderHistoryOverview() content the History sheet
-  // has always used, just targeting #progressBody instead of the modal's
-  // #historyBody. No new history-building logic.
-  function openProgress() {
-    if (appEl.getAttribute("data-mode") === "preview") closePreview(); // Batch C: exclusive overlays
-    if (appEl.getAttribute("data-mode") === "progress") return; // already open (nav re-tap)
-    rememberScroll();
-    appEl.setAttribute("data-mode", "progress");
-    renderHistoryOverview($("progressBody"));
-    window.scrollTo(0, 0);
-    syncNavBar();
-    pushLayer("progress");
-  }
-  function closeProgress(fromPop) {
-    if (fromPop !== true) consumeLayer(); // strict: see closePreview
-    appEl.removeAttribute("data-mode");
-    restoreScroll();
-    applySwReload();
     syncNavBar();
   }
   // The one explicit transition out of preview and into the existing,
@@ -11041,71 +10873,40 @@ function resolveSpec(request, state) {
     cs.addEventListener("click", function (ev) { if (ev.target === cs) leaveToWeek(); });
     cs.addEventListener("cancel", function (ev) { ev.preventDefault(); leaveToWeek(); }); // Escape
   })();
-  $("historyBody").addEventListener("click", function (ev) {
-    if (ev.target.closest('[data-act="lifts-all"]')) { historyLiftsExpanded = true; renderHistoryOverview($("historyBody")); return; } // Batch F
-    if (ev.target.closest('[data-act="histback"]')) { openHistory(); return; }
-    var row = ev.target.closest("[data-lift]"); if (!row) return;
-    openExerciseHistory(row.getAttribute("data-lift"), true); // from the Progress list -> offer a way back
-  });
   $("historyDone").addEventListener("click", function () { var hs = $("historySheet"); if (hs.close) hs.close(); else hs.removeAttribute("open"); });
   $("historySheet").addEventListener("click", function (ev) {
     var hs = $("historySheet"); if (ev.target !== hs) return;
-    // Batch D: inside a lift drill-down (it renders a histback control),
-    // the backdrop goes back ONE level to the lift list -- matching what the
-    // visible ‹ control does -- instead of dumping the whole sheet.
-    if ($("historyBody").querySelector('[data-act="histback"]')) { openHistory(); return; }
     if (hs.close) hs.close(); else hs.removeAttribute("open");
   });
-  // Master Ticket P2 (2026-07-13): Home returns from Preview/Progress
-  // (closePreview/closeProgress are each a no-op if not open) and closes
-  // Settings if it happens to be open; Progress opens the Progress screen;
-  // Settings reuses the existing openSheet() unchanged.
+  // Home returns from Preview (closePreview is a no-op if not open) and
+  // closes Settings if it happens to be open. Settings reuses the existing
+  // openSheet() unchanged. (Progress tab removed 18 July 2026, James: "not
+  // necessary to have" -- nav is Home/Settings only now.)
   $("navHome").addEventListener("click", function () {
     if (appEl.getAttribute("data-mode") === "preview") closePreview();
-    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     if (sheet.open) closeSheet();
     syncNavBar();
   });
-  $("navProgress").addEventListener("click", openProgress);
-  // Tier 2 audit (13 July 2026): the "‹ Week" back button was removed from
-  // the Progress tab (it's a top-level nav destination, not a drill-down --
-  // the nav bar itself is the exit; closeProgress still runs via navHome).
   $("navSettings").addEventListener("click", openSheet);
   // P1 (Master Ticket): the resume strip's own tap target -- reuses the
   // existing openDay() directly (no readiness re-prompt; readiness was
   // already answered once to start this same session earlier today/this
-  // week). Also closes Preview/Progress/Settings first if any happened to be
+  // week). Also closes Preview/Settings first if either happened to be
   // open, same cleanup navHome already does above.
   $("resumeStrip").addEventListener("click", function () {
     var idx = parseInt($("resumeStrip").getAttribute("data-resume-idx"), 10);
     if (isNaN(idx)) return;
     if (appEl.getAttribute("data-mode") === "preview") closePreview();
-    if (appEl.getAttribute("data-mode") === "progress") closeProgress();
     if (sheet.open) closeSheet();
     openDay(idx);
   });
-  // Progress's own lift-drill-down reuses the exact same delegated pattern
-  // as the History sheet's own #historyBody listener above -- tapping a lift
-  // opens the existing historySheet modal (openExerciseHistory), not a
-  // second inline drill-down implementation.
-  $("progressBody").addEventListener("click", function (ev) {
-    if (ev.target.closest('[data-act="lifts-all"]')) { historyLiftsExpanded = true; renderHistoryOverview($("progressBody")); return; } // Batch F
-    var row = ev.target.closest("[data-lift]"); if (!row) return;
-    openExerciseHistory(row.getAttribute("data-lift"), true);
-  });
-  // Master Ticket P2: which of Home/Progress/Settings reads as the active
-  // tab. Progress is active whenever its own data-mode overlay is open --
-  // no ambiguity with Preview (a week-row-triggered "view this workout" is
-  // its own separate mode and always leaves Home as the active tab).
+  // Which of Home/Settings reads as the active tab.
   function syncNavBar() {
-    var navHome = $("navHome"), navProgress = $("navProgress"), navSettings = $("navSettings");
-    if (!navHome || !navProgress || !navSettings) return;
-    var progressOpen = appEl.getAttribute("data-mode") === "progress";
+    var navHome = $("navHome"), navSettings = $("navSettings");
+    if (!navHome || !navSettings) return;
     var settingsOpen = sheet.open;
-    navProgress.classList.toggle("active", progressOpen);
     navSettings.classList.toggle("active", settingsOpen);
-    navHome.classList.toggle("active", !progressOpen && !settingsOpen);
-    navProgress.classList.toggle("is-dim", !hasProgram());
+    navHome.classList.toggle("active", !settingsOpen);
   }
   // Phase 7 (2.1b): today's manual readiness tap, date-scoped so it resets daily.
   function setReadiness(v) { state.readiness = { value: v, date: todayStr() }; save(); syncReadinessChips(); }
@@ -12416,7 +12217,6 @@ function resolveSpec(request, state) {
   function swReloadShouldHold() {
     if (state && state.view === "day") return true;
     if (appEl && appEl.getAttribute("data-mode") === "preview") return true;
-    if (appEl && appEl.getAttribute("data-mode") === "progress") return true;
     var sheets = document.querySelectorAll("dialog.sheet");
     for (var i = 0; i < sheets.length; i++) { if (sheets[i].open) return true; }
     return false;
