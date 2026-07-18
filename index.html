@@ -826,7 +826,13 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
    not a standalone hero control. .weight__input gets real padding (not a
    bare fixed width at zero padding) so a 3-digit-decimal load like 142.5
    never clips against the box edge. */
-.startweight { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+/* 18 July 2026: the earned-progress hint ("62.5 → 65 kg earned") is a
+   fixed-width mono string that, on a narrow phone, plus the label and
+   stepper group in the same nowrap row, ran past the right edge and
+   clipped the unit. flex-wrap lets it drop to its own full-width line
+   instead of overflowing; .card__last's basis:100% (below) is what makes
+   it actually take that line rather than just wrapping mid-string. */
+.startweight { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 6px; }
 .startweight__label { flex: none; font-size: 11px; color: var(--ink-dim); font-weight: 600; letter-spacing: .02em; }
 /* An unset weight is a gentle prompt to fill in, not an error -- amber
    (--manage), not the alarm accent, so it reads as "your turn" not "wrong". */
@@ -858,7 +864,7 @@ body.has-logbar .list { padding-bottom: calc(env(safe-area-inset-bottom) + 96px)
 /* Premium refinement: sentence-case, not uppercase-tracked -- one fewer
    dashboard-style label inside the card. */
 .setcount__label { font-family: var(--font-body); font-size: 12px; color: var(--ink-dim); margin-left: 4px; align-self: center; }
-.card__last { margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; }
+.card__last { flex-basis: 100%; margin-left: auto; align-self: center; font-family: "Spline Sans Mono", monospace; font-size: 12px; color: var(--ink-dim); letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card__last.is-earned { color: var(--ready); }
 .card__why { font-size: 12px; color: var(--ink-dim); margin: 0; }
 /* Redesign Pass 1 (J1): the prescription is one quiet coached line, not three
