@@ -52,6 +52,9 @@ const sessionProgressSrc = extractFn('sessionProgress');
 const displayOrderedExercisesSrc = extractFn('displayOrderedExercises');
 const sessionItemsForSrc = extractFn('sessionItemsFor');
 const isSessionFinishedSrc = extractFn('isSessionFinished');
+// 19 July 2026: isPreviewSession now reuses countCompletedSets (a session
+// with any completed set is in progress, never preview) -- pull it in too.
+const countCompletedSetsSrc = extractFn('countCompletedSets');
 const hasRealWorkSrc = extractFn('hasRealWork');
 const programTrainDaysSrc = extractFn('programTrainDays');
 const weekdayForSessionSrc = extractFn('weekdayForSession');
@@ -87,6 +90,7 @@ function resolverHarness() {
     ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
     ${isSessionFinishedSrc}
+  ${countCompletedSetsSrc}
     ${hasRealWorkSrc}
     ${programTrainDaysSrc}
     ${weekdayForSessionSrc}
@@ -245,6 +249,7 @@ function actionHarness() {
     ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
     ${isSessionFinishedSrc}
+  ${countCompletedSetsSrc}
     ${hasRealWorkSrc}
     ${programTrainDaysSrc}
     ${weekdayForSessionSrc}

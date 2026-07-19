@@ -7156,6 +7156,16 @@ function resolveSpec(request, state) {
     var ses = wk.sessions && wk.sessions[i];
     if (!ses) return false;
     if (isSessionFinished(ses)) return false;
+    // 19 July 2026 (finish-screen audit): a session with ANY completed set is
+    // IN PROGRESS -- never a read-only preview. Found live: fully log a
+    // session, skip Finish, relaunch, reopen it from the week row -- the
+    // armed index had moved on to the next unfinished day, so this returned
+    // true and the day rendered the "Planned for later. Nothing logs from
+    // here." banner OVER a ticking resumed live timer, with the Finish
+    // button hidden -- no way to close out the logged work from that screen.
+    // Same in-progress definition the Home resume strip already uses
+    // (findInProgressSession/countCompletedSets), just applied here too.
+    if (countCompletedSets(state.log[ses.id]) > 0) return false;
     return i !== armedSessionIdx(wk);
   }
   // True until the first time the user opens a session this launch -- lets the

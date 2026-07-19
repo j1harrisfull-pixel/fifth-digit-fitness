@@ -66,6 +66,9 @@ const sessionProgressSrc = extractFn('sessionProgress');
 const displayOrderedExercisesSrc = extractFn('displayOrderedExercises');
 const sessionItemsForSrc = extractFn('sessionItemsFor');
 const isSessionFinishedSrc = extractFn('isSessionFinished');
+// 19 July 2026: isPreviewSession now reuses countCompletedSets (a session
+// with any completed set is in progress, never preview) -- pull it in too.
+const countCompletedSetsSrc = extractFn('countCompletedSets');
 const programTrainDaysSrc = extractFn('programTrainDays');
 const weekdayForSessionSrc = extractFn('weekdayForSession');
 const todayWeekdaySrc = extractFn('todayWeekday');
@@ -98,6 +101,7 @@ const harness = `
   ${displayOrderedExercisesSrc}
     ${sessionItemsForSrc}
   ${isSessionFinishedSrc}
+  ${countCompletedSetsSrc}
   ${programTrainDaysSrc}
   ${weekdayForSessionSrc}
   ${todayWeekdaySrc}
@@ -146,10 +150,13 @@ function ses(id, exSets) { return { id: id, name: id, exercises: exSets.map(func
   ok(M.armedSessionIdx() === 1, 'flexible program: armed session is the first INCOMPLETE session (test 2), skipping the fully-done one');
   ok(!M.isPreviewSession(1), 'session B (armed) is not preview (test 2b)');
   ok(M.isPreviewSession(2), 'session C (not armed, not started) is preview (test 2c)');
-  // A is fully done (terminal via sessionProgress, not finishedAt) -- isSessionFinished
-  // is false for it (no finishedAt stamp), so it is NOT carved out by that check;
-  // it is simply not armed and therefore preview, same as any other non-armed day.
-  ok(M.isPreviewSession(0), 'a fully-done-but-not-finishedAt session is preview like any other non-armed day (test 2d)');
+  // 19 July 2026 (finish-screen audit) REVERSAL of the old 2d: a session
+  // with completed sets but no finishedAt is IN PROGRESS, never preview.
+  // The old rule was found live to render the "Planned for later. Nothing
+  // logs from here." banner OVER a ticking resumed live timer with the
+  // Finish button hidden -- a fully-logged session with no way to close it
+  // out. isPreviewSession now short-circuits on countCompletedSets > 0.
+  ok(!M.isPreviewSession(0), 'a session with completed sets (even fully done, unfinished) is IN PROGRESS -- never preview (test 2d, reversed 19 Jul 2026)');
 }
 
 // ---------- Test 3: exactly one session is armed ----------
@@ -280,6 +287,7 @@ GUARDED_FNS.forEach(function (name) {
     function sessionItems() { return sessionItemsFor(curSession()); }
     ${firstIncompleteIdSrc}
     ${isSessionFinishedSrc}
+  ${countCompletedSetsSrc}
     ${programTrainDaysSrc}
     ${weekdayForSessionSrc}
     ${todayWeekdaySrc}
